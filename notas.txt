@@ -33,3 +33,4 @@ Comandos linux utilizados
 
 
 
+criar hub para geracao de canais e sincrinizar back com front
