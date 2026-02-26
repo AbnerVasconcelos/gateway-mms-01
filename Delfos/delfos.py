@@ -49,7 +49,7 @@ def main():
         logger.critical("Erro inesperado ao processar arquivos CSV: %s", e)
         return
 
-    channels = ['channel1']
+    channels = ['user_status']
     redis_result = retry_on_failure(setup_redis)
     if redis_result is None:
         return
@@ -74,7 +74,7 @@ def main():
             message = get_latest_message(pubsub)
             if message and message['type'] == 'message':
                 channel = message['channel'].decode()
-                if channel == 'channel1':
+                if channel == 'user_status':
                     data = json.loads(message['data'].decode())
                     user_state = data['user_state']
                     logger.info("Estado do usuário atualizado: conectado=%s", user_state)
@@ -133,8 +133,8 @@ def main():
             "timestamp": datetime.datetime.now().isoformat()
         }
 
-        publish_to_channel(r, json.dumps(read_register_and_coil_data, indent=4), "channel2")
-        publish_to_channel(r, json.dumps(alarms_register_and_coil_data, indent=4), "channel4")
+        publish_to_channel(r, json.dumps(read_register_and_coil_data, indent=4), "plc_data")
+        publish_to_channel(r, json.dumps(alarms_register_and_coil_data, indent=4), "alarms")
 
 
 if __name__ == "__main__":

@@ -189,7 +189,7 @@ class TestEscrita(unittest.TestCase):
     def test_15_write_sequence_coil_and_register(self):
         """
         Sequência realista: liga equipamento (coil) + define setpoint (register).
-        Simula o que handle_channel3_message do Atena faz ao receber ch3.
+        Simula o que handle_plc_commands_message do Atena faz ao receber ch3.
         """
         coil_addr = 2171   # extrusoraLigadoDesligado
         reg_addr  = 40123  # extrusoraRefVelocidade

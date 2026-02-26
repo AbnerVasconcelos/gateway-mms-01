@@ -11,7 +11,7 @@ from table_filter import find_values_by_object_tag
 logger = logging.getLogger(__name__)
 
 
-def handle_channel3_message(message, user_state, client, csv_path):
+def handle_plc_commands_message(message, user_state, client, csv_path):
     if user_state:
         write_data, timestamp = get_write_data(message)
         matching_modbus_coils, matching_values_coils, matching_modbus_registers, matching_values_registers = find_values_by_object_tag(csv_path, write_data)
@@ -24,21 +24,21 @@ def handle_channel3_message(message, user_state, client, csv_path):
         logger.info("Dados escritos com sucesso no CLP.")
 
 
-def handle_channel1_message(message):
+def handle_user_status_message(message):
     user_state, _ = get_user_state(message)
     return user_state
 
 
-def handle_channel5_message(message):
+def handle_ia_status_message(message):
     ia_mode, _ = get_ia_mode(message)
     return ia_mode
 
 
-def handle_channel7_message(message, ia_mode):
+def handle_ia_data_message(message, ia_mode):
     if ia_mode:
         ia_data, timestamp = get_ia_data(message)
         # TODO: implementar lógica de processamento dos dados da IA
-        logger.warning("handle_channel7_message: recebido mas sem implementação. Dados: %s", ia_data)
+        logger.warning("handle_ia_data_message: recebido mas sem implementação. Dados: %s", ia_data)
 
 
 def get_write_data(message):

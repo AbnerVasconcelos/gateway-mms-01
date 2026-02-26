@@ -8,10 +8,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.redis_config_functions import subscribe_to_channels, setup_redis
 from shared.modbus_functions import setup_modbus
 from data_handle import (
-                        handle_channel1_message,
-                        handle_channel3_message,
-                        handle_channel5_message,
-                        handle_channel7_message,
+                        handle_user_status_message,
+                        handle_plc_commands_message,
+                        handle_ia_status_message,
+                        handle_ia_data_message,
                          )
 
 load_dotenv()
@@ -29,7 +29,7 @@ _TABLES_DIR = os.environ.get('TABLES_DIR', '../tables')
 def main():
     csv_path = os.path.join(_TABLES_DIR, 'operacao.csv')
 
-    channels = ['channel1', 'channel3', 'channel5', 'channel7']
+    channels = ['user_status', 'plc_commands', 'ia_status', 'ia_data']
     r, pubsub = setup_redis()
     if r is None or pubsub is None:
         logger.critical("Falha ao conectar ao Redis. Encerrando.")
@@ -49,19 +49,19 @@ def main():
         if message and message['type'] == 'message':
             channel = message['channel'].decode()
 
-            if channel == 'channel3':
-                handle_channel3_message(message, user_state, client, csv_path)
+            if channel == 'plc_commands':
+                handle_plc_commands_message(message, user_state, client, csv_path)
 
-            elif channel == 'channel1':
-                user_state = handle_channel1_message(message)
+            elif channel == 'user_status':
+                user_state = handle_user_status_message(message)
                 logger.info("Estado do usuário atualizado: conectado=%s", user_state)
 
-            elif channel == 'channel5':
-                ia_mode = handle_channel5_message(message)
+            elif channel == 'ia_status':
+                ia_mode = handle_ia_status_message(message)
                 logger.info("Modo IA atualizado: %s", ia_mode)
 
-            elif channel == 'channel7':
-                handle_channel7_message(message, ia_mode)
+            elif channel == 'ia_data':
+                handle_ia_data_message(message, ia_mode)
 
 
 if __name__ == "__main__":

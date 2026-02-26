@@ -3,8 +3,8 @@
 Teste de integração do Atena.
 
 Fluxo:
-  1. Publica channel1 → user_state=True  (habilita escrita)
-  2. Publica channel3 → dados de escrita (coil + register)
+  1. Publica user_status → user_state=True  (habilita escrita)
+  2. Publica plc_commands → dados de escrita (coil + register)
   3. Lê de volta do simulador Modbus para confirmar que o Atena escreveu
 
 Pré-requisitos:
@@ -15,6 +15,7 @@ Pré-requisitos:
 import json
 import logging
 import os
+import subprocess
 import time
 import unittest
 
@@ -28,19 +29,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger("test_atena")
 
-REDIS_HOST   = os.environ.get("REDIS_HOST", "localhost")
-REDIS_PORT   = int(os.environ.get("REDIS_PORT", 6379))
-MODBUS_HOST  = os.environ.get("MODBUS_HOST", "127.0.0.1")
-MODBUS_PORT  = int(os.environ.get("MODBUS_PORT", 5020))
+GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PYTHON      = os.path.join(GATEWAY_DIR, ".venv", "Scripts", "python")
+REDIS_HOST  = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT  = int(os.environ.get("REDIS_PORT", 6379))
+MODBUS_HOST = os.environ.get("MODBUS_HOST", "127.0.0.1")
+MODBUS_PORT = int(os.environ.get("MODBUS_PORT", 5020))
 
 # Delay após publicar para o Atena processar a mensagem
 ATENA_DELAY = float(os.environ.get("ATENA_DELAY", "0.8"))
+
+LOG_DIR = os.path.join(GATEWAY_DIR, "tests", "logs")
 
 
 class TestAtenaEscrita(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        os.makedirs(LOG_DIR, exist_ok=True)
+
         # Conexão Redis
         cls.r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
         try:
@@ -48,36 +55,60 @@ class TestAtenaEscrita(unittest.TestCase):
         except Exception as e:
             raise unittest.SkipTest(f"Redis não acessível em {REDIS_HOST}:{REDIS_PORT}: {e}")
 
-        # Conexão Modbus (simulador)
+        # Inicia simulador Modbus
+        cls.sim = subprocess.Popen(
+            [PYTHON, os.path.join(GATEWAY_DIR, "tests", "modbus_simulator.py")],
+            cwd=GATEWAY_DIR,
+            stdout=open(os.path.join(LOG_DIR, "atena_sim.log"), "w"),
+            stderr=subprocess.STDOUT,
+        )
+        time.sleep(2)
+
+        # Inicia Atena
+        cls.atena = subprocess.Popen(
+            [PYTHON, "atena.py"],
+            cwd=os.path.join(GATEWAY_DIR, "Atena"),
+            stdout=open(os.path.join(LOG_DIR, "atena_proc.log"), "w"),
+            stderr=subprocess.STDOUT,
+        )
+        time.sleep(2)
+
+        # Conexão Modbus para verificação
         cls.mb = ModbusClient(MODBUS_HOST, MODBUS_PORT, auto_open=True)
         if not cls.mb.open():
-            raise unittest.SkipTest(
-                f"Simulador não acessível em {MODBUS_HOST}:{MODBUS_PORT}.\n"
-                "Execute: python tests/modbus_simulator.py"
-            )
+            raise unittest.SkipTest(f"Simulador não acessível em {MODBUS_HOST}:{MODBUS_PORT}.")
 
-        # Habilita user_state — sem isso o Atena ignora channel3
-        logger.info("Publicando channel1: user_state=True")
-        cls.r.publish("channel1", json.dumps({"user_state": True}))
+        # Habilita user_state — sem isso o Atena ignora plc_commands
+        logger.info("Publicando user_status: user_state=True")
+        cls.r.publish("user_status", json.dumps({"user_state": True}))
         time.sleep(ATENA_DELAY)
-        logger.info("Conectado ao Redis e ao simulador.")
+        logger.info("Simulador + Atena prontos.")
 
     @classmethod
     def tearDownClass(cls):
+        cls.r.publish("user_status", json.dumps({"user_state": False}))
+        time.sleep(0.3)
         cls.mb.close()
+        for proc, name in [(cls.atena, "Atena"), (cls.sim, "Simulador")]:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+            logger.info("%s encerrado.", name)
 
     # ------------------------------------------------------------------
 
     def _publish_ch3(self, payload: dict):
         data = json.dumps(payload)
-        self.r.publish("channel3", data)
-        logger.info("channel3 → %s", data)
+        self.r.publish("plc_commands", data)
+        logger.info("plc_commands → %s", data)
         time.sleep(ATENA_DELAY)
 
     # ------------------------------------------------------------------
 
     def test_01_escreve_coil(self):
-        """Atena deve escrever coil no simulador ao receber channel3."""
+        """Atena deve escrever coil no simulador ao receber plc_commands."""
         addr = 2173   # extrusoraLigaDesligaBotao
 
         # Garante estado inicial False
@@ -92,7 +123,7 @@ class TestAtenaEscrita(unittest.TestCase):
         logger.info("extrusoraLigaDesligaBotao (addr=%d) = %s  OK", addr, result[0])
 
     def test_02_escreve_register(self):
-        """Atena deve escrever register no simulador ao receber channel3."""
+        """Atena deve escrever register no simulador ao receber plc_commands."""
         addr      = 40123   # extrusoraRefVelocidade
         setpoint  = 1450
 
@@ -151,7 +182,7 @@ class TestAtenaEscrita(unittest.TestCase):
         logger.info("Puxador: coil[%d]=%s, reg[%d]=%d  OK", coil_addr, coil[0], reg_addr, reg[0])
 
     def test_05_user_state_false_bloqueia_escrita(self):
-        """Com user_state=False, Atena deve ignorar channel3."""
+        """Com user_state=False, Atena deve ignorar plc_commands."""
         addr = 40123  # extrusoraRefVelocidade
 
         # Define valor conhecido
@@ -159,10 +190,10 @@ class TestAtenaEscrita(unittest.TestCase):
         time.sleep(0.1)
 
         # Desabilita user_state
-        self.r.publish("channel1", json.dumps({"user_state": False}))
+        self.r.publish("user_status", json.dumps({"user_state": False}))
         time.sleep(ATENA_DELAY)
 
-        # Tenta escrever via channel3 — não deve surtir efeito
+        # Tenta escrever via plc_commands — não deve surtir efeito
         self._publish_ch3({"Extrusora": {"extrusoraRefVelocidade": 1111}})
 
         result = self.mb.read_holding_registers(addr, 1)
@@ -174,14 +205,14 @@ class TestAtenaEscrita(unittest.TestCase):
         logger.info("Bloqueio user_state=False: register permaneceu em 9999  OK")
 
         # Reabilita para os próximos testes
-        self.r.publish("channel1", json.dumps({"user_state": True}))
+        self.r.publish("user_status", json.dumps({"user_state": True}))
         time.sleep(ATENA_DELAY)
 
     def test_06_tag_inexistente_nao_causa_erro(self):
-        """Tag desconhecida no channel3 não deve travar o Atena."""
+        """Tag desconhecida no plc_commands não deve travar o Atena."""
         self._publish_ch3({"NaoExiste": {"tagFalsa": 42}})
         # Se Atena ainda está vivo, conseguimos publicar novamente
-        self.r.publish("channel3", json.dumps({"Extrusora": {"extrusoraRefVelocidade": 1400}}))
+        self.r.publish("plc_commands", json.dumps({"Extrusora": {"extrusoraRefVelocidade": 1400}}))
         time.sleep(ATENA_DELAY)
         result = self.mb.read_holding_registers(40123, 1)
         self.assertIsNotNone(result, "Atena parou após tag inexistente")

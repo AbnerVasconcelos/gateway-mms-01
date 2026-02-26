@@ -51,7 +51,7 @@ def _drain(pubsub, timeout: float = 0.05):
 
 def wait_for_ch2(pubsub, key_path: list, expected, timeout: float = 8.0):
     """
-    Aguarda até `timeout` s por uma mensagem em channel2 onde
+    Aguarda até `timeout` s por uma mensagem em plc_data onde
     data[key_path[0]][key_path[1]]... == expected.
 
     Retorna o payload JSON completo se encontrado, None se timeout.
@@ -120,15 +120,15 @@ class TestFullLoop(unittest.TestCase):
 
         time.sleep(2)   # aguarda conexões Modbus + Redis
 
-        # Habilita user_state para que Atena processe channel3
-        cls.r.publish("channel1", json.dumps({"user_state": True}))
+        # Habilita user_state para que Atena processe plc_commands
+        cls.r.publish("user_status", json.dumps({"user_state": True}))
         time.sleep(DELFOS_CYCLE)   # aguarda Delfos publicar ao menos 1 ciclo
 
         logger.info("Simulador + Delfos + Atena prontos.")
 
     @classmethod
     def tearDownClass(cls):
-        cls.r.publish("channel1", json.dumps({"user_state": False}))
+        cls.r.publish("user_status", json.dumps({"user_state": False}))
         time.sleep(0.3)
         for proc, name in [(cls.delfos, "Delfos"), (cls.atena, "Atena"), (cls.sim, "Simulador")]:
             proc.terminate()
@@ -139,49 +139,49 @@ class TestFullLoop(unittest.TestCase):
             logger.info("%s encerrado.", name)
 
     def _sub_ch2(self):
-        """Retorna pubsub inscrito em channel2 com buffer drenado."""
+        """Retorna pubsub inscrito em plc_data com buffer drenado."""
         ps = self.r.pubsub()
-        ps.subscribe("channel2")
+        ps.subscribe("plc_data")
         ps.get_message(timeout=0.1)   # confirma subscription
         _drain(ps)
         return ps
 
     def _write(self, payload: dict):
-        self.r.publish("channel3", json.dumps(payload))
-        logger.info("→ channel3: %s", payload)
+        self.r.publish("plc_commands", json.dumps(payload))
+        logger.info("→ plc_commands: %s", payload)
 
     # ------------------------------------------------------------------
     # Testes
     # ------------------------------------------------------------------
 
-    def test_01_delfos_publica_channel2(self):
-        """Delfos deve estar publicando dados estruturados em channel2."""
-        raw = self.r.get("last_message:channel2")
-        self.assertIsNotNone(raw, "Nenhuma mensagem em channel2 — Delfos não publicou nada.")
+    def test_01_delfos_publica_plc_data(self):
+        """Delfos deve estar publicando dados estruturados em plc_data."""
+        raw = self.r.get("last_message:plc_data")
+        self.assertIsNotNone(raw, "Nenhuma mensagem em plc_data — Delfos não publicou nada.")
         data = json.loads(raw)
         for campo in ("coils", "registers", "timestamp"):
-            self.assertIn(campo, data, f"Campo '{campo}' ausente no channel2")
+            self.assertIn(campo, data, f"Campo '{campo}' ausente no plc_data")
         self.assertIn("Extrusora", data["registers"])
         self.assertIn("Puxador",   data["registers"])
         logger.info(
-            "channel2 OK: %d namespaces de coils, %d de registers",
+            "plc_data OK: %d namespaces de coils, %d de registers",
             len(data["coils"]), len(data["registers"]),
         )
 
-    def test_02_delfos_publica_channel4(self):
-        """Delfos deve publicar alarmes/configuração em channel4."""
-        raw = self.r.get("last_message:channel4")
-        self.assertIsNotNone(raw, "Nenhuma mensagem em channel4.")
+    def test_02_delfos_publica_alarms(self):
+        """Delfos deve publicar alarmes/configuração em alarms."""
+        raw = self.r.get("last_message:alarms")
+        self.assertIsNotNone(raw, "Nenhuma mensagem em alarms.")
         data = json.loads(raw)
         self.assertIn("coils",     data)
         self.assertIn("registers", data)
         self.assertIn("timestamp", data)
-        logger.info("channel4 OK.")
+        logger.info("alarms OK.")
 
     def test_03_loop_register(self):
         """
         Loop register completo:
-          channel3 → Atena escreve no simulador → Delfos lê → channel2 reflete.
+          plc_commands → Atena escreve no simulador → Delfos lê → plc_data reflete.
         """
         ps        = self._sub_ch2()
         setpoint  = 1350
@@ -196,15 +196,15 @@ class TestFullLoop(unittest.TestCase):
         )
         self.assertIsNotNone(
             data,
-            f"channel2 não refletiu extrusoraRefVelocidade={setpoint} "
+            f"plc_data não refletiu extrusoraRefVelocidade={setpoint} "
             f"após {DELFOS_CYCLE * 5:.0f}s",
         )
-        logger.info("Loop register: setpoint %d refletido no channel2  OK", setpoint)
+        logger.info("Loop register: setpoint %d refletido no plc_data  OK", setpoint)
 
     def test_04_loop_coil(self):
         """
         Loop coil completo:
-          channel3 liga extrusora → Atena escreve coil → Delfos lê → channel2 reflete.
+          plc_commands liga extrusora → Atena escreve coil → Delfos lê → plc_data reflete.
         """
         ps = self._sub_ch2()
 
@@ -218,14 +218,14 @@ class TestFullLoop(unittest.TestCase):
         )
         self.assertIsNotNone(
             data,
-            "channel2 não refletiu extrusoraLigaDesligaBotao=True",
+            "plc_data não refletiu extrusoraLigaDesligaBotao=True",
         )
         logger.info("Loop coil: extrusoraLigaDesligaBotao=True refletido  OK")
 
     def test_05_loop_multiplos_tags(self):
         """
         Escrita de múltiplos tags (Extrusora + Puxador) — ambos devem
-        aparecer no channel2.
+        aparecer no plc_data.
         """
         ps    = self._sub_ch2()
         s_ext = 1600
@@ -250,30 +250,30 @@ class TestFullLoop(unittest.TestCase):
                 if extr_ok and pux_ok:
                     break
 
-        self.assertTrue(extr_ok, f"extrusoraRefVelocidade={s_ext} não apareceu no channel2")
-        self.assertTrue(pux_ok,  f"puxadorRefVelocidade={s_pux} não apareceu no channel2")
+        self.assertTrue(extr_ok, f"extrusoraRefVelocidade={s_ext} não apareceu no plc_data")
+        self.assertTrue(pux_ok,  f"puxadorRefVelocidade={s_pux} não apareceu no plc_data")
         logger.info("Múltiplos tags: extrusora=%d, puxador=%d  OK", s_ext, s_pux)
 
     def test_06_user_state_false_interrompe_loop(self):
         """
-        Com user_state=False, Atena não deve escrever — channel2 não deve
-        refletir o valor enviado no channel3.
+        Com user_state=False, Atena não deve escrever — plc_data não deve
+        refletir o valor enviado no plc_commands.
         """
         ps = self._sub_ch2()
 
         # Define valor conhecido via escrita direta
-        self.r.publish("channel3", json.dumps({"Extrusora": {"extrusoraRefVelocidade": 1500}}))
+        self.r.publish("plc_commands", json.dumps({"Extrusora": {"extrusoraRefVelocidade": 1500}}))
         time.sleep(DELFOS_CYCLE * 2)
 
         # Desabilita user_state
-        self.r.publish("channel1", json.dumps({"user_state": False}))
+        self.r.publish("user_status", json.dumps({"user_state": False}))
         time.sleep(0.5)
 
         # Tenta escrever com user_state=False
         valor_bloqueado = 7777
         self._write({"Extrusora": {"extrusoraRefVelocidade": valor_bloqueado}})
 
-        # channel2 NÃO deve conter o valor bloqueado
+        # plc_data NÃO deve conter o valor bloqueado
         data = wait_for_ch2(
             ps,
             ["registers", "Extrusora", "extrusoraRefVelocidade"],
@@ -282,12 +282,12 @@ class TestFullLoop(unittest.TestCase):
         )
         self.assertIsNone(
             data,
-            f"channel2 refletiu {valor_bloqueado} mesmo com user_state=False!",
+            f"plc_data refletiu {valor_bloqueado} mesmo com user_state=False!",
         )
         logger.info("Bloqueio user_state=False confirmado  OK")
 
         # Reabilita para próximos testes
-        self.r.publish("channel1", json.dumps({"user_state": True}))
+        self.r.publish("user_status", json.dumps({"user_state": True}))
         time.sleep(DELFOS_CYCLE)
 
     def test_07_processos_ainda_vivos(self):
