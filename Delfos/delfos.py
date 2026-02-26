@@ -76,7 +76,7 @@ def main():
                 channel = message['channel'].decode()
                 if channel == 'channel1':
                     data = json.loads(message['data'].decode())
-                    user_state = data['payload']['connected']
+                    user_state = data['user_state']
                     logger.info("Estado do usuário atualizado: conectado=%s", user_state)
                     break
             sleep(0.5)
