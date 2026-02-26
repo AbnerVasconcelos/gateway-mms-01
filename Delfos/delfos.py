@@ -50,7 +50,10 @@ def main():
         return
 
     channels = ['channel1']
-    r, pubsub = retry_on_failure(setup_redis)
+    redis_result = retry_on_failure(setup_redis)
+    if redis_result is None:
+        return
+    r, pubsub = redis_result
     if r is None or pubsub is None:
         return
 
