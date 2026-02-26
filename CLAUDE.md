@@ -13,8 +13,8 @@ Gateway IoT industrial genérico. Faz a ponte entre CLPs Modbus e sistemas de nu
 ```
 CLP (Modbus TCP)
     ↑↓
-  Delfos  (leitura)  →  Redis channel2 / channel4  →  [consumidores externos]
-  Atena   (escrita)  ←  Redis channel3 / channel5 / channel7  ←  [UI / IA]
+  Delfos  (leitura)  →  Redis plc_data / alarms  →  [consumidores externos]
+  Atena   (escrita)  ←  Redis plc_commands / ia_status / ia_data  ←  [UI / IA]
 ```
 
 ---
@@ -33,7 +33,7 @@ gateway/
 │
 ├── Atena/                     # Processo escritor do CLP
 │   ├── atena.py               # Entry point — loop de eventos Redis
-│   ├── data_handle.py         # Handlers por canal (ch1, ch3, ch5, ch7)
+│   ├── data_handle.py         # Handlers por canal (user_status, plc_commands, ia_status, ia_data)
 │   ├── modbus_functions.py    # setup_modbus(), write_coils_to_device(), write_registers_to_device()
 │   ├── redis_config_functions.py  # setup_redis(), subscribe_to_channels()
 │   ├── table_filter.py        # extract_deep_keys(), find_values_by_object_tag()
@@ -61,8 +61,8 @@ gateway/
 
 - **Loop:** 1 Hz quando usuário conectado (`user_state=True`), 0,033 Hz quando inativo
 - **Lê:** coils e holding registers do CLP via Modbus TCP
-- **Publica:** channel2 (dados operacionais), channel4 (dados de alarmes/configuração)
-- **Assina:** channel1 (estado do usuário)
+- **Publica:** `plc_data` (dados operacionais), `alarms` (dados de alarmes/configuração)
+- **Assina:** `user_status` (estado do usuário)
 - **CSV:** `operacao.csv` para dados operacionais, `configuracao.csv` para alarmes
 
 **Formato da mensagem publicada:**
@@ -81,15 +81,15 @@ gateway/
 ### Atena — Escritor do CLP (`Atena/atena.py`)
 
 - **Loop:** blocking `pubsub.listen()` — orientado a eventos
-- **Assina:** channel1, channel3, channel5, channel7
+- **Assina:** `user_status`, `plc_commands`, `ia_status`, `ia_data`
 - **Escreve:** coils e holding registers no CLP via Modbus TCP
 
 | Canal | Handler | Função | Status |
 |-------|---------|--------|--------|
-| channel1 | `handle_channel1_message` | Atualiza `user_state` | Completo |
-| channel3 | `handle_channel3_message` | Escreve no CLP se `user_state=True` | Completo |
-| channel5 | `handle_channel5_message` | Atualiza `ia_mode` | Completo |
-| channel7 | `handle_channel7_message` | Processa dados da IA | **STUB — sem implementação** |
+| `user_status` | `handle_user_status_message` | Atualiza `user_state` | Completo |
+| `plc_commands` | `handle_plc_commands_message` | Escreve no CLP se `user_state=True` | Completo |
+| `ia_status` | `handle_ia_status_message` | Atualiza `ia_mode` | Completo |
+| `ia_data` | `handle_ia_data_message` | Processa dados da IA | **STUB — sem implementação** |
 
 **Lookup de endereço:** `find_values_by_object_tag()` busca no CSV pelo campo `ObjecTag` e retorna endereços Modbus correspondentes.
 
@@ -99,12 +99,12 @@ gateway/
 
 | Canal | Direção | Produtor | Consumidor | Conteúdo |
 |-------|---------|----------|------------|----------|
-| channel1 | ↔ | UI/Cloud | Delfos, Atena | `{"user_state": true/false}` |
-| channel2 | → | Delfos | Externos | Dados operacionais + timestamp |
-| channel3 | → | UI/Cloud | Atena | Comandos de escrita no CLP |
-| channel4 | → | Delfos | Externos | Dados de alarmes + timestamp |
-| channel5 | → | UI/Cloud | Atena | `{"ia_state": true/false}` |
-| channel7 | → | IA/Cloud | Atena | Dados do modelo de IA (stub) |
+| `user_status` | ↔ | UI/Cloud | Delfos, Atena | `{"user_state": true/false}` |
+| `plc_data` | → | Delfos | Externos | Dados operacionais + timestamp |
+| `plc_commands` | → | UI/Cloud | Atena | Comandos de escrita no CLP |
+| `alarms` | → | Delfos | Externos | Dados de alarmes + timestamp |
+| `ia_status` | → | UI/Cloud | Atena | `{"ia_state": true/false}` |
+| `ia_data` | → | IA/Cloud | Atena | Dados do modelo de IA (stub) |
 
 **Persistência adicional (só Delfos):**
 - `last_message:{channel}` — último valor publicado (SET Redis)
@@ -155,11 +155,12 @@ Parâmetros de calibração, PID, receitas e limites. Mesma estrutura de colunas
 
 ```
 pyModbusTCP==0.2.1      # cliente Modbus TCP síncrono (em uso)
-pymodbus==3.6.4         # cliente Modbus alternativo (não em uso ativo)
+pymodbus==3.6.4         # servidor Modbus TCP (simulador de testes)
 redis==5.0.3            # pub/sub + store
-pandas==2.2.1           # leitura de CSV
-python-dotenv>=1.0.0    # carregamento de .env
-numpy==1.26.4           # suporte numérico
+pandas==3.0.1           # leitura de CSV
+python-dotenv==1.2.1    # carregamento de .env
+numpy==2.4.2            # suporte numérico
+pytest==9.0.2           # execução dos testes
 ```
 
 ---
@@ -210,6 +211,28 @@ cd Atena && python atena.py
 
 ---
 
+## Testes
+
+```bash
+# Requer: Redis rodando (docker run -d -p 6379:6379 redis:alpine)
+python -m pytest tests/ -v
+```
+
+| Arquivo | Cobre |
+|---------|-------|
+| `tests/modbus_simulator.py` | Servidor Modbus TCP que lê os CSVs e simula o CLP |
+| `tests/test_integration.py` | Simulador — leitura/escrita Modbus direta (15 testes) |
+| `tests/test_atena.py` | Atena — loop Redis → Modbus (6 testes, inicia subprocessos) |
+| `tests/test_full_loop.py` | Loop completo Delfos+Atena simultâneos (7 testes, inicia subprocessos) |
+
+Para apontar Delfos/Atena ao simulador localmente:
+```bash
+cp tests/.env.test Delfos/.env
+cp tests/.env.test Atena/.env
+```
+
+---
+
 ## Padrões do projeto
 
 - **Logging:** usar `logging` em vez de `print()`. Formato: `%(asctime)s [%(name)s] %(levelname)s: %(message)s`
@@ -222,9 +245,8 @@ cd Atena && python atena.py
 
 ## Problemas conhecidos
 
-1. **`data_handle.py`** ainda usa `print()` em `handle_channel3_message` — substituir por `logger`
-2. **`table_filter.py` (Delfos)** usa `print()` em `find_contiguous_groups` — substituir por `logger`
-3. **`handle_channel7_message`** é um stub — lógica de processamento de dados da IA não implementada
+1. **`table_filter.py` (Delfos)** usa `print()` em `find_contiguous_groups` — substituir por `logger`
+2. **`handle_ia_data_message`** é um stub — lógica de processamento de dados da IA não implementada
 4. **Código duplicado:** `redis_config_functions.py` e `modbus_functions.py` são idênticos em Delfos e Atena — candidatos a um módulo compartilhado
 5. **Sem gerenciamento de processos:** não há supervisor/systemd para reinício automático em produção
 6. **Redis sem replicação:** ponto único de falha
