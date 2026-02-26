@@ -1,0 +1,26 @@
+key,ObjecTag,Tipo,Delta Adress,Modbus,At
+entradasDigitais,emergencia,M,0,2048,%MB
+entradasDigitais,ligado,M,2,2050,%MB
+entradasDigitais,manutencao,M,3,2051,%MB
+entradasDigitais,pausa,M,4,2052,%MB
+entradasDigitais,indutivoA,M,5,2053,%MB
+entradasDigitais,indutivoB,M,6,2054,%MB
+entradasDigitais,capacitivoA,M,7,2055,%MB
+entradasDigitais,capacitivoB,M,9,2057,%MB
+entradasDigitais,startIhm,M,11,2059,%MB
+entradasDigitais,autExtrusora,M,13,2061,%MB
+entradasDigitais,autPuxador,M,43,2091,%MB
+saidasDigitais,sireneRun,M,20,2068,%MB
+saidasDigitais,sireneAviso,M,21,2069,%MB
+saidasDigitais,sireneAlarm,M,22,2070,%MB
+saidasDigitais,motorMisturador,M,23,2071,%MB
+saidasDigitais,balanca,M,24,2072,%MB
+saidasDigitais,giraExtrusora,M,25,2073,%MB
+saidasDigitais,giraPuxador,M,28,2076,%MB
+saidasDigitais,compressorRadial,M,29,2077,%MB
+saidasDigitais,dosadorA,M,30,2078,%MB
+saidasDigitais,dosadorB,M,31,2079,%MB
+saidasDigitais,camaraA,M,42,2090,%MB
+saidasDigitais,camaraB,M,44,2092,%MB
+analogicas,celulaA,D,7040,4096,%MW
+

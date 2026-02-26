@@ -1,0 +1,74 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribuição / empacotamento
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs e relatórios de cobertura de testes
+*.log
+*.out
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+pytest_cache/
+.tox/
+
+# Mypy
+.mypy_cache/
+
+# Pyre
+.pyre/
+
+# Arquivos de configuração local (por exemplo, Django)
+local_settings.py
+
+# Ferramentas de virtualização e pacotes
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# Arquivos de editor ou IDE (exemplos: VSCode, PyCharm)
+.vscode/
+.idea/
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+pymodbus_lab
+__pycache__
+gateway
+Lib
+Include
+pyvenv.cfg
+Scripts
+
+# Variaveis de ambiente (NUNCA commitar)
+.env
+.env.*
+!.env.example

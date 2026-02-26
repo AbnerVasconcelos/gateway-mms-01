@@ -1,0 +1,35 @@
+########### Construindo hambiente no Windows #############
+
+python -m venv Gateway
+Set-ExecutionPolicy RemoteSigned--------------------------------------------------------(no powershell como administrador)
+Gateway\Scripts\activate----------------------------------------------------------------(Ativa ambiente virtual python)
+python.exe -m pip install --------------------------------------------------------------(upgrade pip  (atualiza sistema)
+pip freeze > requirements.txt ----------------------------------------------------------(gera requirements.txt)
+deactivate----------------------------------------------------------------------------- (desativa ambiente virtual)
+
+########### Construindo hambiente no Ubunto #############
+
+sudo apt install python3.10.12-venv------------------------------------------------------(Instala Python versão 3.10.12)
+python -m venv gateway-------------------------------------------------------------------(Cria ambiente virtual)
+source gateway/bin/activate -------------------------------------------------------------(Ativa ambiente virtual python)
+pip install --upgrade pip  --------------------------------------------------------------(atualiza sistema)
+find  -type f -iname "*.py" -exec chmod +x {} \; && source Gateway/bin/activate----------(Habilita permições)
+pip install -r requirements.txt ---------------------------------------------------------(Instala requisitos de sistema)
+deactivate --------------------------------------(desativa ambiente virtual)
+
+###### Comandos auxiliares ######
+
+pip install requests ----------------------------(Instala pacote para de funções para CRUD)
+pip freeze > requirements.txt -------------------(gera requirements.txt)
+Python3 --version
+python -c "import pymodbus; print(pyModbusTCP.__version__)" Checa versão pymodbus. Atualmente 3.4.0
+
+
+Comandos linux utilizados 
+ sudo apt update
+ sudo apt upgrade
+ sudo apt install python3 python3-pip
+ sudo apt install net-tools
+
+
+

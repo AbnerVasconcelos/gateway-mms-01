@@ -1,0 +1,6 @@
+pymodbus_lab
+__pycache__
+gateway
+.env
+.env.*
+!.env.example
