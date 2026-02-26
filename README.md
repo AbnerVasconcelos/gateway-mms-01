@@ -11,11 +11,11 @@ O mapeamento de tags é inteiramente definido por arquivos CSV — nenhuma alter
 ```
 CLP (Modbus TCP)
       │
-      ├──► Delfos (leitura) ──► Redis ch2, ch4 ──► [consumidores externos]
+      ├──► Delfos (leitura) ──► Redis plc_data, alarms ──► [consumidores externos]
       │
-      └──◄ Atena  (escrita) ◄── Redis ch3, ch5, ch7 ◄── [UI / IA / nuvem]
+      └──◄ Atena  (escrita) ◄── Redis plc_commands, ia_status, ia_data ◄── [UI / IA / nuvem]
                                       │
-                               Redis ch1 (estado do usuário)
+                               Redis user_status (estado do usuário)
 ```
 
 Cada processo roda de forma independente. A comunicação entre eles é feita exclusivamente via Redis pub/sub.
@@ -28,8 +28,8 @@ Cada processo roda de forma independente. A comunicação entre eles é feita ex
 
 Lê coils e holding registers do CLP em ciclo contínuo e publica os dados no Redis.
 
-- **Publica:** `channel2` (dados operacionais), `channel4` (alarmes/configuração)
-- **Assina:** `channel1` (estado do usuário)
+- **Publica:** `plc_data` (dados operacionais), `alarms` (alarmes/configuração)
+- **Assina:** `user_status` (estado do usuário)
 - **Frequência:** 1 Hz quando usuário conectado, 0,033 Hz quando inativo
 - **Otimização:** agrupa endereços Modbus contíguos para minimizar roundtrips de rede
 
@@ -37,7 +37,7 @@ Lê coils e holding registers do CLP em ciclo contínuo e publica os dados no Re
 
 Recebe comandos via Redis e os escreve nos coils e holding registers do CLP.
 
-- **Assina:** `channel1`, `channel3`, `channel5`, `channel7`
+- **Assina:** `user_status`, `plc_commands`, `ia_status`, `ia_data`
 - **Segurança:** só escreve no CLP quando `user_state = True`
 - **Modelo:** orientado a eventos via `pubsub.listen()`
 
@@ -47,12 +47,12 @@ Recebe comandos via Redis e os escreve nos coils e holding registers do CLP.
 
 | Canal | Direção | Conteúdo |
 |-------|---------|----------|
-| `channel1` | ↔ bidirecional | Estado de conexão do usuário |
-| `channel2` | Delfos → externos | Dados operacionais do CLP + timestamp |
-| `channel3` | externos → Atena | Comandos de escrita no CLP |
-| `channel4` | Delfos → externos | Dados de alarmes/configuração + timestamp |
-| `channel5` | externos → Atena | Ativação do modo IA |
-| `channel7` | externos → Atena | Dados do modelo de IA |
+| `user_status`   | ↔ bidirecional    | Estado de conexão do usuário |
+| `plc_data`      | Delfos → externos | Dados operacionais do CLP + timestamp |
+| `plc_commands`  | externos → Atena  | Comandos de escrita no CLP |
+| `alarms`        | Delfos → externos | Dados de alarmes/configuração + timestamp |
+| `ia_status`     | externos → Atena  | Ativação do modo IA |
+| `ia_data`       | externos → Atena  | Dados do modelo de IA |
 
 ---
 
@@ -154,5 +154,5 @@ Para adaptar o gateway a uma nova aplicação, basta editar os CSVs — sem alte
 |--------|--------|-----|
 | `pyModbusTCP` | 0.2.1 | Cliente Modbus TCP |
 | `redis` | 5.0.3 | Pub/sub e store |
-| `pandas` | 2.2.1 | Leitura dos CSVs |
-| `python-dotenv` | ≥1.0.0 | Variáveis de ambiente |
+| `pandas` | 3.0.1 | Leitura dos CSVs |
+| `python-dotenv` | 1.2.1 | Variáveis de ambiente |
