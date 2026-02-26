@@ -34,7 +34,7 @@ PYTHON      = os.path.join(GATEWAY_DIR, ".venv", "Scripts", "python")
 REDIS_HOST  = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT  = int(os.environ.get("REDIS_PORT", 6379))
 MODBUS_HOST = os.environ.get("MODBUS_HOST", "127.0.0.1")
-MODBUS_PORT = int(os.environ.get("MODBUS_PORT", 5020))
+MODBUS_PORT = 5021   # porta exclusiva deste módulo (evita conflito com outros suites)
 
 # Delay após publicar para o Atena processar a mensagem
 ATENA_DELAY = float(os.environ.get("ATENA_DELAY", "0.8"))
@@ -55,19 +55,24 @@ class TestAtenaEscrita(unittest.TestCase):
         except Exception as e:
             raise unittest.SkipTest(f"Redis não acessível em {REDIS_HOST}:{REDIS_PORT}: {e}")
 
-        # Inicia simulador Modbus
+        # Inicia simulador Modbus na porta exclusiva deste suite
         cls.sim = subprocess.Popen(
-            [PYTHON, os.path.join(GATEWAY_DIR, "tests", "modbus_simulator.py")],
+            [PYTHON, os.path.join(GATEWAY_DIR, "tests", "modbus_simulator.py"),
+             "--port", str(MODBUS_PORT)],
             cwd=GATEWAY_DIR,
             stdout=open(os.path.join(LOG_DIR, "atena_sim.log"), "w"),
             stderr=subprocess.STDOUT,
         )
         time.sleep(2)
 
-        # Inicia Atena
+        # Inicia Atena apontando para o simulador deste suite
+        _env = os.environ.copy()
+        _env["MODBUS_HOST"] = MODBUS_HOST
+        _env["MODBUS_PORT"] = str(MODBUS_PORT)
         cls.atena = subprocess.Popen(
             [PYTHON, "atena.py"],
             cwd=os.path.join(GATEWAY_DIR, "Atena"),
+            env=_env,
             stdout=open(os.path.join(LOG_DIR, "atena_proc.log"), "w"),
             stderr=subprocess.STDOUT,
         )

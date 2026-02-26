@@ -33,6 +33,8 @@ GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYTHON      = os.path.join(GATEWAY_DIR, ".venv", "Scripts", "python")
 REDIS_HOST  = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT  = int(os.environ.get("REDIS_PORT", 6379))
+MODBUS_HOST = "127.0.0.1"
+MODBUS_PORT = 5022   # porta exclusiva deste módulo (evita conflito com outros suites)
 
 # Delfos cicla a ~1 Hz (0.5s de sleep + tempo de leitura Modbus).
 # Usamos 2s como margem para Atena escrever + Delfos ler + publicar.
@@ -93,9 +95,15 @@ class TestFullLoop(unittest.TestCase):
         log_dir = os.path.join(GATEWAY_DIR, "tests", "logs")
         os.makedirs(log_dir, exist_ok=True)
 
+        # Env com porta exclusiva deste suite (override do .env)
+        _env = os.environ.copy()
+        _env["MODBUS_HOST"] = MODBUS_HOST
+        _env["MODBUS_PORT"] = str(MODBUS_PORT)
+
         # --- Simulador Modbus ------------------------------------------
         cls.sim = subprocess.Popen(
-            [PYTHON, os.path.join(GATEWAY_DIR, "tests", "modbus_simulator.py")],
+            [PYTHON, os.path.join(GATEWAY_DIR, "tests", "modbus_simulator.py"),
+             "--port", str(MODBUS_PORT)],
             cwd=GATEWAY_DIR,
             stdout=open(os.path.join(log_dir, "sim.log"),    "w"),
             stderr=subprocess.STDOUT,
@@ -106,6 +114,7 @@ class TestFullLoop(unittest.TestCase):
         cls.delfos = subprocess.Popen(
             [PYTHON, "delfos.py"],
             cwd=os.path.join(GATEWAY_DIR, "Delfos"),
+            env=_env,
             stdout=open(os.path.join(log_dir, "delfos.log"), "w"),
             stderr=subprocess.STDOUT,
         )
@@ -114,6 +123,7 @@ class TestFullLoop(unittest.TestCase):
         cls.atena = subprocess.Popen(
             [PYTHON, "atena.py"],
             cwd=os.path.join(GATEWAY_DIR, "Atena"),
+            env=_env,
             stdout=open(os.path.join(log_dir, "atena.log"),  "w"),
             stderr=subprocess.STDOUT,
         )

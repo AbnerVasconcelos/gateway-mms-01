@@ -5,18 +5,16 @@ Testes de integração Modbus para o gateway IoT.
 Testa leitura e escrita diretamente contra o simulador (sem Redis),
 usando a mesma biblioteca (pyModbusTCP) que Delfos e Atena usam em produção.
 
-Pré-requisito:
-    # Em outro terminal:
-    python tests/modbus_simulator.py
+O simulador é iniciado automaticamente neste módulo (porta 5020).
 
 Uso:
     python tests/test_integration.py
-    MODBUS_PORT=502 python tests/test_integration.py   # porta personalizada
 """
 
 import logging
 import os
-import sys
+import subprocess
+import time
 import unittest
 
 from pyModbusTCP.client import ModbusClient
@@ -28,8 +26,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger("test_integration")
 
-HOST = os.environ.get("MODBUS_HOST", "127.0.0.1")
-PORT = int(os.environ.get("MODBUS_PORT", "5020"))
+GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PYTHON      = os.path.join(GATEWAY_DIR, ".venv", "Scripts", "python")
+HOST        = os.environ.get("MODBUS_HOST", "127.0.0.1")
+PORT        = 5020   # porta exclusiva deste módulo
+
+LOG_DIR = os.path.join(GATEWAY_DIR, "tests", "logs")
+
+_simulator_proc = None
+
+
+def setUpModule():
+    global _simulator_proc
+    os.makedirs(LOG_DIR, exist_ok=True)
+    _simulator_proc = subprocess.Popen(
+        [PYTHON, os.path.join(GATEWAY_DIR, "tests", "modbus_simulator.py"),
+         "--port", str(PORT)],
+        cwd=GATEWAY_DIR,
+        stdout=open(os.path.join(LOG_DIR, "integration_sim.log"), "w"),
+        stderr=subprocess.STDOUT,
+    )
+    time.sleep(2)
+    logger.info("Simulador iniciado na porta %d.", PORT)
+
+
+def tearDownModule():
+    if _simulator_proc is not None:
+        _simulator_proc.terminate()
+        try:
+            _simulator_proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            _simulator_proc.kill()
+        logger.info("Simulador encerrado.")
 
 # ---------------------------------------------------------------------------
 # Endereços de referência (de operacao.csv)
