@@ -26,6 +26,7 @@ var/
 
 # Logs e relatórios de cobertura de testes
 *.log
+tests/logs/
 *.out
 .coverage
 .coverage.*
