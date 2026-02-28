@@ -8,3 +8,10 @@ python-dotenv==1.2.1
 redis==5.0.3
 six==1.17.0
 tzdata==2025.3
+
+# Fase 2 — Hub: Socket.IO bridge + Config Panel
+fastapi>=0.100.0
+python-socketio[client]>=5.8.0
+uvicorn[standard]>=0.20.0
+openpyxl>=3.1.0
+python-multipart>=0.0.5

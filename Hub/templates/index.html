@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gateway Config Panel</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- AG Grid Community -->
+  <link href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-grid.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-theme-alpine.css" rel="stylesheet" />
+
+  <style>
+    body { background: #f8f9fa; }
+    .status-dot {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 6px;
+    }
+    .dot-ok      { background: #28a745; }
+    .dot-warn    { background: #ffc107; }
+    .dot-err     { background: #dc3545; }
+    #var-grid    { height: 520px; }
+    .override-row { background: #fff3cd !important; }
+    .badge-override { font-size: .7em; vertical-align: middle; }
+    .channel-card { min-width: 200px; }
+    .history-input { width: 80px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ──────────────────────────────────────────────────────────── -->
+<nav class="navbar navbar-dark bg-dark px-3">
+  <span class="navbar-brand fw-bold">⚙ Gateway Config Panel</span>
+  <div class="d-flex align-items-center gap-3">
+    <span id="ws-status" class="text-white small">
+      <span class="status-dot dot-warn" id="ws-dot"></span>Conectando...
+    </span>
+    <label class="btn btn-sm btn-outline-light mb-0" title="Upload .xlsx">
+      📂 Upload .xlsx
+      <input type="file" id="upload-input" accept=".xlsx" class="d-none" />
+    </label>
+    <button class="btn btn-sm btn-outline-light" id="export-btn">⬇ Export</button>
+  </div>
+</nav>
+
+<!-- ── Upload preview modal ────────────────────────────────────────────── -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Preview — <span id="upload-count">0</span> variáveis</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="preview-grid" class="ag-theme-alpine" style="height:400px"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" id="confirm-upload-btn">✔ Aplicar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main content ────────────────────────────────────────────────────── -->
+<div class="container-fluid py-3">
+
+  <!-- Canais Redis -->
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="fw-semibold">Canais Redis</span>
+      <span class="text-muted small" id="channel-last-update"></span>
+    </div>
+    <div class="card-body">
+      <div id="channels-container" class="d-flex flex-wrap gap-3"></div>
+    </div>
+  </div>
+
+  <!-- Variáveis -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <span class="fw-semibold">Variáveis</span>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <select id="filter-group"   class="form-select form-select-sm" style="width:140px"><option value="">Grupo</option></select>
+        <select id="filter-type"    class="form-select form-select-sm" style="width:100px">
+          <option value="">Tipo</option>
+          <option>%MB</option>
+          <option>%MW</option>
+        </select>
+        <select id="filter-channel" class="form-select form-select-sm" style="width:160px"><option value="">Canal</option></select>
+        <input  id="filter-text"    class="form-control form-control-sm" placeholder="Buscar..." style="width:160px" />
+        <span   id="var-count"      class="text-muted small ms-1"></span>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div id="var-grid" class="ag-theme-alpine"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Toast notification ──────────────────────────────────────────────── -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toast-el" class="toast align-items-center text-white bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-msg">Salvo.</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Scripts ─────────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/dist/ag-grid-community.min.js"></script>
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+
+<script>
+// ── Estado global ────────────────────────────────────────────────────────────
+let allVariables  = [];   // [{tag, group, type, channel, delay_ms, enabled, ...}]
+let lastValues    = {};   // {tag: {value, ts}}
+let uploadPreview = [];   // rows parsed from xlsx
+let varGrid       = null;
+let previewGrid   = null;
+const KNOWN_ROOMS = ['alarmes','process','visual','config','alarms'];
+
+// ── Utils ────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toast-el');
+  el.className = `toast align-items-center text-white border-0 bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el, {delay: 2500}).show();
+}
+
+function apiFetch(url, opts = {}) {
+  return fetch(url, opts).then(r => {
+    if (!r.ok) return r.json().then(e => Promise.reject(e.detail || r.statusText));
+    return r.json();
+  });
+}
+
+// ── Socket.IO ────────────────────────────────────────────────────────────────
+const socket = io({transports: ['websocket'], reconnectionDelay: 2000});
+
+socket.on('connect', () => {
+  setWsStatus(true);
+  socket.emit('join', {rooms: KNOWN_ROOMS});
+});
+socket.on('disconnect', () => setWsStatus(false));
+
+socket.on('plc:data', ({channel, data}) => {
+  const ts = data.timestamp || new Date().toISOString();
+  const all = {...(data.coils || {}), ...(data.registers || {})};
+  Object.entries(all).forEach(([, tags]) => {
+    if (typeof tags !== 'object') return;
+    Object.entries(tags).forEach(([tag, val]) => {
+      lastValues[tag] = {value: val, ts};
+    });
+  });
+  // Atualiza coluna "Último valor" no grid (lazy refresh)
+  if (varGrid) {
+    varGrid.refreshCells({columns: ['last_value'], force: true});
+  }
+});
+
+socket.on('config:updated', () => loadVariables());
+
+function setWsStatus(ok) {
+  document.getElementById('ws-dot').className = `status-dot ${ok ? 'dot-ok' : 'dot-err'}`;
+  document.getElementById('ws-status').innerHTML =
+    `<span class="status-dot ${ok ? 'dot-ok' : 'dot-err'}" id="ws-dot"></span>${ok ? 'Conectado' : 'Desconectado'}`;
+}
+
+// ── Canais ───────────────────────────────────────────────────────────────────
+async function loadChannels() {
+  const data = await apiFetch('/api/channels');
+  const container = document.getElementById('channels-container');
+  container.innerHTML = '';
+
+  // Busca histórico atual de cada canal via Redis llen (não disponível no frontend — só indicativo)
+  Object.entries(data).forEach(([ch, size]) => {
+    const card = document.createElement('div');
+    card.className = 'card channel-card p-3';
+    card.innerHTML = `
+      <div class="fw-semibold text-truncate mb-1" title="${ch}">${ch}</div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted mb-0">History:</label>
+        <input type="number" class="form-control form-control-sm history-input"
+               value="${size}" min="1" max="10000"
+               data-channel="${ch}" />
+        <span class="small text-muted">pub</span>
+        <button class="btn btn-sm btn-primary py-0 px-2" onclick="applyHistory('${ch}', this)">Aplicar</button>
+      </div>`;
+    container.appendChild(card);
+  });
+
+  document.getElementById('channel-last-update').textContent =
+    'Atualizado ' + new Date().toLocaleTimeString('pt-BR');
+}
+
+async function applyHistory(channel, btn) {
+  const input = btn.closest('.card').querySelector('input[type=number]');
+  const size  = parseInt(input.value, 10);
+  if (!size || size < 1) { showToast('Valor inválido.', 'danger'); return; }
+  try {
+    await apiFetch(`/api/channels/${channel}/history`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({history_size: size}),
+    });
+    showToast(`history_size de ${channel} → ${size}`);
+    loadChannels();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+// ── Variáveis ────────────────────────────────────────────────────────────────
+async function loadVariables() {
+  const data = await apiFetch('/api/variables');
+  allVariables = data.variables || [];
+  populateFilters();
+  applyFilters();
+  updateVarCount();
+}
+
+function populateFilters() {
+  const groups   = [...new Set(allVariables.map(v => v.group))].sort();
+  const channels = [...new Set(allVariables.map(v => v.channel))].sort();
+
+  fillSelect('filter-group',   groups);
+  fillSelect('filter-channel', channels);
+}
+
+function fillSelect(id, options) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  options.forEach(o => {
+    const opt = new Option(o, o);
+    sel.add(opt);
+  });
+  sel.value = cur;
+}
+
+function getFilteredRows() {
+  const grp   = document.getElementById('filter-group').value;
+  const typ   = document.getElementById('filter-type').value;
+  const ch    = document.getElementById('filter-channel').value;
+  const txt   = document.getElementById('filter-text').value.toLowerCase();
+
+  return allVariables.filter(v =>
+    (!grp || v.group   === grp)  &&
+    (!typ || v.type    === typ)  &&
+    (!ch  || v.channel === ch)   &&
+    (!txt || v.tag.toLowerCase().includes(txt) || v.group.toLowerCase().includes(txt))
+  );
+}
+
+function applyFilters() {
+  if (!varGrid) return;
+  varGrid.setGridOption('rowData', getFilteredRows());
+  updateVarCount();
+}
+
+function updateVarCount() {
+  const filtered = getFilteredRows().length;
+  document.getElementById('var-count').textContent =
+    `${filtered} / ${allVariables.length} variáveis`;
+}
+
+// ── AG Grid — tabela de variáveis ────────────────────────────────────────────
+const CHANNELS_LIST = ['plc_alarmes','plc_process','plc_visual','plc_config'];
+
+const varColumnDefs = [
+  {
+    headerName: '', field: 'has_override', width: 36, sortable: false,
+    cellRenderer: p => p.value ? '<span class="badge bg-warning text-dark badge-override" title="Override ativo">*</span>' : '',
+  },
+  {headerName: 'Tag',     field: 'tag',     sortable: true, filter: true, width: 210},
+  {headerName: 'Grupo',   field: 'group',   sortable: true, filter: true, width: 140},
+  {
+    headerName: 'Tipo', field: 'type', width: 80, sortable: true,
+    cellStyle: p => ({color: p.value === '%MB' ? '#0d6efd' : '#6f42c1'}),
+  },
+  {headerName: 'End.',    field: 'address', width: 80,  sortable: true, type: 'numericColumn'},
+  {
+    headerName: 'Canal', field: 'channel', sortable: true, editable: true, width: 150,
+    cellEditor: 'agSelectCellEditor',
+    cellEditorParams: {values: CHANNELS_LIST},
+    onCellValueChanged: onCellChanged,
+  },
+  {
+    headerName: 'Delay (ms)', field: 'delay_ms', sortable: true, editable: true,
+    width: 110, type: 'numericColumn',
+    onCellValueChanged: onCellChanged,
+  },
+  {
+    headerName: 'Hab.', field: 'enabled', width: 80, sortable: true, editable: true,
+    cellRenderer: p => `<input type="checkbox" ${p.value ? 'checked' : ''} onclick="toggleEnabled(event, '${p.data.tag}')" />`,
+  },
+  {
+    headerName: 'Último valor', field: 'last_value', width: 180, sortable: false,
+    valueGetter: p => {
+      const lv = lastValues[p.data.tag];
+      if (!lv) return '—';
+      const age = Math.round((Date.now() - new Date(lv.ts).getTime()) / 1000);
+      return `${JSON.stringify(lv.value)}  ${age}s atrás`;
+    },
+  },
+];
+
+function initVarGrid() {
+  const gridOptions = {
+    columnDefs: varColumnDefs,
+    rowData: [],
+    rowClassRules: {
+      'override-row': p => p.data && p.data.has_override,
+    },
+    defaultColDef: {resizable: true, suppressMovable: false},
+    suppressRowClickSelection: true,
+    stopEditingWhenCellsLoseFocus: true,
+    animateRows: true,
+  };
+  varGrid = agGrid.createGrid(document.getElementById('var-grid'), gridOptions);
+}
+
+async function onCellChanged(event) {
+  const tag   = event.data.tag;
+  const field = event.colDef.field;
+  const value = field === 'delay_ms' ? parseInt(event.newValue, 10) : event.newValue;
+
+  try {
+    await apiFetch(`/api/variables/${encodeURIComponent(tag)}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({[field]: value}),
+    });
+    showToast(`${tag}.${field} → ${value}`);
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function toggleEnabled(event, tag) {
+  const enabled = event.target.checked;
+  try {
+    await apiFetch(`/api/variables/${encodeURIComponent(tag)}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({enabled}),
+    });
+    showToast(`${tag}.enabled → ${enabled}`);
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
+    event.target.checked = !enabled; // reverte
+  }
+}
+
+// ── Preview grid (upload modal) ──────────────────────────────────────────────
+const previewColDefs = [
+  {headerName: 'Tag',        field: 'tag',          width: 200},
+  {headerName: 'Grupo',      field: 'group',        width: 130},
+  {headerName: 'Canal',      field: 'channel',      width: 150},
+  {headerName: 'Delay (ms)', field: 'delay_ms',     width: 110},
+  {headerName: 'History',    field: 'history_size', width: 100},
+  {headerName: 'Habilitado', field: 'enabled',      width: 100,
+   cellRenderer: p => p.value ? '✔' : '✗'},
+];
+
+function initPreviewGrid() {
+  const opts = {
+    columnDefs: previewColDefs,
+    rowData: [],
+    defaultColDef: {resizable: true},
+  };
+  previewGrid = agGrid.createGrid(document.getElementById('preview-grid'), opts);
+}
+
+// ── Upload ───────────────────────────────────────────────────────────────────
+document.getElementById('upload-input').addEventListener('change', async function () {
+  if (!this.files[0]) return;
+  const formData = new FormData();
+  formData.append('file', this.files[0]);
+  this.value = '';
+
+  try {
+    const res = await fetch('/api/upload', {method: 'POST', body: formData});
+    if (!res.ok) { const e = await res.json(); throw e.detail || res.statusText; }
+    const data = await res.json();
+    uploadPreview = data.preview;
+    document.getElementById('upload-count').textContent = data.count;
+    previewGrid.setGridOption('rowData', uploadPreview);
+    new bootstrap.Modal(document.getElementById('uploadModal')).show();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+});
+
+document.getElementById('confirm-upload-btn').addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/upload/confirm', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({rows: uploadPreview}),
+    });
+    bootstrap.Modal.getInstance(document.getElementById('uploadModal')).hide();
+    showToast(`${uploadPreview.length} variáveis aplicadas.`);
+    loadVariables();
+    loadChannels();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+});
+
+// ── Export ───────────────────────────────────────────────────────────────────
+document.getElementById('export-btn').addEventListener('click', () => {
+  window.location.href = '/api/export';
+});
+
+// ── Filtros ──────────────────────────────────────────────────────────────────
+['filter-group','filter-type','filter-channel'].forEach(id =>
+  document.getElementById(id).addEventListener('change', applyFilters));
+document.getElementById('filter-text').addEventListener('input', applyFilters);
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initVarGrid();
+  initPreviewGrid();
+  loadChannels();
+  loadVariables();
+});
+</script>
+</body>
+</html>
