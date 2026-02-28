@@ -25,13 +25,13 @@ def setup_redis():
     return None, None
 
 
-def publish_to_channel(r, data, channel):
+def publish_to_channel(r, data, channel, history_size=100):
     for _ in range(3):
         try:
             r.publish(channel, data)
             r.set(f"last_message:{channel}", data)
             r.lpush(f"history:{channel}", data)
-            r.ltrim(f"history:{channel}", 0, 999)
+            r.ltrim(f"history:{channel}", 0, history_size - 1)
             break
         except Exception as e:
             logger.error("Erro ao publicar no %s: %s, nova tentativa em 1 segundo.", channel, e)
