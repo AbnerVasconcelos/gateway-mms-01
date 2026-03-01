@@ -31,7 +31,7 @@ gateway/
 │   ├── delfos.py              # Entry point — time-tracking loop 50ms
 │   ├── modbus_functions.py    # setup_modbus(), read_coils(), read_registers()
 │   ├── redis_config_functions.py  # setup_redis(), publish_to_channel(), get_latest_message()
-│   ├── table_filter.py        # find_contiguous_groups(), extract_parameters_from_csv(), extract_parameters_by_group()
+│   ├── table_filter.py        # find_contiguous_groups(), extract_parameters_by_group(), extract_parameters_by_channel()
 │   ├── .env                   # Credenciais locais (NÃO commitar)
 │   └── .env.example           # Template de variáveis
 │
@@ -56,8 +56,8 @@ gateway/
 ├── tables/
 │   ├── operacao.csv           # Mapeamento principal: 81 tags Modbus ↔ JSON
 │   ├── configuracao.csv       # Parâmetros de configuração: 41 tags
-│   ├── group_config.json      # Mapeia grupos → canal Redis + delay_ms + history_size
-│   ├── variable_overrides.json# Exceções por tag individual (sobrescreve o grupo)
+│   ├── group_config.json      # Configuração de canais (delay_ms, history_size) e mapeamento grupo → canal
+│   ├── variable_overrides.json# Exceções por tag individual (enabled, channel)
 │   ├── alarms_data.csv        # Subconjunto de alarmes (referência)
 │   ├── read_data.csv          # Mapeamento simplificado (testes)
 │   └── write_data.csv         # Mapeamento de escrita (testes)
@@ -74,8 +74,8 @@ gateway/
 
 ### Delfos — Leitor do CLP (`Delfos/delfos.py`)
 
-- **Loop:** time-tracking com tick de ~50ms; cada grupo de variáveis tem delay próprio configurado em `group_config.json`
-- **Lê:** coils e holding registers do CLP via Modbus TCP, por grupo
+- **Loop:** time-tracking com tick de ~50ms; **o canal é a unidade de publicação** — cada canal tem seu próprio timer configurado em `group_config.json["channels"]`
+- **Lê:** coils e holding registers do CLP via Modbus TCP, **por canal** (todos os grupos mapeados para o canal são lidos juntos numa única passagem)
 - **Publica:** canais segmentados `plc_alarmes`, `plc_process`, `plc_visual`, `plc_config` + `plc_data` (legado, backward-compatible)
 - **Assina:** `user_status` (estado do usuário), `config_reload` (hot-reload de config sem reiniciar)
 - **CSV:** `operacao.csv` para dados operacionais, `configuracao.csv` para alarmes
@@ -89,9 +89,9 @@ gateway/
 }
 ```
 
-**Otimização Modbus:** `find_contiguous_groups()` agrupa endereços contíguos por grupo para minimizar roundtrips de rede.
+**Otimização Modbus:** `extract_parameters_by_channel()` (em `table_filter.py`) agrega endereços de múltiplos grupos num pool cross-group por canal e calcula grupos contíguos globais, minimizando roundtrips de rede.
 
-**Hot-reload:** ao receber `config_reload`, Delfos recarrega `group_config.json` e `variable_overrides.json` sem reiniciar o processo.
+**Hot-reload:** ao receber `config_reload`, Delfos recarrega `group_config.json` e `variable_overrides.json`, re-computa `channel_data` e preserva os timers de canais já existentes (novos canais disparam imediatamente).
 
 ---
 
@@ -117,15 +117,17 @@ gateway/
 - **Protocolo:** FastAPI + python-socketio (ASGI), inicia com `uvicorn Hub.main:asgi_app --port 8000`
 - **Bridge:** `redis_bridge.py` faz `psubscribe('plc_*', 'alarms')` e emite `plc:data` para os rooms Socket.IO correspondentes
 - **Rooms:** cada canal `plc_<sufixo>` mapeia para o room `<sufixo>` (ex.: `plc_alarmes` → room `alarmes`)
-- **Painel web:** serve `templates/index.html` em `GET /` — tabela AG Grid com edição inline, upload/export `.xlsx`, preview em tempo real
+- **Painel web:** serve `templates/index.html` em `GET /` — tabela AG Grid com edição inline, upload/export `.xlsx`, preview em tempo real, cards de canal com atividade em tempo real, seleção múltipla e bulk-assign de variáveis
 
 **Endpoints REST:**
 
 | Método | Rota | Função |
 |--------|------|--------|
 | `GET` | `/api/variables` | Lista todos os tags com config mesclada |
-| `PATCH` | `/api/variables/{tag}` | Atualiza override de um tag |
-| `GET` | `/api/channels` | Lista canais com `delay_ms` e `history_size` |
+| `PATCH` | `/api/variables/{tag}` | Atualiza override de um tag (`enabled`, `channel`) |
+| `POST` | `/api/variables/bulk-assign` | Move múltiplas tags para um canal (`{tags, channel}`) |
+| `GET` | `/api/channels` | Lista canais: `{channel: {delay_ms, history_size}}` |
+| `PATCH` | `/api/channels/{channel}/delay` | Atualiza `delay_ms` do canal + publica `config_reload` |
 | `PATCH` | `/api/channels/{channel}/history` | Atualiza `history_size` + aplica `ltrim` imediato no Redis |
 | `GET` | `/api/groups` | Lista grupos e configurações |
 | `POST` | `/api/upload` | Parseia `.xlsx` e retorna preview |
@@ -143,9 +145,9 @@ gateway/
 | Canal | Direção | Produtor | Consumidor | Freq. típica | Conteúdo |
 |-------|---------|----------|------------|--------------|----------|
 | `plc_alarmes` | → | Delfos | Hub, externos | 200ms | Grupos de alarme |
-| `plc_process` | → | Delfos | Hub, externos | 500ms–2s | Extrusora, Puxador, producao, dosador, alimentador, saidasDigitais |
+| `plc_process` | → | Delfos | Hub, externos | 500ms | Extrusora, Puxador, producao, dosador, alimentador, saidasDigitais |
 | `plc_visual` | → | Delfos | Hub, externos | 1s | threeJs (visualização 3D) |
-| `plc_config` | → | Delfos | Hub, externos | 5s–10s | totalizadores, configuracao |
+| `plc_config` | → | Delfos | Hub, externos | 5s | totalizadores, configuracao |
 | `plc_data` | → | Delfos | Legado | igual ao grupo mais rápido | Todos os dados (backward-compatible) |
 | `alarms` | → | Delfos | Hub, externos | igual `plc_config` | Dados de alarmes + timestamp |
 | `plc_commands` | → | Hub/UI | Atena | sob demanda | Comandos de escrita no CLP |
@@ -199,32 +201,45 @@ Parâmetros de calibração, PID, receitas e limites. Mesma estrutura de colunas
 
 ### `group_config.json` — configuração de canais e grupos
 
-Mapeia cada grupo (campo `key` do CSV) para um canal Redis, delay de publicação e tamanho de histórico. Lido pelo Delfos na inicialização e a cada `config_reload`.
+Define os canais Redis (`channels`) com delay e histórico, e mapeia cada grupo CSV ao canal correspondente. Lido pelo Delfos na inicialização e a cada `config_reload`.
 
 ```json
 {
-  "_meta": { "aggregate_channel": "plc_data", "backward_compatible": true },
+  "_meta": {
+    "aggregate_channel": "plc_data",
+    "backward_compatible": true,
+    "default_delay_ms": 1000,
+    "default_history_size": 100
+  },
+  "channels": {
+    "plc_alarmes": { "delay_ms": 200,  "history_size": 55  },
+    "plc_process": { "delay_ms": 500,  "history_size": 100 },
+    "plc_visual":  { "delay_ms": 1000, "history_size": 100 },
+    "plc_config":  { "delay_ms": 5000, "history_size": 100 }
+  },
   "groups": {
-    "alarmes":        { "channel": "plc_alarmes", "delay_ms": 200,   "history_size": 100 },
-    "saidasDigitais": { "channel": "plc_process", "delay_ms": 500,   "history_size": 100 },
-    "Extrusora":      { "channel": "plc_process", "delay_ms": 1000,  "history_size": 100 },
-    "threeJs":        { "channel": "plc_visual",  "delay_ms": 1000,  "history_size": 100 },
-    "totalizadores":  { "channel": "plc_config",  "delay_ms": 5000,  "history_size": 100 },
-    "_configuracao":  { "channel": "plc_config",  "delay_ms": 10000, "history_size": 100 }
+    "alarmes":        { "channel": "plc_alarmes" },
+    "saidasDigitais": { "channel": "plc_process" },
+    "Extrusora":      { "channel": "plc_process" },
+    "threeJs":        { "channel": "plc_visual"  },
+    "totalizadores":  { "channel": "plc_config"  }
   }
 }
 ```
 
-**Regra de precedência:** `variable_overrides.json` > `group_config.json` > padrão do grupo.
+**Regras:**
+- `delay_ms` e `history_size` ficam exclusivamente na seção `channels` — grupos só precisam de `channel`
+- Canais sem entrada em `channels` usam os defaults de `_meta`
+- `variable_overrides.json` pode redirecionar tags individuais para um canal diferente
 
 ### `variable_overrides.json` — exceções por tag
 
-Sobrescreve a configuração do grupo para tags individuais. Editável pelo painel web ou via `PATCH /api/variables/{tag}`.
+Sobrescreve o canal e/ou habilita/desabilita tags individuais. `delay_ms` não é mais suportado aqui — fica exclusivo da seção `channels` do `group_config.json`. Editável pelo painel web ou via `PATCH /api/variables/{tag}`.
 
 ```json
 {
-  "emergencia":     { "enabled": true,  "channel": "plc_alarmes", "delay_ms": 100   },
-  "densidadeMedia": { "enabled": false, "channel": "plc_config",  "delay_ms": 10000 }
+  "emergencia":     { "enabled": true,  "channel": "plc_alarmes" },
+  "densidadeMedia": { "enabled": false, "channel": "plc_config"  }
 }
 ```
 
