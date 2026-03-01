@@ -1,5 +1,6 @@
 import logging
 import itertools
+import os
 import time
 import pandas as pd
 
@@ -109,4 +110,136 @@ def extract_parameters_by_group(csv_file, attempts=5, pause=5):
 
     logger.info("CSV '%s': %d grupos carregados — %s",
                 csv_file, len(result), list(result.keys()))
+    return result
+
+
+# ── Leitura por canal ─────────────────────────────────────────────────────────
+
+def _group_to_cfg_key(group: str, source: str, operacao_groups: set) -> str:
+    """
+    Resolve a chave usada em group_config.json para um dado (group, source).
+    Grupos de configuracao.csv que colidam com operacao.csv recebem sufixo '_cfg'.
+    """
+    if source == 'configuracao' and group in operacao_groups:
+        return group + '_cfg'
+    return group
+
+
+def extract_parameters_by_channel(csv_paths, group_config, overrides,
+                                   attempts=5, pause=5) -> dict:
+    """
+    Lê múltiplos CSVs e retorna {channel: {...}} agrupando variáveis pelo canal efetivo.
+
+    Canal efetivo de cada variável:
+      overrides[tag]['channel']  >  groups[cfg_key]['channel']  >  'plc_data'
+
+    Variáveis com enabled=False são excluídas.
+
+    Retorno por canal:
+        {
+            'coil_groups': [[addr, ...], ...],
+            'reg_groups':  [[addr, ...], ...],
+            'coil_tags':   [[tag, ...], ...],
+            'reg_tags':    [[tag, ...], ...],
+            'coil_keys':   [[group, ...], ...],
+            'reg_keys':    [[group, ...], ...],
+            'history_size': int,
+            'sources':     set{'operacao', 'configuracao'},
+        }
+
+    Endereços contíguos são calculados através de TODOS os grupos do canal
+    (pool cross-group), reduzindo roundtrips Modbus.
+    """
+    groups_cfg   = group_config.get('groups', {})
+    channels_cfg = group_config.get('channels', {})
+    meta         = group_config.get('_meta', {})
+    default_hist = meta.get('default_history_size', 100)
+
+    all_rows      = []   # lista de dicts por variável
+    operacao_groups: set = set()
+
+    for csv_path in csv_paths:
+        source = os.path.splitext(os.path.basename(csv_path))[0]
+
+        for attempt in range(attempts):
+            try:
+                df = pd.read_csv(csv_path, sep=',')
+                break
+            except Exception as e:
+                logger.error("Erro ao ler '%s': %s", csv_path, e)
+                time.sleep(pause)
+        else:
+            logger.critical("Não foi possível ler '%s' após %d tentativas.", csv_path, attempts)
+            continue
+
+        df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
+        df['Modbus'] = pd.to_numeric(df['Modbus'], errors='coerce')
+        df = df.dropna(subset=['Modbus'])
+        df['Modbus'] = df['Modbus'].astype(int)
+
+        if source == 'operacao':
+            operacao_groups = set(df['key'].unique())
+
+        for _, row in df.iterrows():
+            all_rows.append({
+                'key':    str(row['key']).strip(),
+                'tag':    str(row['ObjecTag']).strip(),
+                'at':     str(row.get('At', '')).strip(),
+                'modbus': int(row['Modbus']),
+                'source': source,
+            })
+
+    # Acumula linhas por canal efetivo
+    channel_rows:    dict[str, list] = {}
+    channel_sources: dict[str, set]  = {}
+
+    for row in all_rows:
+        group   = row['key']
+        tag     = row['tag']
+        source  = row['source']
+        cfg_key = _group_to_cfg_key(group, source, operacao_groups)
+
+        grp_cfg = groups_cfg.get(cfg_key, {})
+        channel = grp_cfg.get('channel', 'plc_data')
+
+        ov = overrides.get(tag, {})
+        if not ov.get('enabled', True):
+            continue   # variável desabilitada — não inclui
+        if 'channel' in ov:
+            channel = ov['channel']
+
+        channel_rows.setdefault(channel, []).append(row)
+        channel_sources.setdefault(channel, set()).add(source)
+
+    # Constrói grupos contíguos por canal (cross-group)
+    result: dict = {}
+    for channel, rows in channel_rows.items():
+        df_ch = pd.DataFrame(rows)
+
+        df_coils = df_ch[df_ch['at'] == '%MB'].copy().sort_values('modbus')
+        df_regs  = df_ch[df_ch['at'] != '%MB'].copy().sort_values('modbus')
+
+        coil_groups = _find_contiguous(df_coils['modbus'].tolist())
+        reg_groups  = _find_contiguous(df_regs['modbus'].tolist())
+
+        coil_tags = [df_coils.loc[df_coils['modbus'].isin(g)]['tag'].tolist() for g in coil_groups]
+        reg_tags  = [df_regs.loc[df_regs['modbus'].isin(g)]['tag'].tolist()   for g in reg_groups]
+        coil_keys = [df_coils.loc[df_coils['modbus'].isin(g)]['key'].tolist() for g in coil_groups]
+        reg_keys  = [df_regs.loc[df_regs['modbus'].isin(g)]['key'].tolist()   for g in reg_groups]
+
+        ch_cfg       = channels_cfg.get(channel, {})
+        history_size = ch_cfg.get('history_size', default_hist)
+
+        result[channel] = {
+            'coil_groups':  coil_groups,
+            'reg_groups':   reg_groups,
+            'coil_tags':    coil_tags,
+            'reg_tags':     reg_tags,
+            'coil_keys':    coil_keys,
+            'reg_keys':     reg_keys,
+            'history_size': history_size,
+            'sources':      channel_sources[channel],
+        }
+
+    logger.info("Canais carregados dos CSVs: %d — %s", len(result), list(result.keys()))
     return result

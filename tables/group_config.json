@@ -5,86 +5,79 @@
     "default_delay_ms": 1000,
     "default_history_size": 100
   },
+  "channels": {
+    "plc_alarmes": {
+      "delay_ms": 200,
+      "history_size": 55
+    },
+    "plc_process": {
+      "delay_ms": 500,
+      "history_size": 100
+    },
+    "plc_visual": {
+      "delay_ms": 1000,
+      "history_size": 100
+    },
+    "plc_config": {
+      "delay_ms": 5000,
+      "history_size": 100
+    },
+    "plc_teste": {
+      "delay_ms": 1000,
+      "history_size": 100
+    }
+  },
   "groups": {
     "alarmes": {
       "channel": "plc_alarmes",
-      "delay_ms": 200,
       "history_size": 55
     },
     "alarmes_cfg": {
       "channel": "plc_alarmes",
-      "delay_ms": 200,
       "history_size": 55
     },
     "saidasDigitais": {
-      "channel": "plc_process",
-      "delay_ms": 500,
-      "history_size": 100
+      "channel": "plc_process"
     },
     "Extrusora": {
-      "channel": "plc_process",
-      "delay_ms": 1000,
+      "channel": "plc_teste",
       "history_size": 100
     },
     "Puxador": {
-      "channel": "plc_process",
-      "delay_ms": 1000,
-      "history_size": 100
+      "channel": "plc_process"
     },
     "threeJs": {
-      "channel": "plc_visual",
-      "delay_ms": 1000,
-      "history_size": 100
+      "channel": "plc_visual"
     },
     "producao": {
-      "channel": "plc_process",
-      "delay_ms": 2000,
-      "history_size": 100
+      "channel": "plc_process"
     },
     "dosador": {
-      "channel": "plc_process",
-      "delay_ms": 2000,
-      "history_size": 100
+      "channel": "plc_process"
     },
     "alimentador": {
-      "channel": "plc_process",
-      "delay_ms": 2000,
-      "history_size": 100
+      "channel": "plc_process"
     },
     "totalizadores": {
-      "channel": "plc_config",
-      "delay_ms": 5000,
-      "history_size": 100
+      "channel": "plc_config"
     },
     "balancaInferior": {
-      "channel": "plc_config",
-      "delay_ms": 10000,
-      "history_size": 100
+      "channel": "plc_config"
     },
     "balancaSuperior": {
-      "channel": "plc_config",
-      "delay_ms": 10000,
-      "history_size": 100
+      "channel": "plc_config"
     },
     "configExtrusora": {
-      "channel": "plc_config",
-      "delay_ms": 10000,
-      "history_size": 100
+      "channel": "plc_config"
     },
     "configFunis": {
-      "channel": "plc_config",
-      "delay_ms": 10000,
-      "history_size": 100
+      "channel": "plc_config"
     },
     "configPuxador": {
-      "channel": "plc_config",
-      "delay_ms": 10000,
-      "history_size": 100
+      "channel": "plc_config"
     },
     "configReceita": {
-      "channel": "plc_config",
-      "delay_ms": 10000,
-      "history_size": 100
+      "channel": "plc_config"
     }
   }
 }

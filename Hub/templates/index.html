@@ -14,23 +14,52 @@
 
   <style>
     body { background: #f8f9fa; }
+
     .status-dot {
       display: inline-block; width: 10px; height: 10px;
       border-radius: 50%; margin-right: 6px;
     }
-    .dot-ok      { background: #28a745; }
-    .dot-warn    { background: #ffc107; }
-    .dot-err     { background: #dc3545; }
-    #var-grid    { height: 520px; }
+    .dot-ok   { background: #28a745; }
+    .dot-warn { background: #ffc107; }
+    .dot-err  { background: #dc3545; }
+
+    #var-grid { height: 520px; }
     .override-row { background: #fff3cd !important; }
     .badge-override { font-size: .7em; vertical-align: middle; }
-    .channel-card { min-width: 200px; }
-    .history-input { width: 80px; }
+
+    /* Channel cards */
+    .channel-card {
+      min-width: 220px; cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+    .channel-card:hover { box-shadow: 0 0 0 2px rgba(13,110,253,.35); }
+    .channel-card.active-filter { box-shadow: 0 0 0 2px #0d6efd; }
+
+    .activity-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #ccc; flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .activity-dot.active { background: #28a745; }
+
+    .delay-input   { width: 72px; }
+    .history-input { width: 72px; }
+
+    /* Row color palette by channel (6 pastel colors) */
+    .ch-row-0 { background-color: #e8f4f8 !important; }
+    .ch-row-1 { background-color: #fef9e7 !important; }
+    .ch-row-2 { background-color: #eafaf1 !important; }
+    .ch-row-3 { background-color: #fdf2f8 !important; }
+    .ch-row-4 { background-color: #f5f5f5 !important; }
+    .ch-row-5 { background-color: #fff5e6 !important; }
+
+    /* override-row takes priority over channel color */
+    .override-row { background-color: #fff3cd !important; }
   </style>
 </head>
 <body>
 
-<!-- ── Navbar ──────────────────────────────────────────────────────────── -->
+<!-- ── Navbar ──────────────────────────────────────────────────────────────── -->
 <nav class="navbar navbar-dark bg-dark px-3">
   <span class="navbar-brand fw-bold">⚙ Gateway Config Panel</span>
   <div class="d-flex align-items-center gap-3">
@@ -45,7 +74,40 @@
   </div>
 </nav>
 
-<!-- ── Upload preview modal ────────────────────────────────────────────── -->
+<!-- ── Novo canal modal ────────────────────────────────────────────────────── -->
+<div class="modal fade" id="newChannelModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Novo canal Redis</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Nome <span class="text-muted">(sem o prefixo)</span></label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text">plc_</span>
+            <input type="text" id="new-ch-name" class="form-control" placeholder="meu_canal" />
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Delay (ms)</label>
+          <input type="number" id="new-ch-delay" class="form-control form-control-sm" value="1000" min="1" />
+        </div>
+        <div class="mb-0">
+          <label class="form-label small fw-semibold">History size</label>
+          <input type="number" id="new-ch-history" class="form-control form-control-sm" value="100" min="1" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="confirm-new-channel-btn">Criar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Upload preview modal ───────────────────────────────────────────────── -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
   <div class="modal-dialog modal-xl">
     <div class="modal-content">
@@ -64,14 +126,37 @@
   </div>
 </div>
 
-<!-- ── Main content ────────────────────────────────────────────────────── -->
+<!-- ── Bulk-move modal ────────────────────────────────────────────────────── -->
+<div class="modal fade" id="bulkMoveModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Mover para canal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label small fw-semibold">Canal destino</label>
+        <select id="bulk-channel-select" class="form-select form-select-sm"></select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="confirm-bulk-move-btn">Mover</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main content ────────────────────────────────────────────────────────── -->
 <div class="container-fluid py-3">
 
   <!-- Canais Redis -->
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span class="fw-semibold">Canais Redis</span>
-      <span class="text-muted small" id="channel-last-update"></span>
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted small" id="channel-last-update"></span>
+        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newChannelModal">+ Novo canal</button>
+      </div>
     </div>
     <div class="card-body">
       <div id="channels-container" class="d-flex flex-wrap gap-3"></div>
@@ -83,6 +168,8 @@
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
       <span class="fw-semibold">Variáveis</span>
       <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="btn btn-sm btn-outline-secondary" id="bulk-move-btn"
+                disabled onclick="openBulkMoveModal()">↗ Mover selecionadas</button>
         <select id="filter-group"   class="form-select form-select-sm" style="width:140px"><option value="">Grupo</option></select>
         <select id="filter-type"    class="form-select form-select-sm" style="width:100px">
           <option value="">Tipo</option>
@@ -101,7 +188,7 @@
 
 </div>
 
-<!-- ── Toast notification ──────────────────────────────────────────────── -->
+<!-- ── Toast notification ─────────────────────────────────────────────────── -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
   <div id="toast-el" class="toast align-items-center text-white bg-success border-0" role="alert">
     <div class="d-flex">
@@ -111,21 +198,25 @@
   </div>
 </div>
 
-<!-- ── Scripts ─────────────────────────────────────────────────────────── -->
+<!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/dist/ag-grid-community.min.js"></script>
 <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
 
 <script>
-// ── Estado global ────────────────────────────────────────────────────────────
-let allVariables  = [];   // [{tag, group, type, channel, delay_ms, enabled, ...}]
+// ── Estado global ─────────────────────────────────────────────────────────────
+let allVariables  = [];   // [{tag, group, type, channel, enabled, ...}]
 let lastValues    = {};   // {tag: {value, ts}}
-let uploadPreview = [];   // rows parsed from xlsx
+let uploadPreview = [];
 let varGrid       = null;
 let previewGrid   = null;
-const KNOWN_ROOMS = ['alarmes','process','visual','config','alarms'];
+let knownRooms    = [];
 
-// ── Utils ────────────────────────────────────────────────────────────────────
+// Canal → índice de cor (0-5), populado ao carregar canais
+const CHANNEL_COLORS = {};
+let   CHANNELS_LIST  = [];
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
   const el = document.getElementById('toast-el');
   el.className = `toast align-items-center text-white border-0 bg-${type}`;
@@ -140,12 +231,25 @@ function apiFetch(url, opts = {}) {
   });
 }
 
-// ── Socket.IO ────────────────────────────────────────────────────────────────
+function getChannelColorIndex(channel) {
+  if (!channel) return -1;
+  if (!(channel in CHANNEL_COLORS)) {
+    CHANNEL_COLORS[channel] = Object.keys(CHANNEL_COLORS).length % 6;
+  }
+  return CHANNEL_COLORS[channel];
+}
+
+// ── Socket.IO ──────────────────────────────────────────────────────────────────
 const socket = io({transports: ['websocket'], reconnectionDelay: 2000});
 
 socket.on('connect', () => {
   setWsStatus(true);
-  socket.emit('join', {rooms: KNOWN_ROOMS});
+  if (knownRooms.length) socket.emit('join', {rooms: knownRooms});
+});
+
+socket.on('connection_ack', ({available_rooms}) => {
+  knownRooms = available_rooms || [];
+  socket.emit('join', {rooms: knownRooms});
 });
 socket.on('disconnect', () => setWsStatus(false));
 
@@ -158,39 +262,81 @@ socket.on('plc:data', ({channel, data}) => {
       lastValues[tag] = {value: val, ts};
     });
   });
-  // Atualiza coluna "Último valor" no grid (lazy refresh)
-  if (varGrid) {
-    varGrid.refreshCells({columns: ['last_value'], force: true});
+  if (varGrid) varGrid.refreshCells({columns: ['last_value'], force: true});
+
+  // Acende dot de atividade do canal
+  const dot = document.getElementById('act-' + channel);
+  if (dot) {
+    dot.classList.add('active');
+    clearTimeout(dot._timer);
+    dot._timer = setTimeout(() => dot.classList.remove('active'), 1000);
   }
 });
 
 socket.on('config:updated', () => loadVariables());
 
 function setWsStatus(ok) {
-  document.getElementById('ws-dot').className = `status-dot ${ok ? 'dot-ok' : 'dot-err'}`;
   document.getElementById('ws-status').innerHTML =
     `<span class="status-dot ${ok ? 'dot-ok' : 'dot-err'}" id="ws-dot"></span>${ok ? 'Conectado' : 'Desconectado'}`;
 }
 
-// ── Canais ───────────────────────────────────────────────────────────────────
+// ── Canais ────────────────────────────────────────────────────────────────────
 async function loadChannels() {
   const data = await apiFetch('/api/channels');
   const container = document.getElementById('channels-container');
   container.innerHTML = '';
 
-  // Busca histórico atual de cada canal via Redis llen (não disponível no frontend — só indicativo)
-  Object.entries(data).forEach(([ch, size]) => {
+  // Reconstrói CHANNELS_LIST e CHANNEL_COLORS preservando ordem estável
+  const sorted = Object.keys(data).sort();
+  sorted.forEach((ch, i) => { CHANNEL_COLORS[ch] = i % 6; });
+  CHANNELS_LIST = sorted;
+
+  // Atualiza dropdown de canal no grid
+  if (varGrid) {
+    const colDefs = varGrid.getColumnDefs();
+    const colCanal = colDefs.find(c => c.field === 'channel');
+    if (colCanal) {
+      colCanal.cellEditorParams = {values: CHANNELS_LIST};
+      varGrid.setGridOption('columnDefs', colDefs);
+    }
+  }
+
+  // Reconstrói cores de linha
+  if (varGrid) varGrid.redrawRows();
+
+  // Obtém canal filtrado atualmente para restaurar active-filter
+  const activeFilter = document.getElementById('filter-channel').value;
+
+  Object.entries(data).forEach(([ch, cfg]) => {
     const card = document.createElement('div');
-    card.className = 'card channel-card p-3';
+    card.id        = 'card-' + ch;
+    card.className = 'card channel-card p-3' + (activeFilter === ch ? ' active-filter' : '');
+    card.onclick   = () => filterByChannel(ch, card);
     card.innerHTML = `
-      <div class="fw-semibold text-truncate mb-1" title="${ch}">${ch}</div>
-      <div class="d-flex align-items-center gap-2">
-        <label class="small text-muted mb-0">History:</label>
+      <div class="d-flex align-items-center mb-2">
+        <span class="activity-dot me-2" id="act-${ch}"></span>
+        <div class="fw-semibold text-truncate flex-grow-1 small" title="${ch}">${ch}</div>
+        <button class="btn btn-sm btn-outline-danger py-0 px-1 ms-2"
+                onclick="event.stopPropagation(); removeChannel('${ch}', this)"
+                title="Remover canal">✕</button>
+      </div>
+      <div class="d-flex align-items-center gap-1 mb-1">
+        <label class="small text-muted mb-0" style="white-space:nowrap">Delay:</label>
+        <input type="number" class="form-control form-control-sm delay-input"
+               value="${cfg.delay_ms}" min="1" max="100000"
+               onclick="event.stopPropagation()" />
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+                onclick="event.stopPropagation(); applyDelay('${ch}', this)"
+                title="Aplicar delay">ms</button>
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <label class="small text-muted mb-0" style="white-space:nowrap">History:</label>
         <input type="number" class="form-control form-control-sm history-input"
-               value="${size}" min="1" max="10000"
-               data-channel="${ch}" />
-        <span class="small text-muted">pub</span>
-        <button class="btn btn-sm btn-primary py-0 px-2" onclick="applyHistory('${ch}', this)">Aplicar</button>
+               value="${cfg.history_size}" min="1" max="10000"
+               onclick="event.stopPropagation()" />
+        <button class="btn btn-sm btn-primary py-0 px-2"
+                onclick="event.stopPropagation(); applyHistory('${ch}', this)"
+                title="Aplicar history">✓</button>
       </div>`;
     container.appendChild(card);
   });
@@ -199,12 +345,52 @@ async function loadChannels() {
     'Atualizado ' + new Date().toLocaleTimeString('pt-BR');
 }
 
+function filterByChannel(ch, cardEl) {
+  const sel = document.getElementById('filter-channel');
+  if (sel.value === ch) {
+    sel.value = '';
+    document.querySelectorAll('.channel-card').forEach(c => c.classList.remove('active-filter'));
+  } else {
+    sel.value = ch;
+    document.querySelectorAll('.channel-card').forEach(c => c.classList.remove('active-filter'));
+    if (cardEl) cardEl.classList.add('active-filter');
+  }
+  applyFilters();
+}
+
+async function removeChannel(channel, btn) {
+  if (!confirm(`Remover o canal "${channel}"?\n\nGrupos já mapeados não serão alterados.`)) return;
+  try {
+    await apiFetch(`/api/channels/${encodeURIComponent(channel)}`, {method: 'DELETE'});
+    showToast(`Canal ${channel} removido.`);
+    loadChannels();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function applyDelay(channel, btn) {
+  const input = btn.closest('.card').querySelector('.delay-input');
+  const delay = parseInt(input.value, 10);
+  if (!delay || delay < 1) { showToast('Valor inválido.', 'danger'); return; }
+  try {
+    await apiFetch(`/api/channels/${encodeURIComponent(channel)}/delay`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({delay_ms: delay}),
+    });
+    showToast(`delay_ms de ${channel} → ${delay}ms`);
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
 async function applyHistory(channel, btn) {
-  const input = btn.closest('.card').querySelector('input[type=number]');
+  const input = btn.closest('.card').querySelector('.history-input');
   const size  = parseInt(input.value, 10);
   if (!size || size < 1) { showToast('Valor inválido.', 'danger'); return; }
   try {
-    await apiFetch(`/api/channels/${channel}/history`, {
+    await apiFetch(`/api/channels/${encodeURIComponent(channel)}/history`, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({history_size: size}),
@@ -216,7 +402,7 @@ async function applyHistory(channel, btn) {
   }
 }
 
-// ── Variáveis ────────────────────────────────────────────────────────────────
+// ── Variáveis ─────────────────────────────────────────────────────────────────
 async function loadVariables() {
   const data = await apiFetch('/api/variables');
   allVariables = data.variables || [];
@@ -228,7 +414,6 @@ async function loadVariables() {
 function populateFilters() {
   const groups   = [...new Set(allVariables.map(v => v.group))].sort();
   const channels = [...new Set(allVariables.map(v => v.channel))].sort();
-
   fillSelect('filter-group',   groups);
   fillSelect('filter-channel', channels);
 }
@@ -237,23 +422,19 @@ function fillSelect(id, options) {
   const sel = document.getElementById(id);
   const cur = sel.value;
   while (sel.options.length > 1) sel.remove(1);
-  options.forEach(o => {
-    const opt = new Option(o, o);
-    sel.add(opt);
-  });
+  options.forEach(o => sel.add(new Option(o, o)));
   sel.value = cur;
 }
 
 function getFilteredRows() {
-  const grp   = document.getElementById('filter-group').value;
-  const typ   = document.getElementById('filter-type').value;
-  const ch    = document.getElementById('filter-channel').value;
-  const txt   = document.getElementById('filter-text').value.toLowerCase();
-
+  const grp = document.getElementById('filter-group').value;
+  const typ = document.getElementById('filter-type').value;
+  const ch  = document.getElementById('filter-channel').value;
+  const txt = document.getElementById('filter-text').value.toLowerCase();
   return allVariables.filter(v =>
-    (!grp || v.group   === grp)  &&
-    (!typ || v.type    === typ)  &&
-    (!ch  || v.channel === ch)   &&
+    (!grp || v.group   === grp) &&
+    (!typ || v.type    === typ) &&
+    (!ch  || v.channel === ch)  &&
     (!txt || v.tag.toLowerCase().includes(txt) || v.group.toLowerCase().includes(txt))
   );
 }
@@ -270,35 +451,35 @@ function updateVarCount() {
     `${filtered} / ${allVariables.length} variáveis`;
 }
 
-// ── AG Grid — tabela de variáveis ────────────────────────────────────────────
-const CHANNELS_LIST = ['plc_alarmes','plc_process','plc_visual','plc_config'];
-
+// ── AG Grid — tabela de variáveis ─────────────────────────────────────────────
 const varColumnDefs = [
   {
-    headerName: '', field: 'has_override', width: 36, sortable: false,
-    cellRenderer: p => p.value ? '<span class="badge bg-warning text-dark badge-override" title="Override ativo">*</span>' : '',
+    headerName: '', checkboxSelection: true, headerCheckboxSelection: true,
+    width: 40, suppressMovable: true, pinned: 'left', sortable: false,
   },
-  {headerName: 'Tag',     field: 'tag',     sortable: true, filter: true, width: 210},
-  {headerName: 'Grupo',   field: 'group',   sortable: true, filter: true, width: 140},
+  {
+    headerName: '', field: 'has_override', width: 36, sortable: false,
+    cellRenderer: p => p.value
+      ? '<span class="badge bg-warning text-dark badge-override" title="Override ativo">*</span>' : '',
+  },
+  {headerName: 'Tag',   field: 'tag',   sortable: true, filter: true, width: 210},
+  {headerName: 'Grupo', field: 'group', sortable: true, filter: true, width: 140},
   {
     headerName: 'Tipo', field: 'type', width: 80, sortable: true,
     cellStyle: p => ({color: p.value === '%MB' ? '#0d6efd' : '#6f42c1'}),
   },
-  {headerName: 'End.',    field: 'address', width: 80,  sortable: true, type: 'numericColumn'},
+  {headerName: 'End.', field: 'address', width: 80, sortable: true, type: 'numericColumn'},
   {
     headerName: 'Canal', field: 'channel', sortable: true, editable: true, width: 150,
+    sort: 'asc', sortIndex: 0,
     cellEditor: 'agSelectCellEditor',
     cellEditorParams: {values: CHANNELS_LIST},
     onCellValueChanged: onCellChanged,
   },
   {
-    headerName: 'Delay (ms)', field: 'delay_ms', sortable: true, editable: true,
-    width: 110, type: 'numericColumn',
-    onCellValueChanged: onCellChanged,
-  },
-  {
     headerName: 'Hab.', field: 'enabled', width: 80, sortable: true, editable: true,
-    cellRenderer: p => `<input type="checkbox" ${p.value ? 'checked' : ''} onclick="toggleEnabled(event, '${p.data.tag}')" />`,
+    cellRenderer: p =>
+      `<input type="checkbox" ${p.value ? 'checked' : ''} onclick="toggleEnabled(event, '${p.data.tag}')" />`,
   },
   {
     headerName: 'Último valor', field: 'last_value', width: 180, sortable: false,
@@ -315,13 +496,24 @@ function initVarGrid() {
   const gridOptions = {
     columnDefs: varColumnDefs,
     rowData: [],
+    rowSelection: 'multiple',
     rowClassRules: {
-      'override-row': p => p.data && p.data.has_override,
+      'override-row': p => p.data?.has_override,
+      'ch-row-0': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 0,
+      'ch-row-1': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 1,
+      'ch-row-2': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 2,
+      'ch-row-3': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 3,
+      'ch-row-4': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 4,
+      'ch-row-5': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 5,
     },
     defaultColDef: {resizable: true, suppressMovable: false},
     suppressRowClickSelection: true,
     stopEditingWhenCellsLoseFocus: true,
     animateRows: true,
+    onSelectionChanged: () => {
+      const count = varGrid.getSelectedRows().length;
+      document.getElementById('bulk-move-btn').disabled = count === 0;
+    },
   };
   varGrid = agGrid.createGrid(document.getElementById('var-grid'), gridOptions);
 }
@@ -329,8 +521,7 @@ function initVarGrid() {
 async function onCellChanged(event) {
   const tag   = event.data.tag;
   const field = event.colDef.field;
-  const value = field === 'delay_ms' ? parseInt(event.newValue, 10) : event.newValue;
-
+  const value = event.newValue;
   try {
     await apiFetch(`/api/variables/${encodeURIComponent(tag)}`, {
       method: 'PATCH',
@@ -356,37 +547,60 @@ async function toggleEnabled(event, tag) {
     loadVariables();
   } catch (e) {
     showToast(String(e), 'danger');
-    event.target.checked = !enabled; // reverte
+    event.target.checked = !enabled;
   }
 }
 
-// ── Preview grid (upload modal) ──────────────────────────────────────────────
+// ── Bulk-assign ───────────────────────────────────────────────────────────────
+function openBulkMoveModal() {
+  const sel = document.getElementById('bulk-channel-select');
+  sel.innerHTML = CHANNELS_LIST.map(ch => `<option value="${ch}">${ch}</option>`).join('');
+  new bootstrap.Modal(document.getElementById('bulkMoveModal')).show();
+}
+
+document.getElementById('confirm-bulk-move-btn').addEventListener('click', async () => {
+  const channel  = document.getElementById('bulk-channel-select').value;
+  const selected = varGrid ? varGrid.getSelectedRows() : [];
+  const tags     = selected.map(r => r.tag);
+  if (!tags.length || !channel) return;
+  try {
+    await apiFetch('/api/variables/bulk-assign', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tags, channel}),
+    });
+    bootstrap.Modal.getInstance(document.getElementById('bulkMoveModal')).hide();
+    showToast(`${tags.length} variável(is) movida(s) para ${channel}.`);
+    loadVariables();
+    loadChannels();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+});
+
+// ── Preview grid (upload modal) ───────────────────────────────────────────────
 const previewColDefs = [
   {headerName: 'Tag',        field: 'tag',          width: 200},
   {headerName: 'Grupo',      field: 'group',        width: 130},
   {headerName: 'Canal',      field: 'channel',      width: 150},
-  {headerName: 'Delay (ms)', field: 'delay_ms',     width: 110},
   {headerName: 'History',    field: 'history_size', width: 100},
   {headerName: 'Habilitado', field: 'enabled',      width: 100,
    cellRenderer: p => p.value ? '✔' : '✗'},
 ];
 
 function initPreviewGrid() {
-  const opts = {
-    columnDefs: previewColDefs,
-    rowData: [],
-    defaultColDef: {resizable: true},
-  };
-  previewGrid = agGrid.createGrid(document.getElementById('preview-grid'), opts);
+  previewGrid = agGrid.createGrid(
+    document.getElementById('preview-grid'),
+    {columnDefs: previewColDefs, rowData: [], defaultColDef: {resizable: true}}
+  );
 }
 
-// ── Upload ───────────────────────────────────────────────────────────────────
+// ── Upload ────────────────────────────────────────────────────────────────────
 document.getElementById('upload-input').addEventListener('change', async function () {
   if (!this.files[0]) return;
   const formData = new FormData();
   formData.append('file', this.files[0]);
   this.value = '';
-
   try {
     const res = await fetch('/api/upload', {method: 'POST', body: formData});
     if (!res.ok) { const e = await res.json(); throw e.detail || res.statusText; }
@@ -416,17 +630,44 @@ document.getElementById('confirm-upload-btn').addEventListener('click', async ()
   }
 });
 
-// ── Export ───────────────────────────────────────────────────────────────────
+// ── Novo canal ────────────────────────────────────────────────────────────────
+document.getElementById('confirm-new-channel-btn').addEventListener('click', async () => {
+  const suffix  = document.getElementById('new-ch-name').value.trim();
+  const delay   = parseInt(document.getElementById('new-ch-delay').value, 10);
+  const history = parseInt(document.getElementById('new-ch-history').value, 10);
+  if (!suffix) { showToast('Informe o nome do canal.', 'danger'); return; }
+  const channel = 'plc_' + suffix;
+  try {
+    await apiFetch('/api/channels', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({channel, delay_ms: delay, history_size: history}),
+    });
+    bootstrap.Modal.getInstance(document.getElementById('newChannelModal')).hide();
+    document.getElementById('new-ch-name').value = '';
+    showToast(`Canal ${channel} criado.`);
+    const newRoom = suffix;
+    if (!knownRooms.includes(newRoom)) {
+      knownRooms.push(newRoom);
+      socket.emit('join', {rooms: [newRoom]});
+    }
+    loadChannels();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+});
+
+// ── Export ────────────────────────────────────────────────────────────────────
 document.getElementById('export-btn').addEventListener('click', () => {
   window.location.href = '/api/export';
 });
 
-// ── Filtros ──────────────────────────────────────────────────────────────────
+// ── Filtros ───────────────────────────────────────────────────────────────────
 ['filter-group','filter-type','filter-channel'].forEach(id =>
   document.getElementById(id).addEventListener('change', applyFilters));
 document.getElementById('filter-text').addEventListener('input', applyFilters);
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initVarGrid();
   initPreviewGrid();

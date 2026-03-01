@@ -1,5 +1,9 @@
 {
   "extrusoraErro": {
-    "enabled": true
+    "enabled": false,
+    "channel": "plc_teste"
+  },
+  "extrusoraAutManBotao": {
+    "channel": "plc_teste"
   }
 }

@@ -138,34 +138,22 @@ class TestConfigStore(unittest.TestCase):
                 )
 
     def test_09_update_history_does_not_affect_other_channels(self):
-        cfg_before = config_store.load_group_config()
         other_channel = 'plc_config'
-        sizes_before = {
-            name: grp['history_size']
-            for name, grp in cfg_before['groups'].items()
-            if grp.get('channel') == other_channel
-        }
+        size_before = config_store.get_channels().get(other_channel, {}).get('history_size', 100)
 
         config_store.update_channel_history_size('plc_alarmes', 99)
 
-        cfg_after = config_store.load_group_config()
-        for name, original_size in sizes_before.items():
-            self.assertEqual(
-                cfg_after['groups'][name]['history_size'],
-                original_size,
-                f"Grupo '{name}' (canal '{other_channel}') foi alterado indevidamente"
-            )
+        size_after = config_store.get_channels().get(other_channel, {}).get('history_size', 100)
+        self.assertEqual(
+            size_after, size_before,
+            f"Canal '{other_channel}' foi alterado indevidamente"
+        )
 
     def test_10_update_history_persists_to_file(self):
         config_store.update_channel_history_size('plc_process', 77)
-        reloaded = config_store.load_group_config()
-        changed = [
-            name for name, grp in reloaded['groups'].items()
-            if grp.get('channel') == 'plc_process'
-        ]
-        self.assertTrue(changed, "Nenhum grupo mapeado para 'plc_process'")
-        for name in changed:
-            self.assertEqual(reloaded['groups'][name]['history_size'], 77)
+        channels = config_store.get_channels()
+        self.assertIn('plc_process', channels)
+        self.assertEqual(channels['plc_process']['history_size'], 77)
 
     # ── get_channel_history_sizes ────────────────────────────────────────────
 
@@ -197,10 +185,10 @@ class TestConfigStore(unittest.TestCase):
 
     def test_15_patch_variable_merges_fields(self):
         config_store.patch_variable_override('testTag', {'enabled': True})
-        config_store.patch_variable_override('testTag', {'delay_ms': 500})
+        config_store.patch_variable_override('testTag', {'channel': 'plc_visual'})
         overrides = config_store.load_overrides()
         self.assertTrue(overrides['testTag']['enabled'])
-        self.assertEqual(overrides['testTag']['delay_ms'], 500)
+        self.assertEqual(overrides['testTag']['channel'], 'plc_visual')
 
 
 # ---------------------------------------------------------------------------
@@ -317,11 +305,14 @@ class TestHubHTTP(unittest.TestCase):
         for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
             self.assertIn(ch, resp, f"Canal '{ch}' ausente em /api/channels")
 
-    def test_32_api_channels_values_are_positive_int(self):
-        for ch, size in self._get('/api/channels').items():
+    def test_32_api_channels_values_are_dicts_with_delay_and_history(self):
+        for ch, cfg in self._get('/api/channels').items():
             with self.subTest(channel=ch):
-                self.assertIsInstance(size, int)
-                self.assertGreater(size, 0)
+                self.assertIsInstance(cfg, dict)
+                self.assertIn('delay_ms', cfg)
+                self.assertIn('history_size', cfg)
+                self.assertGreater(cfg['delay_ms'], 0)
+                self.assertGreater(cfg['history_size'], 0)
 
     def test_33_api_groups_returns_dict(self):
         resp = self._get('/api/groups')
@@ -336,9 +327,9 @@ class TestHubHTTP(unittest.TestCase):
         resp = self._patch('/api/channels/plc_alarmes/history', {'history_size': 55})
         self.assertEqual(resp['channel'],      'plc_alarmes')
         self.assertEqual(resp['history_size'], 55)
-        # Verifica que foi persistido
+        # Verifica que foi persistido (formato agora é dict)
         channels = self._get('/api/channels')
-        self.assertEqual(channels.get('plc_alarmes'), 55)
+        self.assertEqual(channels.get('plc_alarmes', {}).get('history_size'), 55)
 
     def test_36_patch_history_invalid_size_returns_422(self):
         import urllib.error
@@ -606,19 +597,20 @@ class TestConfigStorePhase3(unittest.TestCase):
 
     def test_51_each_variable_has_required_fields(self):
         result = config_store.load_all_variables()
-        required = {'tag', 'group', 'type', 'address', 'channel', 'delay_ms',
+        required = {'tag', 'group', 'type', 'address', 'channel',
                     'history_size', 'enabled', 'has_override', 'source'}
         for var in result:
             with self.subTest(tag=var.get('tag')):
                 self.assertTrue(required.issubset(var.keys()), f"Campos ausentes em {var}")
 
     def test_52_channel_from_group_config(self):
-        """Variáveis do grupo 'Extrusora' devem herdar channel de group_config.json."""
+        """Variáveis do grupo 'Extrusora' sem override devem herdar channel de group_config.json."""
         result  = config_store.load_all_variables()
         cfg     = config_store.load_group_config()
         ext_ch  = cfg['groups']['Extrusora']['channel']
-        ext_vars = [v for v in result if v['group'] == 'Extrusora']
-        self.assertTrue(ext_vars, "Nenhuma variável do grupo Extrusora encontrada")
+        # Exclui variáveis com override de canal (que legitimamente diferem do grupo)
+        ext_vars = [v for v in result if v['group'] == 'Extrusora' and not v['has_override']]
+        self.assertTrue(ext_vars, "Nenhuma variável não-overridden do grupo Extrusora encontrada")
         for v in ext_vars:
             with self.subTest(tag=v['tag']):
                 self.assertEqual(v['channel'], ext_ch)
@@ -699,14 +691,13 @@ class TestConfigStorePhase3(unittest.TestCase):
 
         rows = [
             {'tag': v['tag'], 'group': v['group'], 'source': v['source'],
-             'channel': 'plc_visual', 'delay_ms': 999, 'history_size': 50, 'enabled': True}
+             'channel': 'plc_visual', 'history_size': 50, 'enabled': True}
             for v in ext_vars
         ]
         config_store.apply_upload_config(rows)
 
         updated = config_store.load_group_config()
-        self.assertEqual(updated['groups']['Extrusora']['channel'],  'plc_visual')
-        self.assertEqual(updated['groups']['Extrusora']['delay_ms'], 999)
+        self.assertEqual(updated['groups']['Extrusora']['channel'], 'plc_visual')
 
     def test_60_apply_upload_sets_per_tag_override(self):
         """Row com canal diferente do grupo cria override individual."""
@@ -721,7 +712,7 @@ class TestConfigStorePhase3(unittest.TestCase):
         for i, v in enumerate(ext_vars):
             ch = 'plc_alarmes' if i == 0 else group_ch   # só o primeiro é diferente
             rows.append({'tag': v['tag'], 'group': v['group'], 'source': v['source'],
-                         'channel': ch, 'delay_ms': v['delay_ms'],
+                         'channel': ch,
                          'history_size': v['history_size'], 'enabled': True})
         config_store.apply_upload_config(rows)
 
@@ -878,7 +869,7 @@ class TestHubHTTPPhase3(unittest.TestCase):
         rows = [
             {'tag': v['tag'], 'group': v.get('group', ''),
              'source': v.get('source', 'operacao'),
-             'channel': v['channel'], 'delay_ms': v['delay_ms'],
+             'channel': v['channel'],
              'history_size': v.get('history_size', 100), 'enabled': v.get('enabled', True)}
             for v in vars_now
         ]

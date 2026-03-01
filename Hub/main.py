@@ -46,8 +46,14 @@ logger = logging.getLogger(__name__)
 _REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
 _REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 
-# Rooms conhecidos — derivados dos canais plc_* configurados
-KNOWN_ROOMS = ['alarmes', 'process', 'visual', 'config', 'alarms']
+def _derive_rooms() -> list[str]:
+    """Deriva rooms Socket.IO a partir dos canais configurados."""
+    rooms = []
+    for ch in config_store.get_channel_history_sizes():
+        room = ch.removeprefix('plc_') if ch.startswith('plc_') else ch
+        if room not in rooms:
+            rooms.append(room)
+    return rooms
 
 
 # ── Socket.IO + FastAPI ───────────────────────────────────────────────────────
@@ -94,8 +100,8 @@ async def health():
 
 @app.get('/api/channels')
 async def get_channels():
-    """Retorna {canal: history_size} para todos os canais configurados."""
-    return config_store.get_channel_history_sizes()
+    """Retorna {canal: {delay_ms, history_size}} para todos os canais configurados."""
+    return config_store.get_channels()
 
 
 @app.get('/api/groups')
@@ -120,9 +126,8 @@ async def get_variables():
 
 
 class VariablePatch(BaseModel):
-    enabled:  Optional[bool]  = None
-    channel:  Optional[str]   = None
-    delay_ms: Optional[int]   = None
+    enabled: Optional[bool] = None
+    channel: Optional[str]  = None
 
 
 @app.patch('/api/variables/{tag}')
@@ -135,6 +140,21 @@ async def patch_variable(tag: str, body: VariablePatch):
     if redis_pub:
         await redis_pub.publish('config_reload', json.dumps({'reload': True}))
     return {'tag': tag, 'updated': fields}
+
+
+class BulkAssignBody(BaseModel):
+    tags:    list[str]
+    channel: str
+
+
+@app.post('/api/variables/bulk-assign')
+async def bulk_assign_channel(body: BulkAssignBody):
+    """Move uma lista de variáveis para um canal, criando overrides individuais."""
+    for tag in body.tags:
+        config_store.patch_variable_override(tag, {'channel': body.channel})
+    if redis_pub:
+        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    return {'assigned': len(body.tags), 'channel': body.channel}
 
 
 @app.post('/api/upload')
@@ -172,6 +192,52 @@ async def export_xlsx():
     )
 
 
+class ChannelCreate(BaseModel):
+    channel: str
+    delay_ms: int = 1000
+    history_size: int = 100
+
+
+@app.post('/api/channels', status_code=201)
+async def create_channel(body: ChannelCreate):
+    """Cria um novo canal Redis com prefixo plc_."""
+    if not body.channel.startswith('plc_') or len(body.channel) <= len('plc_'):
+        raise HTTPException(status_code=422, detail="Canal deve ter prefixo 'plc_' seguido de um nome.")
+    if body.delay_ms < 1 or body.history_size < 1:
+        raise HTTPException(status_code=422, detail='delay_ms e history_size devem ser >= 1.')
+    config_store.create_channel(body.channel, body.delay_ms, body.history_size)
+    if redis_pub:
+        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    return {'channel': body.channel, 'delay_ms': body.delay_ms, 'history_size': body.history_size}
+
+
+@app.delete('/api/channels/{channel}')
+async def delete_channel(channel: str):
+    """Remove um canal criado explicitamente. Não afeta grupos já mapeados."""
+    try:
+        config_store.delete_channel(channel)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if redis_pub:
+        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    return {'deleted': channel}
+
+
+class DelayPatch(BaseModel):
+    delay_ms: int
+
+
+@app.patch('/api/channels/{channel}/delay')
+async def set_channel_delay(channel: str, body: DelayPatch):
+    """Atualiza delay_ms do canal e publica config_reload."""
+    if body.delay_ms < 1:
+        raise HTTPException(status_code=422, detail='delay_ms deve ser >= 1')
+    config_store.update_channel_delay(channel, body.delay_ms)
+    if redis_pub:
+        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    return {'channel': channel, 'delay_ms': body.delay_ms}
+
+
 class HistoryPatch(BaseModel):
     history_size: int
 
@@ -202,7 +268,7 @@ async def connect(sid, environ):
     logger.info('Cliente conectado: %s', sid)
     await sio.emit('connection_ack', {
         'status': 'connected',
-        'available_rooms': KNOWN_ROOMS,
+        'available_rooms': _derive_rooms(),
     }, to=sid)
 
 

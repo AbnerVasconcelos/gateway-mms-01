@@ -244,21 +244,33 @@ class TestGroupConfig(unittest.TestCase):
                               f"Grupo '{name}' ausente em group_config.json")
 
     def test_34_required_fields_per_group(self):
+        """Após migração, grupos contêm apenas 'channel'; delay/history ficam na seção channels."""
         for name, cfg in self.config['groups'].items():
             with self.subTest(group=name):
-                self.assertIn('channel',      cfg)
-                self.assertIn('delay_ms',     cfg)
-                self.assertIn('history_size', cfg)
+                self.assertIn('channel', cfg)
+        # delay_ms e history_size devem existir na seção channels
+        channels = self.config.get('channels', {})
+        self.assertGreater(len(channels), 0, "Seção 'channels' ausente ou vazia")
+        for ch, ch_cfg in channels.items():
+            with self.subTest(channel=ch):
+                self.assertIn('delay_ms',    ch_cfg)
+                self.assertIn('history_size', ch_cfg)
 
     def test_35_delay_ms_positive(self):
-        for name, cfg in self.config['groups'].items():
-            with self.subTest(group=name):
-                self.assertGreater(cfg['delay_ms'], 0)
+        """delay_ms está na seção channels (não mais nos grupos)."""
+        channels = self.config.get('channels', {})
+        self.assertGreater(len(channels), 0, "Seção 'channels' ausente ou vazia")
+        for ch, cfg in channels.items():
+            with self.subTest(channel=ch):
+                self.assertGreater(cfg.get('delay_ms', 0), 0)
 
     def test_36_history_size_positive(self):
-        for name, cfg in self.config['groups'].items():
-            with self.subTest(group=name):
-                self.assertGreater(cfg['history_size'], 0)
+        """history_size está na seção channels (não mais nos grupos)."""
+        channels = self.config.get('channels', {})
+        self.assertGreater(len(channels), 0, "Seção 'channels' ausente ou vazia")
+        for ch, cfg in channels.items():
+            with self.subTest(channel=ch):
+                self.assertGreater(cfg.get('history_size', 0), 0)
 
     def test_37_channels_use_plc_prefix(self):
         for name, cfg in self.config['groups'].items():
