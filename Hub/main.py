@@ -12,6 +12,7 @@ Variáveis de ambiente (.env):
 """
 
 import asyncio
+import datetime
 import json
 import logging
 import os
@@ -35,6 +36,7 @@ sys.path.insert(0, _GATEWAY_DIR)
 
 import config_store          # noqa: E402  (Hub/config_store.py)
 from redis_bridge import start_bridge  # noqa: E402  (Hub/redis_bridge.py)
+from simulator_manager import SimulatorManager  # noqa: E402
 
 load_dotenv(os.path.join(_HUB_DIR, '.env'))
 
@@ -48,6 +50,9 @@ logger = logging.getLogger(__name__)
 _REDIS_HOST  = os.environ.get('REDIS_HOST', 'localhost')
 _REDIS_PORT  = int(os.environ.get('REDIS_PORT', 6379))
 _thread_pool = ThreadPoolExecutor(max_workers=4)
+
+# SimulatorManager — simuladores Modbus embarcados
+sim_manager: SimulatorManager | None = None
 
 def _derive_rooms() -> list[str]:
     """Deriva rooms Socket.IO a partir dos canais configurados."""
@@ -80,18 +85,45 @@ redis_pub: aioredis.Redis | None = None
 
 @app.on_event('startup')
 async def on_startup():
-    global redis_pub
+    global redis_pub, sim_manager
     redis_pub = aioredis.Redis(host=_REDIS_HOST, port=_REDIS_PORT, db=0)
     logger.info('Hub: Redis publisher pronto em %s:%s', _REDIS_HOST, _REDIS_PORT)
     asyncio.create_task(start_bridge(sio, _REDIS_HOST, _REDIS_PORT))
+
+    # Inicializa SimulatorManager
+    sim_manager = SimulatorManager(config_store._TABLES_DIR)
+    await sim_manager.init_from_config()
+    asyncio.create_task(_sim_broadcast_loop())
     logger.info('Hub iniciado.')
 
 
 @app.on_event('shutdown')
 async def on_shutdown():
+    if sim_manager:
+        await sim_manager.shutdown_all()
     if redis_pub:
         await redis_pub.aclose()
     logger.info('Hub encerrado.')
+
+
+async def _sim_broadcast_loop():
+    """Broadcast periódico de valores dos simuladores rodando para rooms sim:{id}."""
+    while True:
+        await asyncio.sleep(0.5)
+        if not sim_manager:
+            continue
+        for sim_id, sim in sim_manager._simulators.items():
+            if not sim.running:
+                continue
+            try:
+                values = sim.read_all_values()
+                await sio.emit('sim:values', {
+                    'sim_id': sim_id,
+                    'values': values,
+                    'timestamp': datetime.datetime.now().isoformat(),
+                }, room=f'sim:{sim_id}')
+            except Exception as exc:
+                logger.debug("Erro no broadcast sim:%s: %s", sim_id, exc)
 
 
 # ── REST endpoints ────────────────────────────────────────────────────────────
@@ -500,6 +532,168 @@ async def upload_device_csv(device_id: str, file: UploadFile = File(...)):
     return {'device_id': device_id, 'filename': filename, 'csv_files': csv_files}
 
 
+# ── LabTest — Simuladores embarcados ──────────────────────────────────────────
+
+@app.get('/labtest')
+async def labtest_page():
+    """Serve a página LabTest."""
+    return FileResponse(os.path.join(_HUB_DIR, 'templates', 'labtest.html'))
+
+
+@app.get('/api/simulators')
+async def list_simulators():
+    """Lista todos os simuladores com estado."""
+    if not sim_manager:
+        return {}
+    return sim_manager.list_simulators()
+
+
+class SimulatorCreate(BaseModel):
+    sim_id:    str
+    label:     str       = ''
+    protocol:  str       = 'tcp'
+    port:      int       = 5020
+    unit_id:   int       = 1
+    csv_files: list[str] = []
+    simulate:  bool      = True
+    auto_start: bool     = False
+
+
+@app.post('/api/simulators', status_code=201)
+async def create_simulator(body: SimulatorCreate):
+    """Cria um novo simulador Modbus."""
+    if not sim_manager:
+        raise HTTPException(status_code=503, detail='SimulatorManager não inicializado.')
+    sim_id = body.sim_id.strip()
+    if not sim_id:
+        raise HTTPException(status_code=422, detail='sim_id não pode ser vazio.')
+    cfg = body.model_dump(exclude={'sim_id'})
+    try:
+        sim = sim_manager.create_simulator(sim_id, cfg)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return sim.to_state_dict()
+
+
+@app.delete('/api/simulators/{sim_id}')
+async def delete_simulator(sim_id: str):
+    """Remove simulador (para primeiro se rodando)."""
+    if not sim_manager:
+        raise HTTPException(status_code=503, detail='SimulatorManager não inicializado.')
+    try:
+        await sim_manager.delete_simulator(sim_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    await sio.emit('sim:status', {'sim_id': sim_id, 'running': False, 'deleted': True})
+    return {'deleted': sim_id}
+
+
+class SimulatorPatch(BaseModel):
+    label:     Optional[str]       = None
+    protocol:  Optional[str]       = None
+    port:      Optional[int]       = None
+    unit_id:   Optional[int]       = None
+    csv_files: Optional[list[str]] = None
+    simulate:  Optional[bool]      = None
+    auto_start: Optional[bool]     = None
+
+
+@app.patch('/api/simulators/{sim_id}')
+async def patch_simulator(sim_id: str, body: SimulatorPatch):
+    """Atualiza config do simulador (deve estar parado)."""
+    if not sim_manager:
+        raise HTTPException(status_code=503, detail='SimulatorManager não inicializado.')
+    sim = sim_manager.get_simulator(sim_id)
+    if not sim:
+        raise HTTPException(status_code=404, detail=f"Simulador '{sim_id}' não encontrado.")
+    if sim.running:
+        raise HTTPException(status_code=409, detail='Pare o simulador antes de alterar a configuração.')
+    fields = body.model_dump(exclude_none=True)
+    if not fields:
+        raise HTTPException(status_code=422, detail='Nenhum campo fornecido.')
+    sim.config.update(fields)
+    # Reconstrói contexto se csv_files mudou
+    if 'csv_files' in fields:
+        sim.build_context(config_store._TABLES_DIR)
+    sim_manager.save_config()
+    return sim.to_state_dict()
+
+
+@app.post('/api/simulators/{sim_id}/start')
+async def start_simulator(sim_id: str):
+    """Inicia o simulador Modbus."""
+    if not sim_manager:
+        raise HTTPException(status_code=503, detail='SimulatorManager não inicializado.')
+    try:
+        await sim_manager.start_simulator(sim_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except OSError as e:
+        raise HTTPException(status_code=409, detail=f'Erro ao iniciar (porta em uso?): {e}')
+    sim = sim_manager.get_simulator(sim_id)
+    state = sim.to_state_dict() if sim else {'sim_id': sim_id, 'running': True}
+    await sio.emit('sim:status', state)
+    return state
+
+
+@app.post('/api/simulators/{sim_id}/stop')
+async def stop_simulator(sim_id: str):
+    """Para o simulador Modbus."""
+    if not sim_manager:
+        raise HTTPException(status_code=503, detail='SimulatorManager não inicializado.')
+    try:
+        await sim_manager.stop_simulator(sim_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    sim = sim_manager.get_simulator(sim_id)
+    state = sim.to_state_dict() if sim else {'sim_id': sim_id, 'running': False}
+    await sio.emit('sim:status', state)
+    return state
+
+
+@app.get('/api/simulators/{sim_id}/variables')
+async def get_simulator_variables(sim_id: str):
+    """Lista variáveis com valores atuais e estado de lock."""
+    if not sim_manager:
+        raise HTTPException(status_code=503, detail='SimulatorManager não inicializado.')
+    sim = sim_manager.get_simulator(sim_id)
+    if not sim:
+        raise HTTPException(status_code=404, detail=f"Simulador '{sim_id}' não encontrado.")
+    return {'variables': sim.get_variables_info()}
+
+
+@app.post('/api/simulators/{sim_id}/upload-csv')
+async def upload_simulator_csv(sim_id: str, file: UploadFile = File(...)):
+    """Upload CSV para o simulador — salva em tables/ e adiciona a csv_files."""
+    if not sim_manager:
+        raise HTTPException(status_code=503, detail='SimulatorManager não inicializado.')
+    sim = sim_manager.get_simulator(sim_id)
+    if not sim:
+        raise HTTPException(status_code=404, detail=f"Simulador '{sim_id}' não encontrado.")
+    if sim.running:
+        raise HTTPException(status_code=409, detail='Pare o simulador antes de fazer upload de CSV.')
+
+    content = await file.read()
+    filename = os.path.basename(file.filename or f'{sim_id}.csv')
+    if not filename.lower().endswith('.csv'):
+        raise HTTPException(status_code=422, detail='Somente arquivos .csv são aceitos.')
+
+    save_path = os.path.join(config_store._TABLES_DIR, filename)
+    with open(save_path, 'wb') as f:
+        f.write(content)
+
+    csv_files = list(sim.config.get('csv_files', []))
+    if filename not in csv_files:
+        csv_files.append(filename)
+        sim.config['csv_files'] = csv_files
+
+    sim.build_context(config_store._TABLES_DIR)
+    sim_manager.save_config()
+    return {'sim_id': sim_id, 'filename': filename, 'csv_files': csv_files}
+
+
 # ── Eventos Socket.IO ─────────────────────────────────────────────────────────
 
 @sio.event
@@ -600,3 +794,47 @@ async def history_get(sid, data=None):
     """Envia {canal: history_size} para o cliente solicitante."""
     sizes = config_store.get_channel_history_sizes()
     await sio.emit('history:sizes', sizes, to=sid)
+
+
+# ── Eventos Socket.IO — Simuladores ──────────────────────────────────────────
+
+@sio.event
+async def sim_subscribe(sid, data):
+    """Cliente entra no room sim:{sim_id} para receber valores em tempo real."""
+    sim_id = data.get('sim_id') if isinstance(data, dict) else None
+    if sim_id:
+        await sio.enter_room(sid, f'sim:{sim_id}')
+        logger.info("Cliente %s entrou no room sim:%s", sid, sim_id)
+
+
+@sio.event
+async def sim_write(sid, data):
+    """Escreve valor direto no data store do simulador."""
+    if not sim_manager or not isinstance(data, dict):
+        return
+    sim_id = data.get('sim_id')
+    tag = data.get('tag')
+    value = data.get('value')
+    if not sim_id or not tag or value is None:
+        return
+    sim = sim_manager.get_simulator(sim_id)
+    if sim:
+        sim.write_value(tag, value)
+
+
+@sio.event
+async def sim_lock(sid, data):
+    """Trava/destrava variável do simulador."""
+    if not sim_manager or not isinstance(data, dict):
+        return
+    sim_id = data.get('sim_id')
+    tag = data.get('tag')
+    locked = data.get('locked', True)
+    if not sim_id or not tag:
+        return
+    sim = sim_manager.get_simulator(sim_id)
+    if sim:
+        if locked:
+            sim.lock_tag(tag)
+        else:
+            sim.unlock_tag(tag)

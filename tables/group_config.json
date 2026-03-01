@@ -14,7 +14,8 @@
       "unit_id": 2,
       "csv_files": [
         "operacao.csv"
-      ]
+      ],
+      "enabled": true
     },
     "clp2": {
       "label": "",
@@ -28,7 +29,8 @@
       "stopbits": 1,
       "csv_files": [
         "operacao.csv"
-      ]
+      ],
+      "enabled": false
     }
   },
   "channels": {

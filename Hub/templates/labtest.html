@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LabTest — Simuladores Modbus</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- AG Grid Community -->
+  <link href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-grid.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-theme-alpine.css" rel="stylesheet" />
+
+  <style>
+    body { background: #f8f9fa; }
+
+    .status-dot {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 6px;
+    }
+    .dot-ok   { background: #28a745; }
+    .dot-warn { background: #ffc107; }
+    .dot-err  { background: #dc3545; }
+    .dot-grey { background: #adb5bd; }
+
+    .sim-card {
+      min-width: 240px; max-width: 300px;
+      cursor: pointer; transition: box-shadow 0.2s;
+    }
+    .sim-card:hover { box-shadow: 0 0 0 2px rgba(13,110,253,.35); }
+    .sim-card.active { box-shadow: 0 0 0 2px #0d6efd; }
+
+    #var-grid { height: 520px; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark bg-dark px-3">
+  <div class="d-flex align-items-center gap-3">
+    <a href="/" class="navbar-brand fw-bold text-decoration-none">Gateway Config Panel</a>
+    <span class="badge bg-success">LabTest</span>
+  </div>
+  <div class="d-flex align-items-center gap-3">
+    <span id="ws-status" class="text-white small">
+      <span class="status-dot dot-warn" id="ws-dot"></span>Conectando...
+    </span>
+  </div>
+</nav>
+
+<!-- Main content -->
+<div class="container-fluid py-3">
+
+  <!-- Simulators bar -->
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <h5 class="mb-0 me-2">Simuladores</h5>
+    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newSimModal">
+      + Novo simulador
+    </button>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        Criar a partir de device
+      </button>
+      <ul class="dropdown-menu" id="from-device-menu">
+        <li><span class="dropdown-item text-muted">Carregando...</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Simulator cards -->
+  <div class="d-flex gap-3 flex-wrap mb-3" id="sim-cards"></div>
+
+  <!-- Variables grid -->
+  <div id="var-section" class="d-none">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <h6 class="mb-0">Variaveis</h6>
+      <span class="badge bg-secondary" id="selected-sim-badge">—</span>
+    </div>
+    <div id="var-grid" class="ag-theme-alpine"></div>
+  </div>
+</div>
+
+<!-- New Simulator Modal -->
+<div class="modal fade" id="newSimModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Novo simulador</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">ID do simulador</label>
+          <input type="text" id="new-sim-id" class="form-control form-control-sm" placeholder="sim_clp1" />
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Label</label>
+          <input type="text" id="new-sim-label" class="form-control form-control-sm" placeholder="Simulador CLP Principal" />
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Protocolo</label>
+            <select id="new-sim-protocol" class="form-select form-select-sm">
+              <option value="tcp">TCP</option>
+              <option value="rtu_tcp">RTU over TCP</option>
+            </select>
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Porta</label>
+            <input type="number" id="new-sim-port" class="form-control form-control-sm" value="5020" min="1024" />
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Unit ID</label>
+            <input type="number" id="new-sim-unit" class="form-control form-control-sm" value="1" min="1" />
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Arquivos CSV <span class="text-muted">(um por linha)</span></label>
+          <textarea id="new-sim-csvs" class="form-control form-control-sm" rows="2"
+                    placeholder="operacao.csv&#10;configuracao.csv"></textarea>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="new-sim-simulate" checked />
+          <label class="form-check-label small" for="new-sim-simulate">Simular variacao de valores</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="new-sim-autostart" />
+          <label class="form-check-label small" for="new-sim-autostart">Auto-start ao iniciar Hub</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="confirm-new-sim-btn">Criar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/dist/ag-grid-community.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4/dist/socket.io.min.js"></script>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let socket = null;
+let simulators = {};
+let selectedSimId = null;
+let gridApi = null;
+let gridData = [];
+
+// ── Socket.IO ──────────────────────────────────────────────────────────────
+function initSocket() {
+  socket = io({ transports: ['websocket', 'polling'] });
+
+  socket.on('connect', () => {
+    document.getElementById('ws-dot').className = 'status-dot dot-ok';
+    document.getElementById('ws-status').innerHTML =
+      '<span class="status-dot dot-ok" id="ws-dot"></span>Conectado';
+    loadSimulators();
+    loadDevices();
+  });
+
+  socket.on('disconnect', () => {
+    document.getElementById('ws-dot').className = 'status-dot dot-err';
+    document.getElementById('ws-status').innerHTML =
+      '<span class="status-dot dot-err" id="ws-dot"></span>Desconectado';
+  });
+
+  socket.on('sim:values', (data) => {
+    if (data.sim_id !== selectedSimId) return;
+    const values = data.values || {};
+    if (!gridApi) return;
+
+    gridApi.forEachNode(node => {
+      const tag = node.data.tag;
+      if (tag in values && node.data.value !== values[tag]) {
+        node.data.value = values[tag];
+        gridApi.refreshCells({ rowNodes: [node], columns: ['value'], force: true });
+      }
+    });
+  });
+
+  socket.on('sim:status', (data) => {
+    if (data.deleted) {
+      delete simulators[data.sim_id];
+      if (selectedSimId === data.sim_id) {
+        selectedSimId = null;
+        document.getElementById('var-section').classList.add('d-none');
+      }
+    } else if (simulators[data.sim_id]) {
+      simulators[data.sim_id].running = data.running;
+      if (data.config) simulators[data.sim_id].config = data.config;
+    }
+    renderCards();
+  });
+}
+
+// ── API helpers ────────────────────────────────────────────────────────────
+async function api(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+// ── Load simulators ────────────────────────────────────────────────────────
+async function loadSimulators() {
+  try {
+    simulators = await api('GET', '/api/simulators');
+    renderCards();
+  } catch (e) {
+    console.error('Erro ao carregar simuladores:', e);
+  }
+}
+
+// ── Load devices (for "create from device") ────────────────────────────────
+async function loadDevices() {
+  try {
+    const devices = await api('GET', '/api/devices');
+    const menu = document.getElementById('from-device-menu');
+    menu.innerHTML = '';
+    for (const [devId, cfg] of Object.entries(devices)) {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.className = 'dropdown-item';
+      a.href = '#';
+      a.textContent = `${cfg.label || devId} (${devId})`;
+      a.onclick = (e) => { e.preventDefault(); createFromDevice(devId, cfg); };
+      li.appendChild(a);
+      menu.appendChild(li);
+    }
+    if (!menu.children.length) {
+      menu.innerHTML = '<li><span class="dropdown-item text-muted">Nenhum device</span></li>';
+    }
+  } catch (e) {
+    console.error('Erro ao carregar devices:', e);
+  }
+}
+
+function createFromDevice(devId, cfg) {
+  document.getElementById('new-sim-id').value = 'sim_' + devId;
+  document.getElementById('new-sim-label').value = 'Simulador ' + (cfg.label || devId);
+  document.getElementById('new-sim-port').value = suggestPort();
+  document.getElementById('new-sim-unit').value = cfg.unit_id || 1;
+  document.getElementById('new-sim-csvs').value = (cfg.csv_files || []).join('\n');
+  document.getElementById('new-sim-protocol').value = cfg.protocol === 'rtu' ? 'rtu_tcp' : 'tcp';
+  const modal = new bootstrap.Modal(document.getElementById('newSimModal'));
+  modal.show();
+}
+
+function suggestPort() {
+  let port = 5020;
+  const usedPorts = Object.values(simulators).map(s => (s.config || {}).port);
+  while (usedPorts.includes(port)) port++;
+  return port;
+}
+
+// ── Render cards ───────────────────────────────────────────────────────────
+function renderCards() {
+  const container = document.getElementById('sim-cards');
+  container.innerHTML = '';
+
+  for (const [simId, state] of Object.entries(simulators)) {
+    const cfg = state.config || {};
+    const running = state.running;
+    const card = document.createElement('div');
+    card.className = 'card sim-card' + (selectedSimId === simId ? ' active' : '');
+    card.onclick = () => selectSimulator(simId);
+
+    const protocolLabel = cfg.protocol === 'rtu_tcp' ? 'RTU/TCP' : 'TCP';
+
+    card.innerHTML = `
+      <div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <strong class="small">${cfg.label || simId}</strong>
+          <span class="status-dot ${running ? 'dot-ok' : 'dot-grey'}"></span>
+        </div>
+        <div class="text-muted" style="font-size:.75em">
+          ${protocolLabel} :${cfg.port || '?'} &middot; unit ${cfg.unit_id || 1}
+          &middot; ${state.variable_count || 0} vars
+        </div>
+        <div class="d-flex gap-1 mt-2">
+          ${running
+            ? `<button class="btn btn-sm btn-outline-danger flex-fill" onclick="event.stopPropagation();stopSim('${simId}')">Stop</button>`
+            : `<button class="btn btn-sm btn-outline-success flex-fill" onclick="event.stopPropagation();startSim('${simId}')">Start</button>`
+          }
+          <label class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()" title="Upload CSV">
+            CSV
+            <input type="file" accept=".csv" class="d-none" onchange="uploadSimCsv('${simId}', this)" />
+          </label>
+          <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();deleteSim('${simId}')" title="Remover">
+            &times;
+          </button>
+        </div>
+      </div>`;
+    container.appendChild(card);
+  }
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+async function startSim(simId) {
+  try {
+    await api('POST', `/api/simulators/${simId}/start`);
+    simulators[simId].running = true;
+    renderCards();
+  } catch (e) { alert('Erro ao iniciar: ' + e.message); }
+}
+
+async function stopSim(simId) {
+  try {
+    await api('POST', `/api/simulators/${simId}/stop`);
+    simulators[simId].running = false;
+    renderCards();
+  } catch (e) { alert('Erro ao parar: ' + e.message); }
+}
+
+async function deleteSim(simId) {
+  if (!confirm(`Remover simulador "${simId}"?`)) return;
+  try {
+    await api('DELETE', `/api/simulators/${simId}`);
+    delete simulators[simId];
+    if (selectedSimId === simId) {
+      selectedSimId = null;
+      document.getElementById('var-section').classList.add('d-none');
+    }
+    renderCards();
+  } catch (e) { alert('Erro ao remover: ' + e.message); }
+}
+
+async function uploadSimCsv(simId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await fetch(`/api/simulators/${simId}/upload-csv`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || res.statusText);
+    }
+    await loadSimulators();
+    if (selectedSimId === simId) await loadVariables(simId);
+  } catch (e) { alert('Erro no upload: ' + e.message); }
+  input.value = '';
+}
+
+// ── Create simulator ───────────────────────────────────────────────────────
+document.getElementById('confirm-new-sim-btn').onclick = async () => {
+  const simId = document.getElementById('new-sim-id').value.trim();
+  const label = document.getElementById('new-sim-label').value.trim();
+  const protocol = document.getElementById('new-sim-protocol').value;
+  const port = parseInt(document.getElementById('new-sim-port').value) || 5020;
+  const unitId = parseInt(document.getElementById('new-sim-unit').value) || 1;
+  const csvText = document.getElementById('new-sim-csvs').value.trim();
+  const csvFiles = csvText ? csvText.split('\n').map(s => s.trim()).filter(Boolean) : [];
+  const simulate = document.getElementById('new-sim-simulate').checked;
+  const autoStart = document.getElementById('new-sim-autostart').checked;
+
+  if (!simId) { alert('ID do simulador e obrigatorio.'); return; }
+
+  try {
+    const result = await api('POST', '/api/simulators', {
+      sim_id: simId, label, protocol, port, unit_id: unitId,
+      csv_files: csvFiles, simulate, auto_start: autoStart,
+    });
+    simulators[simId] = result;
+    renderCards();
+    bootstrap.Modal.getInstance(document.getElementById('newSimModal')).hide();
+    // Clear form
+    document.getElementById('new-sim-id').value = '';
+    document.getElementById('new-sim-label').value = '';
+    document.getElementById('new-sim-csvs').value = '';
+  } catch (e) { alert('Erro ao criar: ' + e.message); }
+};
+
+// ── Select simulator + load variables ──────────────────────────────────────
+async function selectSimulator(simId) {
+  selectedSimId = simId;
+  renderCards();
+  document.getElementById('var-section').classList.remove('d-none');
+  document.getElementById('selected-sim-badge').textContent = simId;
+
+  // Subscribe to real-time values
+  socket.emit('sim_subscribe', { sim_id: simId });
+
+  await loadVariables(simId);
+}
+
+async function loadVariables(simId) {
+  try {
+    const data = await api('GET', `/api/simulators/${simId}/variables`);
+    gridData = data.variables || [];
+    if (gridApi) {
+      gridApi.setGridOption('rowData', gridData);
+    }
+  } catch (e) {
+    console.error('Erro ao carregar variaveis:', e);
+  }
+}
+
+// ── AG Grid setup ──────────────────────────────────────────────────────────
+function initGrid() {
+  const columnDefs = [
+    { field: 'tag', headerName: 'Tag', flex: 2, filter: true, sortable: true },
+    { field: 'group', headerName: 'Grupo', flex: 1, filter: true, sortable: true },
+    { field: 'type', headerName: 'Tipo', width: 80, filter: true },
+    { field: 'address', headerName: 'End.', width: 100, filter: true, sortable: true },
+    {
+      field: 'value', headerName: 'Valor', width: 120,
+      cellStyle: params => {
+        if (params.data && params.data.locked) return { fontWeight: 'bold', color: '#0d6efd' };
+        return null;
+      },
+    },
+    {
+      field: 'locked', headerName: 'Travar', width: 90,
+      cellRenderer: params => {
+        const checked = params.value ? 'checked' : '';
+        return `<input type="checkbox" ${checked} onchange="toggleLock('${params.data.tag}', this.checked)" />`;
+      },
+    },
+    {
+      headerName: 'Escrita', width: 180,
+      cellRenderer: params => {
+        if (!params.data || !params.data.locked) return '';
+        const tag = params.data.tag;
+        return `<div class="d-flex gap-1 align-items-center">
+          <input type="number" class="form-control form-control-sm" style="width:80px"
+                 id="write-${tag}" value="${params.data.value}" />
+          <button class="btn btn-sm btn-primary py-0 px-1" onclick="writeValue('${tag}')">Send</button>
+        </div>`;
+      },
+    },
+  ];
+
+  const gridOptions = {
+    columnDefs,
+    rowData: [],
+    defaultColDef: { resizable: true },
+    animateRows: true,
+    getRowId: params => params.data.tag,
+  };
+
+  const gridDiv = document.getElementById('var-grid');
+  gridApi = agGrid.createGrid(gridDiv, gridOptions);
+}
+
+// ── Lock / Write via Socket.IO ─────────────────────────────────────────────
+function toggleLock(tag, locked) {
+  if (!selectedSimId || !socket) return;
+  socket.emit('sim_lock', { sim_id: selectedSimId, tag, locked });
+
+  // Update local data immediately
+  if (gridApi) {
+    gridApi.forEachNode(node => {
+      if (node.data.tag === tag) {
+        node.data.locked = locked;
+        gridApi.refreshCells({ rowNodes: [node], columns: ['locked', 'value', null], force: true });
+        // null headerName column = Escrita (last col)
+      }
+    });
+    // Refresh the full row to update Escrita column
+    gridApi.forEachNode(node => {
+      if (node.data.tag === tag) {
+        gridApi.redrawRows({ rowNodes: [node] });
+      }
+    });
+  }
+}
+
+function writeValue(tag) {
+  if (!selectedSimId || !socket) return;
+  const input = document.getElementById('write-' + tag);
+  if (!input) return;
+  const value = parseFloat(input.value);
+  if (isNaN(value)) { alert('Valor invalido'); return; }
+  socket.emit('sim_write', { sim_id: selectedSimId, tag, value });
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initSocket();
+  initGrid();
+});
+</script>
+</body>
+</html>

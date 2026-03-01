@@ -1,6 +1,7 @@
 {
   "extrusoraErro": {
-    "channel": "plc_visual"
+    "channel": "plc_visual",
+    "enabled": false
   },
   "extrusoraAutManEstado": {
     "channel": "plc_visual"

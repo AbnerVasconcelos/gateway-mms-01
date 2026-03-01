@@ -1,0 +1,35 @@
+{
+  "Simulador": {
+    "label": "",
+    "protocol": "tcp",
+    "port": 5020,
+    "unit_id": 1,
+    "csv_files": [
+      "operacao.csv"
+    ],
+    "simulate": true,
+    "auto_start": false
+  },
+  "sim_default": {
+    "label": "Simulador CLP Principal",
+    "protocol": "tcp",
+    "port": 5021,
+    "unit_id": 2,
+    "csv_files": [
+      "operacao.csv"
+    ],
+    "simulate": true,
+    "auto_start": false
+  },
+  "teste": {
+    "label": "",
+    "protocol": "tcp",
+    "port": 5020,
+    "unit_id": 1,
+    "csv_files": [
+      "operacao.csv"
+    ],
+    "simulate": true,
+    "auto_start": false
+  }
+}
