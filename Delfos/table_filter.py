@@ -115,23 +115,13 @@ def extract_parameters_by_group(csv_file, attempts=5, pause=5):
 
 # ── Leitura por canal ─────────────────────────────────────────────────────────
 
-def _group_to_cfg_key(group: str, source: str, operacao_groups: set) -> str:
-    """
-    Resolve a chave usada em group_config.json para um dado (group, source).
-    Grupos de configuracao.csv que colidam com operacao.csv recebem sufixo '_cfg'.
-    """
-    if source == 'configuracao' and group in operacao_groups:
-        return group + '_cfg'
-    return group
-
-
 def extract_parameters_by_channel(csv_paths, group_config, overrides,
                                    attempts=5, pause=5) -> dict:
     """
     Lê múltiplos CSVs e retorna {channel: {...}} agrupando variáveis pelo canal efetivo.
 
     Canal efetivo de cada variável:
-      overrides[tag]['channel']  >  groups[cfg_key]['channel']  >  'plc_data'
+      overrides[tag]['channel']  — sem fallback; variáveis sem canal explícito são ignoradas.
 
     Variáveis com enabled=False são excluídas.
 
@@ -150,13 +140,11 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
     Endereços contíguos são calculados através de TODOS os grupos do canal
     (pool cross-group), reduzindo roundtrips Modbus.
     """
-    groups_cfg   = group_config.get('groups', {})
     channels_cfg = group_config.get('channels', {})
     meta         = group_config.get('_meta', {})
     default_hist = meta.get('default_history_size', 100)
 
-    all_rows      = []   # lista de dicts por variável
-    operacao_groups: set = set()
+    all_rows: list = []
 
     for csv_path in csv_paths:
         source = os.path.splitext(os.path.basename(csv_path))[0]
@@ -177,9 +165,6 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
         df = df.dropna(subset=['Modbus'])
         df['Modbus'] = df['Modbus'].astype(int)
 
-        if source == 'operacao':
-            operacao_groups = set(df['key'].unique())
-
         for _, row in df.iterrows():
             all_rows.append({
                 'key':    str(row['key']).strip(),
@@ -189,24 +174,21 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
                 'source': source,
             })
 
-    # Acumula linhas por canal efetivo
+    # Acumula linhas por canal efetivo (somente variáveis com canal explícito)
     channel_rows:    dict[str, list] = {}
     channel_sources: dict[str, set]  = {}
 
     for row in all_rows:
-        group   = row['key']
-        tag     = row['tag']
-        source  = row['source']
-        cfg_key = _group_to_cfg_key(group, source, operacao_groups)
-
-        grp_cfg = groups_cfg.get(cfg_key, {})
-        channel = grp_cfg.get('channel', 'plc_data')
+        tag    = row['tag']
+        source = row['source']
 
         ov = overrides.get(tag, {})
         if not ov.get('enabled', True):
             continue   # variável desabilitada — não inclui
-        if 'channel' in ov:
-            channel = ov['channel']
+
+        channel = ov.get('channel')
+        if not channel:
+            continue   # sem canal explícito — não lida
 
         channel_rows.setdefault(channel, []).append(row)
         channel_sources.setdefault(channel, set()).add(source)

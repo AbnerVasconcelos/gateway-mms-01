@@ -79,15 +79,15 @@ class TestConfigStore(unittest.TestCase):
     def test_01_load_group_config_returns_dict(self):
         cfg = config_store.load_group_config()
         self.assertIsInstance(cfg, dict)
-        self.assertIn('groups', cfg)
+        self.assertNotIn('groups', cfg)   # Fase 5: seção groups removida
         self.assertIn('_meta', cfg)
+        self.assertIn('channels', cfg)
 
-    def test_02_load_group_config_has_expected_groups(self):
+    def test_02_load_group_config_has_expected_channels(self):
         cfg = config_store.load_group_config()
-        expected = {'Extrusora', 'Puxador', 'alarmes', 'threeJs', 'plc_config'}
-        present  = set(cfg['groups'].keys())
-        for group in ('Extrusora', 'Puxador', 'alarmes', 'threeJs'):
-            self.assertIn(group, present, f"Grupo '{group}' ausente em group_config.json")
+        channels = cfg.get('channels', {})
+        for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
+            self.assertIn(ch, channels, f"Canal '{ch}' ausente em group_config.json")
 
     # ── save_group_config ────────────────────────────────────────────────────
 
@@ -99,12 +99,12 @@ class TestConfigStore(unittest.TestCase):
         reloaded = config_store.load_group_config()
         self.assertEqual(reloaded['_meta']['test_marker'], 'roundtrip')
 
-    def test_04_save_group_config_preserves_all_groups(self):
+    def test_04_save_group_config_preserves_channels(self):
         cfg = config_store.load_group_config()
-        original_groups = set(cfg['groups'].keys())
+        original_channels = set(cfg['channels'].keys())
         config_store.save_group_config(cfg)
         reloaded = config_store.load_group_config()
-        self.assertEqual(original_groups, set(reloaded['groups'].keys()))
+        self.assertEqual(original_channels, set(reloaded['channels'].keys()))
 
     # ── load_overrides ───────────────────────────────────────────────────────
 
@@ -125,17 +125,12 @@ class TestConfigStore(unittest.TestCase):
 
     # ── update_channel_history_size ──────────────────────────────────────────
 
-    def test_08_update_history_changes_all_groups_for_channel(self):
+    def test_08_update_history_updates_channel_section(self):
         channel = 'plc_alarmes'
         new_size = 42
         config_store.update_channel_history_size(channel, new_size)
         cfg = config_store.load_group_config()
-        for name, grp in cfg['groups'].items():
-            if grp.get('channel') == channel:
-                self.assertEqual(
-                    grp['history_size'], new_size,
-                    f"Grupo '{name}': history_size não atualizado"
-                )
+        self.assertEqual(cfg['channels'][channel]['history_size'], new_size)
 
     def test_09_update_history_does_not_affect_other_channels(self):
         other_channel = 'plc_config'
@@ -314,10 +309,10 @@ class TestHubHTTP(unittest.TestCase):
                 self.assertGreater(cfg['delay_ms'], 0)
                 self.assertGreater(cfg['history_size'], 0)
 
-    def test_33_api_groups_returns_dict(self):
+    def test_33_api_groups_returns_empty_dict(self):
         resp = self._get('/api/groups')
         self.assertIsInstance(resp, dict)
-        self.assertGreater(len(resp), 0)
+        self.assertEqual(len(resp), 0)   # Fase 5: seção groups removida
 
     def test_34_api_variables_has_overrides_key(self):
         resp = self._get('/api/variables')
@@ -426,8 +421,9 @@ class TestHubSocketIO(unittest.TestCase):
 
         self.assertTrue(received, "config:updated não recebido após config_get")
         cfg = received[-1]
-        self.assertIn('groups', cfg)
-        self.assertIn('_meta',  cfg)
+        self.assertIn('_meta',    cfg)
+        self.assertIn('channels', cfg)
+        self.assertNotIn('groups', cfg)   # Fase 5: seção groups removida
 
     def test_44_history_get_returns_sizes(self):
         """Evento history_get deve retornar history:sizes com os canais."""
@@ -580,12 +576,9 @@ class TestConfigStorePhase3(unittest.TestCase):
 
         self._orig_tables_dir = config_store._TABLES_DIR
         config_store._TABLES_DIR = self.temp_dir
-        # Reseta cache de grupos do operacao para forçar re-leitura
-        config_store._OPERACAO_GROUPS = set()
 
     def tearDown(self):
         config_store._TABLES_DIR = self._orig_tables_dir
-        config_store._OPERACAO_GROUPS = set()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     # ── load_all_variables ───────────────────────────────────────────────────
@@ -598,22 +591,23 @@ class TestConfigStorePhase3(unittest.TestCase):
     def test_51_each_variable_has_required_fields(self):
         result = config_store.load_all_variables()
         required = {'tag', 'group', 'type', 'address', 'channel',
-                    'history_size', 'enabled', 'has_override', 'source'}
+                    'history_size', 'enabled', 'source'}
         for var in result:
             with self.subTest(tag=var.get('tag')):
                 self.assertTrue(required.issubset(var.keys()), f"Campos ausentes em {var}")
+        # Fase 5: group_cfg_key e has_override removidos
+        for var in result:
+            self.assertNotIn('group_cfg_key', var)
+            self.assertNotIn('has_override',  var)
 
-    def test_52_channel_from_group_config(self):
-        """Variáveis do grupo 'Extrusora' sem override devem herdar channel de group_config.json."""
-        result  = config_store.load_all_variables()
-        cfg     = config_store.load_group_config()
-        ext_ch  = cfg['groups']['Extrusora']['channel']
-        # Exclui variáveis com override de canal (que legitimamente diferem do grupo)
-        ext_vars = [v for v in result if v['group'] == 'Extrusora' and not v['has_override']]
-        self.assertTrue(ext_vars, "Nenhuma variável não-overridden do grupo Extrusora encontrada")
-        for v in ext_vars:
+    def test_52_unassigned_variables_have_null_channel(self):
+        """Variáveis sem override de canal devem ter channel=None."""
+        result    = config_store.load_all_variables()
+        overrides = config_store.load_overrides()
+        for v in result:
+            expected = overrides.get(v['tag'], {}).get('channel')   # None se não configurado
             with self.subTest(tag=v['tag']):
-                self.assertEqual(v['channel'], ext_ch)
+                self.assertEqual(v['channel'], expected)
 
     def test_53_override_applied_to_tag(self):
         """Um override deve sobrescrever o canal da variável."""
@@ -621,26 +615,19 @@ class TestConfigStorePhase3(unittest.TestCase):
         any_tag = result[0]['tag']
 
         config_store.patch_variable_override(any_tag, {'channel': 'plc_visual', 'enabled': False})
-        config_store._OPERACAO_GROUPS = set()   # force re-read
         updated = config_store.load_all_variables()
         target  = next((v for v in updated if v['tag'] == any_tag), None)
 
         self.assertIsNotNone(target)
-        self.assertEqual(target['channel'],  'plc_visual')
+        self.assertEqual(target['channel'], 'plc_visual')
         self.assertFalse(target['enabled'])
-        self.assertTrue(target['has_override'])
 
-    def test_54_configuracao_groups_use_cfg_suffix_when_collision(self):
-        """Grupos de configuracao.csv que colidem com operacao.csv usam suffix '_cfg'."""
+    def test_54_all_variables_have_source_field(self):
+        """Fase 5: group_cfg_key removido; verifica que 'source' continua presente."""
         result = config_store.load_all_variables()
-        cfg_keys = {v['group_cfg_key'] for v in result if v['source'] == 'configuracao'}
-        # 'alarmes' existe em ambos CSVs → deve aparecer como 'alarmes_cfg' para configuracao
-        operacao_groups = {v['group'] for v in result if v['source'] == 'operacao'}
-        for cfg_key in cfg_keys:
-            base = cfg_key.removesuffix('_cfg')
-            if base in operacao_groups:
-                self.assertTrue(cfg_key.endswith('_cfg'),
-                                f"Grupo '{cfg_key}' do configuracao.csv deveria ter sufixo '_cfg'")
+        cfg_sources = {v['source'] for v in result}
+        self.assertIn('operacao', cfg_sources)
+        self.assertIn('configuracao', cfg_sources)
 
     # ── generate_export_xlsx ─────────────────────────────────────────────────
 
@@ -682,43 +669,40 @@ class TestConfigStorePhase3(unittest.TestCase):
 
     # ── apply_upload_config ──────────────────────────────────────────────────
 
-    def test_59_apply_upload_sets_group_config(self):
-        """Se todos os rows de um grupo têm o mesmo canal novo, group_config deve ser atualizado."""
-        config_store._OPERACAO_GROUPS = set()
+    def test_59_apply_upload_creates_overrides(self):
+        """apply_upload_config deve criar override de canal para cada variável."""
         variables = config_store.load_all_variables()
         ext_vars  = [v for v in variables if v['group'] == 'Extrusora']
         self.assertTrue(ext_vars)
 
         rows = [
-            {'tag': v['tag'], 'group': v['group'], 'source': v['source'],
-             'channel': 'plc_visual', 'history_size': 50, 'enabled': True}
+            {'tag': v['tag'], 'channel': 'plc_visual', 'enabled': True}
             for v in ext_vars
         ]
         config_store.apply_upload_config(rows)
 
-        updated = config_store.load_group_config()
-        self.assertEqual(updated['groups']['Extrusora']['channel'], 'plc_visual')
+        overrides = config_store.load_overrides()
+        for v in ext_vars:
+            self.assertIn(v['tag'], overrides)
+            self.assertEqual(overrides[v['tag']]['channel'], 'plc_visual')
 
     def test_60_apply_upload_sets_per_tag_override(self):
-        """Row com canal diferente do grupo cria override individual."""
-        config_store._OPERACAO_GROUPS = set()
+        """Rows com canais diferentes criam overrides individuais por tag."""
         variables = config_store.load_all_variables()
         ext_vars  = [v for v in variables if v['group'] == 'Extrusora']
         self.assertTrue(len(ext_vars) >= 2)
 
-        # Mantém defaults para todos exceto o primeiro
-        group_ch = ext_vars[0]['channel']
         rows = []
         for i, v in enumerate(ext_vars):
-            ch = 'plc_alarmes' if i == 0 else group_ch   # só o primeiro é diferente
-            rows.append({'tag': v['tag'], 'group': v['group'], 'source': v['source'],
-                         'channel': ch,
-                         'history_size': v['history_size'], 'enabled': True})
+            ch = 'plc_alarmes' if i == 0 else 'plc_process'
+            rows.append({'tag': v['tag'], 'channel': ch, 'enabled': True})
         config_store.apply_upload_config(rows)
 
         overrides = config_store.load_overrides()
         self.assertIn(ext_vars[0]['tag'], overrides)
         self.assertEqual(overrides[ext_vars[0]['tag']]['channel'], 'plc_alarmes')
+        self.assertIn(ext_vars[1]['tag'], overrides)
+        self.assertEqual(overrides[ext_vars[1]['tag']]['channel'], 'plc_process')
 
 
 # ---------------------------------------------------------------------------
@@ -877,6 +861,139 @@ class TestHubHTTPPhase3(unittest.TestCase):
         self.assertEqual(res2.status, 200)
         data2 = json.loads(res2.read())
         self.assertEqual(data2['applied'], len(rows))
+
+
+# ---------------------------------------------------------------------------
+# Suite 6 — TestDeviceCRUD (unit, sem deps externas)
+# ---------------------------------------------------------------------------
+
+class TestDeviceCRUD(unittest.TestCase):
+    """
+    Testa CRUD de devices em config_store e ping mockado.
+    Usa diretório temporário para isolar os arquivos de config.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        shutil.copy(
+            os.path.join(TABLES_DIR, 'group_config.json'),
+            os.path.join(self.temp_dir, 'group_config.json'),
+        )
+        shutil.copy(
+            os.path.join(TABLES_DIR, 'variable_overrides.json'),
+            os.path.join(self.temp_dir, 'variable_overrides.json'),
+        )
+        for fname in ('operacao.csv', 'configuracao.csv'):
+            src = os.path.join(TABLES_DIR, fname)
+            if os.path.exists(src):
+                shutil.copy(src, os.path.join(self.temp_dir, fname))
+        self._orig_tables_dir = config_store._TABLES_DIR
+        config_store._TABLES_DIR = self.temp_dir
+
+    def tearDown(self):
+        config_store._TABLES_DIR = self._orig_tables_dir
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_80_get_devices_returns_dict(self):
+        """get_devices() deve retornar dict (inclui o device 'default' do group_config.json)."""
+        devices = config_store.get_devices()
+        self.assertIsInstance(devices, dict)
+
+    def test_81_create_device_appears_in_get_devices(self):
+        """Após create_device(), o device deve aparecer em get_devices()."""
+        cfg = {'label': 'CLP 2', 'protocol': 'tcp', 'host': '10.0.0.1',
+                'port': 502, 'unit_id': 1, 'csv_files': []}
+        config_store.create_device('clp2', cfg)
+        devices = config_store.get_devices()
+        self.assertIn('clp2', devices)
+        self.assertEqual(devices['clp2']['host'], '10.0.0.1')
+
+    def test_82_create_device_preserves_channels(self):
+        """create_device() não deve remover a seção 'channels' do group_config."""
+        config_store.create_device('test_dev', {'label': 'Test', 'protocol': 'tcp'})
+        cfg = config_store.load_group_config()
+        self.assertIn('channels', cfg)
+        for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
+            self.assertIn(ch, cfg['channels'])
+
+    def test_83_update_device_updates_field(self):
+        """update_device() deve alterar apenas o campo informado."""
+        config_store.create_device('dev_upd', {'label': 'Antes', 'protocol': 'tcp',
+                                                'host': '1.1.1.1', 'port': 502, 'unit_id': 1})
+        config_store.update_device('dev_upd', {'host': '2.2.2.2'})
+        devices = config_store.get_devices()
+        self.assertEqual(devices['dev_upd']['host'], '2.2.2.2')
+        self.assertEqual(devices['dev_upd']['label'], 'Antes')  # campo não-alterado preservado
+
+    def test_84_update_nonexistent_device_raises_key_error(self):
+        """update_device() em device inexistente deve lançar KeyError."""
+        with self.assertRaises(KeyError):
+            config_store.update_device('inexistente_xyz', {'host': '0.0.0.0'})
+
+    def test_85_delete_device_removes_it(self):
+        """delete_device() deve remover o device de get_devices()."""
+        config_store.create_device('del_me', {'label': 'Temp', 'protocol': 'tcp'})
+        self.assertIn('del_me', config_store.get_devices())
+        config_store.delete_device('del_me')
+        self.assertNotIn('del_me', config_store.get_devices())
+
+    def test_86_delete_nonexistent_device_raises_key_error(self):
+        """delete_device() em device inexistente deve lançar KeyError."""
+        with self.assertRaises(KeyError):
+            config_store.delete_device('nao_existe_xyz')
+
+    def test_87_load_variables_includes_device_field(self):
+        """load_all_variables() deve retornar campo 'device' em cada variável."""
+        variables = config_store.load_all_variables()
+        self.assertGreater(len(variables), 0)
+        for var in variables:
+            with self.subTest(tag=var.get('tag')):
+                self.assertIn('device', var)
+
+    def test_88_load_variables_device_matches_device_id(self):
+        """Variáveis do device 'default' devem ter device='default'."""
+        variables = config_store.load_all_variables()
+        devices = config_store.get_devices()
+        if 'default' in devices:
+            default_vars = [v for v in variables if v['device'] == 'default']
+            self.assertGreater(len(default_vars), 0,
+                "Deve haver variáveis com device='default' quando devices.default existe")
+
+    def test_89_ping_tcp_calls_modbus_client(self):
+        """_do_ping TCP deve chamar ModbusClient.read_holding_registers."""
+        from unittest.mock import MagicMock, patch
+        import Hub.main as hub_main
+
+        mock_client = MagicMock()
+        mock_client.read_holding_registers.return_value = [42]
+
+        with patch('pyModbusTCP.client.ModbusClient', return_value=mock_client):
+            cfg = {'protocol': 'tcp', 'host': '127.0.0.1', 'port': 502, 'unit_id': 1}
+            result = hub_main._do_ping(cfg)
+
+        mock_client.read_holding_registers.assert_called_once_with(0, 1)
+        self.assertIsInstance(result, dict)
+        self.assertIn('ok', result)
+        self.assertIn('latency_ms', result)
+
+    def test_90_ping_rtu_calls_serial_client(self):
+        """_do_ping RTU deve chamar ModbusSerialClient.connect e read_holding_registers."""
+        from unittest.mock import MagicMock, patch
+        import Hub.main as hub_main
+
+        mock_client = MagicMock()
+        mock_client.connect.return_value = True
+        mock_client.read_holding_registers.return_value = MagicMock(isError=lambda: False)
+
+        with patch('pymodbus.client.ModbusSerialClient', return_value=mock_client):
+            cfg = {'protocol': 'rtu', 'serial_port': 'COM3', 'baudrate': 9600,
+                   'parity': 'N', 'stopbits': 1, 'unit_id': 1}
+            result = hub_main._do_ping(cfg)
+
+        mock_client.connect.assert_called_once()
+        mock_client.read_holding_registers.assert_called_once_with(0, 1, slave=1)
+        self.assertIsInstance(result, dict)
+        self.assertIn('ok', result)
 
 
 if __name__ == '__main__':

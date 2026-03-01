@@ -1,9 +1,212 @@
 {
   "extrusoraErro": {
-    "enabled": false,
-    "channel": "plc_teste"
+    "channel": "plc_visual"
+  },
+  "extrusoraAutManEstado": {
+    "channel": "plc_visual"
+  },
+  "extrusoraLigadoDesligado": {
+    "channel": "plc_visual"
   },
   "extrusoraAutManBotao": {
-    "channel": "plc_teste"
+    "channel": "plc_visual"
+  },
+  "extrusoraLigaDesligaBotao": {
+    "channel": "plc_visual"
+  },
+  "extrusoraFeedBackSpeed": {
+    "channel": "plc_visual"
+  },
+  "extrusoraRefVelocidade": {
+    "channel": "plc_visual"
+  },
+  "puxadorLigaDesliga": {
+    "channel": "plc_visual"
+  },
+  "puxadorLigadoDesligado": {
+    "channel": "plc_visual"
+  },
+  "puxadorAutManBotao": {
+    "channel": "plc_visual"
+  },
+  "puxadorAutManEstado": {
+    "channel": "plc_visual"
+  },
+  "puxadorErro": {
+    "channel": "plc_visual"
+  },
+  "puxadorFeedBackSpeed": {
+    "channel": "plc_visual"
+  },
+  "puxadorRefVelocidade": {
+    "channel": "plc_visual"
+  },
+  "larguraProgramada": {
+    "channel": "plc_visual"
+  },
+  "espessuraProgramada": {
+    "channel": "plc_visual"
+  },
+  "larguraAtual": {
+    "channel": "plc_visual"
+  },
+  "kgHoraAtual": {
+    "channel": "plc_visual"
+  },
+  "gramaMinutoAtual": {
+    "channel": "plc_visual"
+  },
+  "kgHoraProgramado": {
+    "channel": "plc_visual"
+  },
+  "gramaturaProgramada": {
+    "channel": "plc_visual"
+  },
+  "gramaturaAtual": {
+    "channel": "plc_visual"
+  },
+  "espessuraAtual": {
+    "channel": "plc_visual"
+  },
+  "puxadorProgramado": {
+    "channel": "plc_visual"
+  },
+  "nivelMaximo": {
+    "channel": "plc_visual"
+  },
+  "nivelMinimo": {
+    "channel": "plc_visual"
+  },
+  "densidadeMedia": {
+    "channel": "plc_visual"
+  },
+  "gramaMinuto": {
+    "channel": "plc_visual"
+  },
+  "espessuraAlgoritmo": {
+    "channel": "plc_visual"
+  },
+  "capacitivoA": {
+    "channel": "plc_visual"
+  },
+  "capacitivoB": {
+    "channel": "plc_visual"
+  },
+  "capacitivoC": {
+    "channel": "plc_visual"
+  },
+  "capacitivoD": {
+    "channel": "plc_visual"
+  },
+  "alimentandoMixer": {
+    "channel": "plc_visual"
+  },
+  "vacuoA": {
+    "channel": "plc_visual"
+  },
+  "vacuoB": {
+    "channel": "plc_visual"
+  },
+  "vacuoC": {
+    "channel": "plc_visual"
+  },
+  "vacuoD": {
+    "channel": "plc_visual"
+  },
+  "dosandoBalanca": {
+    "channel": "plc_visual"
+  },
+  "faltaMaterialA": {
+    "channel": "plc_visual"
+  },
+  "faltaMaterialB": {
+    "channel": "plc_visual"
+  },
+  "faltaMaterialC": {
+    "channel": "plc_visual"
+  },
+  "faltaMaterialD": {
+    "channel": "plc_visual"
+  },
+  "alimentandoA": {
+    "channel": "plc_visual"
+  },
+  "alimentandoB": {
+    "channel": "plc_visual"
+  },
+  "alimentandoC": {
+    "channel": "plc_visual"
+  },
+  "alimentandoD": {
+    "channel": "plc_visual"
+  },
+  "percentualA": {
+    "channel": "plc_visual"
+  },
+  "percentualB": {
+    "channel": "plc_visual"
+  },
+  "percentualC": {
+    "channel": "plc_visual"
+  },
+  "percentualD": {
+    "channel": "plc_visual"
+  },
+  "pesoMixer": {
+    "channel": "plc_visual"
+  },
+  "pesoBalanca": {
+    "channel": "plc_visual"
+  },
+  "nivelA": {
+    "channel": "plc_visual"
+  },
+  "nivelB": {
+    "channel": "plc_visual"
+  },
+  "nivelC": {
+    "channel": "plc_visual"
+  },
+  "nivelD": {
+    "channel": "plc_visual"
+  },
+  "habilitaDosagem": {
+    "channel": "plc_visual"
+  },
+  "habilitaAlimentador": {
+    "channel": "plc_visual"
+  },
+  "totalizadorMetragem": {
+    "channel": "plc_visual"
+  },
+  "totalizadorKiloGrama": {
+    "channel": "plc_visual"
+  },
+  "ligaDesligaTotalizadorPeso": {
+    "channel": "plc_visual"
+  },
+  "resetTotalizador": {
+    "channel": "plc_visual"
+  },
+  "compressorRadial": {
+    "channel": "plc_visual"
+  },
+  "vacuo": {
+    "channel": "plc_visual"
+  },
+  "misturador": {
+    "channel": "plc_visual"
+  },
+  "erroCompressor": {
+    "channel": "plc_visual"
+  },
+  "erroMisturador": {
+    "channel": "plc_visual"
+  },
+  "emergencia": {
+    "channel": "plc_visual"
+  },
+  "erroNaDosagem": {
+    "channel": "plc_visual"
   }
 }

@@ -5,6 +5,32 @@
     "default_delay_ms": 1000,
     "default_history_size": 100
   },
+  "devices": {
+    "default": {
+      "label": "CLP Principal",
+      "protocol": "tcp",
+      "host": "192.168.1.2",
+      "port": 502,
+      "unit_id": 2,
+      "csv_files": [
+        "operacao.csv"
+      ]
+    },
+    "clp2": {
+      "label": "",
+      "protocol": "rtu",
+      "host": "",
+      "port": 502,
+      "unit_id": 1,
+      "serial_port": "",
+      "baudrate": 9600,
+      "parity": "N",
+      "stopbits": 1,
+      "csv_files": [
+        "operacao.csv"
+      ]
+    }
+  },
   "channels": {
     "plc_alarmes": {
       "delay_ms": 200,
@@ -21,63 +47,6 @@
     "plc_config": {
       "delay_ms": 5000,
       "history_size": 100
-    },
-    "plc_teste": {
-      "delay_ms": 1000,
-      "history_size": 100
-    }
-  },
-  "groups": {
-    "alarmes": {
-      "channel": "plc_alarmes",
-      "history_size": 55
-    },
-    "alarmes_cfg": {
-      "channel": "plc_alarmes",
-      "history_size": 55
-    },
-    "saidasDigitais": {
-      "channel": "plc_process"
-    },
-    "Extrusora": {
-      "channel": "plc_teste",
-      "history_size": 100
-    },
-    "Puxador": {
-      "channel": "plc_process"
-    },
-    "threeJs": {
-      "channel": "plc_visual"
-    },
-    "producao": {
-      "channel": "plc_process"
-    },
-    "dosador": {
-      "channel": "plc_process"
-    },
-    "alimentador": {
-      "channel": "plc_process"
-    },
-    "totalizadores": {
-      "channel": "plc_config"
-    },
-    "balancaInferior": {
-      "channel": "plc_config"
-    },
-    "balancaSuperior": {
-      "channel": "plc_config"
-    },
-    "configExtrusora": {
-      "channel": "plc_config"
-    },
-    "configFunis": {
-      "channel": "plc_config"
-    },
-    "configPuxador": {
-      "channel": "plc_config"
-    },
-    "configReceita": {
-      "channel": "plc_config"
     }
   }
 }

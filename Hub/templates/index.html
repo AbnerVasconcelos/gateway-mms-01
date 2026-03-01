@@ -24,7 +24,6 @@
     .dot-err  { background: #dc3545; }
 
     #var-grid { height: 520px; }
-    .override-row { background: #fff3cd !important; }
     .badge-override { font-size: .7em; vertical-align: middle; }
 
     /* Channel cards */
@@ -53,8 +52,13 @@
     .ch-row-4 { background-color: #f5f5f5 !important; }
     .ch-row-5 { background-color: #fff5e6 !important; }
 
-    /* override-row takes priority over channel color */
-    .override-row { background-color: #fff3cd !important; }
+    /* Não-atribuída */
+    .ch-row-unassigned { background-color: #f0f0f0 !important; color: #999 !important; }
+
+    /* Device panel */
+    .device-card { min-width: 300px; }
+    .device-card .status-dot { width: 12px; height: 12px; }
+    .dot-grey { background: #adb5bd; }
   </style>
 </head>
 <body>
@@ -66,12 +70,23 @@
     <span id="ws-status" class="text-white small">
       <span class="status-dot dot-warn" id="ws-dot"></span>Conectando...
     </span>
-    <label class="btn btn-sm btn-outline-light mb-0" title="Upload .xlsx">
-      📂 Upload .xlsx
-      <input type="file" id="upload-input" accept=".xlsx" class="d-none" />
+    <label class="btn btn-sm btn-outline-light mb-0" title="Upload .xlsx ou .csv">
+      📂 Upload .xlsx/.csv
+      <input type="file" id="upload-input" accept=".xlsx,.csv" class="d-none" />
     </label>
     <button class="btn btn-sm btn-outline-light" id="export-btn">⬇ Export</button>
   </div>
+</nav>
+
+<!-- ── Device tabs navbar ──────────────────────────────────────────────────── -->
+<nav class="navbar navbar-expand navbar-light bg-white border-bottom px-3 py-1">
+  <ul class="nav nav-pills gap-1" id="device-tabs">
+    <li><a class="nav-link active" data-device="" href="#" onclick="setActiveDevice('',this);return false">Todos</a></li>
+  </ul>
+  <button class="btn btn-sm btn-outline-primary ms-auto"
+          data-bs-toggle="modal" data-bs-target="#newDeviceModal">
+    + Novo device
+  </button>
 </nav>
 
 <!-- ── Novo canal modal ────────────────────────────────────────────────────── -->
@@ -146,6 +161,89 @@
   </div>
 </div>
 
+<!-- ── Novo device modal ───────────────────────────────────────────────────── -->
+<div class="modal fade" id="newDeviceModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Novo device</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Device ID <span class="text-muted">(slug, ex: clp2)</span></label>
+          <input type="text" id="new-dev-id" class="form-control form-control-sm" placeholder="clp2" />
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Label</label>
+          <input type="text" id="new-dev-label" class="form-control form-control-sm" placeholder="CLP Secundário" />
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Protocolo</label>
+          <select id="new-dev-protocol" class="form-select form-select-sm"
+                  onchange="toggleNewDevProtocol()">
+            <option value="tcp">TCP</option>
+            <option value="rtu">RTU (Serial)</option>
+          </select>
+        </div>
+        <!-- TCP fields -->
+        <div id="new-dev-tcp">
+          <div class="row g-2 mb-2">
+            <div class="col-7">
+              <label class="form-label small fw-semibold">Host</label>
+              <input type="text" id="new-dev-host" class="form-control form-control-sm" placeholder="192.168.1.3" />
+            </div>
+            <div class="col-3">
+              <label class="form-label small fw-semibold">Port</label>
+              <input type="number" id="new-dev-port" class="form-control form-control-sm" value="502" />
+            </div>
+            <div class="col-2">
+              <label class="form-label small fw-semibold">Unit</label>
+              <input type="number" id="new-dev-unit" class="form-control form-control-sm" value="1" />
+            </div>
+          </div>
+        </div>
+        <!-- RTU fields -->
+        <div id="new-dev-rtu" class="d-none">
+          <div class="row g-2 mb-2">
+            <div class="col-5">
+              <label class="form-label small fw-semibold">Serial port</label>
+              <input type="text" id="new-dev-serial" class="form-control form-control-sm" placeholder="COM3" />
+            </div>
+            <div class="col-3">
+              <label class="form-label small fw-semibold">Baud</label>
+              <input type="number" id="new-dev-baud" class="form-control form-control-sm" value="9600" />
+            </div>
+            <div class="col-2">
+              <label class="form-label small fw-semibold">Par.</label>
+              <select id="new-dev-parity" class="form-select form-select-sm">
+                <option>N</option><option>E</option><option>O</option>
+              </select>
+            </div>
+            <div class="col-2">
+              <label class="form-label small fw-semibold">Stop</label>
+              <input type="number" id="new-dev-stop" class="form-control form-control-sm" value="1" min="1" max="2" />
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Unit ID</label>
+            <input type="number" id="new-dev-unit-rtu" class="form-control form-control-sm" value="1" />
+          </div>
+        </div>
+        <div class="mb-0">
+          <label class="form-label small fw-semibold">Arquivos CSV <span class="text-muted">(um por linha)</span></label>
+          <textarea id="new-dev-csvs" class="form-control form-control-sm" rows="2"
+                    placeholder="operacao.csv&#10;configuracao.csv"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="confirm-new-device-btn">Criar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Main content ────────────────────────────────────────────────────────── -->
 <div class="container-fluid py-3">
 
@@ -164,7 +262,7 @@
   </div>
 
   <!-- Variáveis -->
-  <div class="card">
+  <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
       <span class="fw-semibold">Variáveis</span>
       <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -177,12 +275,21 @@
           <option>%MW</option>
         </select>
         <select id="filter-channel" class="form-select form-select-sm" style="width:160px"><option value="">Canal</option></select>
+        <select id="filter-device"  class="form-select form-select-sm" style="width:140px"><option value="">Device</option></select>
         <input  id="filter-text"    class="form-control form-control-sm" placeholder="Buscar..." style="width:160px" />
         <span   id="var-count"      class="text-muted small ms-1"></span>
       </div>
     </div>
     <div class="card-body p-0">
       <div id="var-grid" class="ag-theme-alpine"></div>
+    </div>
+  </div>
+
+  <!-- Devices -->
+  <div class="card">
+    <div class="card-header fw-semibold">Devices</div>
+    <div class="card-body">
+      <div id="devices-container" class="d-flex flex-wrap gap-3"></div>
     </div>
   </div>
 
@@ -205,7 +312,7 @@
 
 <script>
 // ── Estado global ─────────────────────────────────────────────────────────────
-let allVariables  = [];   // [{tag, group, type, channel, enabled, ...}]
+let allVariables  = [];   // [{tag, group, type, channel, device, enabled, ...}]
 let lastValues    = {};   // {tag: {value, ts}}
 let uploadPreview = [];
 let varGrid       = null;
@@ -216,6 +323,11 @@ let knownRooms    = [];
 const CHANNEL_COLORS = {};
 let   CHANNELS_LIST  = [];
 
+// Device state
+let   activeDevice  = '';          // '' = Todos
+const deviceStats   = {};          // {device_id: {ok, err, lastLatency, lastOk}}
+let   DEVICES_LIST  = {};          // {device_id: cfg}
+
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
   const el = document.getElementById('toast-el');
@@ -225,8 +337,18 @@ function showToast(msg, type = 'success') {
 }
 
 function apiFetch(url, opts = {}) {
-  return fetch(url, opts).then(r => {
-    if (!r.ok) return r.json().then(e => Promise.reject(e.detail || r.statusText));
+  return fetch(url, opts).then(async r => {
+    if (!r.ok) {
+      let msg = r.statusText;
+      try {
+        const e = await r.json();
+        const d = e.detail;
+        if (typeof d === 'string')      msg = d;
+        else if (Array.isArray(d))      msg = d.map(x => x.msg || JSON.stringify(x)).join('; ');
+        else if (d != null)             msg = JSON.stringify(d);
+      } catch {}
+      throw msg;
+    }
     return r.json();
   });
 }
@@ -273,7 +395,7 @@ socket.on('plc:data', ({channel, data}) => {
   }
 });
 
-socket.on('config:updated', () => loadVariables());
+socket.on('config:updated', () => { loadVariables(); loadDevices(); });
 
 function setWsStatus(ok) {
   document.getElementById('ws-status').innerHTML =
@@ -402,6 +524,341 @@ async function applyHistory(channel, btn) {
   }
 }
 
+// ── Devices ────────────────────────────────────────────────────────────────────
+
+function setActiveDevice(id, el) {
+  activeDevice = id;
+  document.querySelectorAll('#device-tabs .nav-link').forEach(a => a.classList.remove('active'));
+  if (el) el.classList.add('active');
+  // Sync dropdown filter
+  const sel = document.getElementById('filter-device');
+  if (sel) sel.value = id;
+  applyFilters();
+}
+
+async function loadDevices() {
+  DEVICES_LIST = await apiFetch('/api/devices');
+  renderDeviceTabs();
+  renderDeviceCards();
+}
+
+function renderDeviceTabs() {
+  const ul = document.getElementById('device-tabs');
+  // Keep "Todos" (first li), rebuild the rest
+  const todos = ul.querySelector('li:first-child');
+  ul.innerHTML = '';
+  ul.appendChild(todos);
+
+  Object.entries(DEVICES_LIST).forEach(([id, cfg]) => {
+    const li = document.createElement('li');
+    const a  = document.createElement('a');
+    a.className   = 'nav-link' + (activeDevice === id ? ' active' : '');
+    a.href        = '#';
+    a.dataset.device = id;
+    a.onclick     = (e) => { e.preventDefault(); setActiveDevice(id, a); };
+    const stats     = deviceStats[id] || {};
+    const dotCls    = stats.hasOwnProperty('ok')
+      ? (stats.ok ? 'dot-ok' : 'dot-err') : 'dot-grey';
+    const isEnabled = cfg.enabled !== false;
+    a.innerHTML   = `<span class="status-dot ${dotCls}" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px"></span>${cfg.label || id}` +
+                    (!isEnabled ? ' <span class="badge bg-secondary" style="font-size:.65em">pausado</span>' : '');
+    li.appendChild(a);
+    ul.appendChild(li);
+  });
+}
+
+function renderDeviceCards() {
+  const container = document.getElementById('devices-container');
+  container.innerHTML = '';
+
+  if (!Object.keys(DEVICES_LIST).length) {
+    container.innerHTML = '<span class="text-muted small">Nenhum device configurado.</span>';
+    return;
+  }
+
+  Object.entries(DEVICES_LIST).forEach(([id, cfg]) => {
+    const stats     = deviceStats[id] || {};
+    const dotCls    = stats.hasOwnProperty('ok')
+      ? (stats.ok ? 'dot-ok' : 'dot-err') : 'dot-grey';
+    const isTcp     = (cfg.protocol || 'tcp') === 'tcp';
+    const isEnabled = cfg.enabled !== false;   // default: true
+
+    const card = document.createElement('div');
+    card.className = 'card device-card p-3';
+    card.id        = 'devcard-' + id;
+    card.innerHTML = `
+      <div class="d-flex align-items-center mb-2">
+        <span class="status-dot ${dotCls}" id="devdot-${id}"></span>
+        <span class="fw-semibold flex-grow-1">${cfg.label || id} <small class="text-muted">(${id})</small></span>
+        <span class="badge ${isEnabled ? 'bg-success' : 'bg-secondary'} me-2"
+              id="devenabled-${id}">${isEnabled ? 'Ativo' : 'Pausado'}</span>
+        <button class="btn btn-sm btn-outline-danger py-0 px-1"
+                onclick="removeDevice('${id}')">✕</button>
+      </div>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <label class="small text-muted mb-0">Protocolo:</label>
+        <select class="form-select form-select-sm" style="width:100px"
+                id="devproto-${id}" onchange="toggleDevProtocol('${id}')">
+          <option value="tcp" ${isTcp?'selected':''}>TCP</option>
+          <option value="rtu" ${!isTcp?'selected':''}>RTU</option>
+        </select>
+        <span class="small ms-auto">Status: <span class="status-dot ${dotCls}" id="devstatus-${id}"
+              style="display:inline-block;width:10px;height:10px;border-radius:50%"></span></span>
+      </div>
+      <hr class="my-2" />
+      <!-- TCP fields -->
+      <div id="devtcp-${id}" class="${isTcp?'':'d-none'}">
+        <div class="row g-1 mb-2">
+          <div class="col-6">
+            <label class="form-label small mb-0">Host</label>
+            <input type="text" class="form-control form-control-sm" id="devhost-${id}"
+                   value="${cfg.host||''}" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small mb-0">Port</label>
+            <input type="number" class="form-control form-control-sm" id="devport-${id}"
+                   value="${cfg.port||502}" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small mb-0">Unit</label>
+            <input type="number" class="form-control form-control-sm" id="devunit-${id}"
+                   value="${cfg.unit_id||1}" />
+          </div>
+        </div>
+      </div>
+      <!-- RTU fields -->
+      <div id="devrtu-${id}" class="${!isTcp?'':'d-none'}">
+        <div class="row g-1 mb-2">
+          <div class="col-5">
+            <label class="form-label small mb-0">Serial</label>
+            <input type="text" class="form-control form-control-sm" id="devserial-${id}"
+                   value="${cfg.serial_port||''}" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small mb-0">Baud</label>
+            <input type="number" class="form-control form-control-sm" id="devbaud-${id}"
+                   value="${cfg.baudrate||9600}" />
+          </div>
+          <div class="col-2">
+            <label class="form-label small mb-0">Par.</label>
+            <select class="form-select form-select-sm" id="devparity-${id}">
+              ${['N','E','O'].map(p=>`<option ${p===cfg.parity?'selected':''}>${p}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-2">
+            <label class="form-label small mb-0">Stop</label>
+            <input type="number" class="form-control form-control-sm" id="devstop-${id}"
+                   value="${cfg.stopbits||1}" min="1" max="2" />
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small mb-0">Unit ID</label>
+          <input type="number" class="form-control form-control-sm" id="devunit-rtu-${id}"
+                 value="${cfg.unit_id||1}" />
+        </div>
+      </div>
+      <div class="mb-2">
+        <span class="small text-muted">CSVs: ${(cfg.csv_files||[]).join(', ') || '—'}</span>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button class="btn btn-sm btn-outline-primary" onclick="saveDevice('${id}')">Salvar config</button>
+        <button class="btn btn-sm ${isEnabled ? 'btn-outline-danger' : 'btn-outline-success'}"
+                id="devtoggle-${id}" onclick="toggleDeviceEnabled('${id}')">
+          ${isEnabled ? '■ Pausar' : '▶ Iniciar'}
+        </button>
+        <label class="btn btn-sm btn-outline-secondary mb-0" title="Upload CSV de mapeamento Modbus">
+          📂 CSV
+          <input type="file" class="d-none" accept=".csv"
+                 onchange="uploadDeviceCsv('${id}', this)" />
+        </label>
+        <button class="btn btn-sm btn-outline-warning" onclick="clearDevice('${id}')"
+                title="Limpar atribuições de canal das variáveis deste device">🗑 Limpar</button>
+        <button class="btn btn-sm btn-outline-secondary" id="devping-${id}"
+                onclick="pingDevice('${id}')">▶ Ping</button>
+        <span id="devlatency-${id}" class="small text-muted"></span>
+        <span class="small text-muted ms-auto" id="devstats-${id}">
+          ${stats.hasOwnProperty('ok') ?
+            `OK: ${stats.ok||0}  Err: ${stats.err||0}  Últ: ${stats.lastOk||'—'}` : ''}
+        </span>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function toggleDevProtocol(id) {
+  const proto = document.getElementById('devproto-' + id).value;
+  document.getElementById('devtcp-' + id).classList.toggle('d-none', proto !== 'tcp');
+  document.getElementById('devrtu-' + id).classList.toggle('d-none', proto === 'tcp');
+}
+
+function toggleNewDevProtocol() {
+  const proto = document.getElementById('new-dev-protocol').value;
+  document.getElementById('new-dev-tcp').classList.toggle('d-none', proto !== 'tcp');
+  document.getElementById('new-dev-rtu').classList.toggle('d-none', proto === 'tcp');
+}
+
+async function saveDevice(id) {
+  const proto = document.getElementById('devproto-' + id).value;
+  const fields = {protocol: proto};
+  if (proto === 'tcp') {
+    fields.host    = document.getElementById('devhost-' + id).value;
+    fields.port    = parseInt(document.getElementById('devport-' + id).value, 10);
+    fields.unit_id = parseInt(document.getElementById('devunit-' + id).value, 10);
+  } else {
+    fields.serial_port = document.getElementById('devserial-' + id).value;
+    fields.baudrate    = parseInt(document.getElementById('devbaud-' + id).value, 10);
+    fields.parity      = document.getElementById('devparity-' + id).value;
+    fields.stopbits    = parseInt(document.getElementById('devstop-' + id).value, 10);
+    fields.unit_id     = parseInt(document.getElementById('devunit-rtu-' + id).value, 10);
+  }
+  try {
+    await apiFetch(`/api/devices/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(fields),
+    });
+    showToast(`Device ${id} salvo.`);
+    loadDevices();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function removeDevice(id) {
+  if (!confirm(`Remover device "${id}"?`)) return;
+  try {
+    await apiFetch(`/api/devices/${encodeURIComponent(id)}`, {method: 'DELETE'});
+    showToast(`Device ${id} removido.`);
+    if (activeDevice === id) setActiveDevice('', document.querySelector('#device-tabs .nav-link'));
+    loadDevices();
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function uploadDeviceCsv(deviceId, input) {
+  if (!input.files[0]) return;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  const filename = input.files[0].name;
+  input.value = '';
+  try {
+    const resp = await fetch(`/api/devices/${encodeURIComponent(deviceId)}/upload-csv`, {
+      method: 'POST', body: formData,
+    });
+    if (!resp.ok) {
+      const e = await resp.json();
+      const d = e.detail;
+      throw (typeof d === 'string' ? d : Array.isArray(d) ? d.map(x=>x.msg||JSON.stringify(x)).join('; ') : resp.statusText);
+    }
+    const data = await resp.json();
+    showToast(`"${data.filename}" adicionado ao device ${deviceId}.`);
+    loadDevices();
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function toggleDeviceEnabled(id) {
+  try {
+    const res = await apiFetch(`/api/devices/${encodeURIComponent(id)}/toggle`, {method: 'POST'});
+    showToast(`Device ${id} ${res.enabled ? '▶ iniciado' : '■ pausado'}.`);
+    loadDevices();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function clearDevice(id) {
+  if (!confirm(`Limpar todas as atribuições de canal das variáveis do device "${id}"?`)) return;
+  const deleteFiles = confirm('Deseja também remover os arquivos CSV do disco?');
+  try {
+    const url = `/api/devices/${encodeURIComponent(id)}/clear` + (deleteFiles ? '?delete_files=true' : '');
+    const res = await apiFetch(url, {method: 'POST'});
+    const msg = `${res.cleared_tags} override(s) limpos.` +
+                (deleteFiles && res.files_deleted.length
+                  ? ` CSVs removidos: ${res.files_deleted.join(', ')}.` : '');
+    showToast(msg);
+    loadVariables();
+    if (deleteFiles) loadDevices();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function pingDevice(id) {
+  const btn = document.getElementById('devping-' + id);
+  const lat = document.getElementById('devlatency-' + id);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    const res = await apiFetch(`/api/devices/${encodeURIComponent(id)}/ping`, {method: 'POST'});
+    if (!deviceStats[id]) deviceStats[id] = {ok: 0, err: 0, lastLatency: null, lastOk: null};
+    const st = deviceStats[id];
+    if (res.ok) {
+      st.ok++;
+      st.lastLatency = res.latency_ms;
+      st.lastOk = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    } else {
+      st.err++;
+    }
+    // Update dot color
+    ['devdot-','devstatus-'].forEach(prefix => {
+      const dot = document.getElementById(prefix + id);
+      if (dot) { dot.className = dot.className.replace(/dot-(ok|err|grey)/g, res.ok ? 'dot-ok' : 'dot-err'); }
+    });
+    if (lat) lat.textContent = res.ok ? `${res.latency_ms}ms` : (res.error || 'Erro');
+    const statsEl = document.getElementById('devstats-' + id);
+    if (statsEl) statsEl.textContent =
+      `OK: ${st.ok}  Err: ${st.err}  Últ: ${st.lastOk || '—'}`;
+    renderDeviceTabs();
+  } catch (e) {
+    if (lat) lat.textContent = String(e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '▶ Ping'; }
+  }
+}
+
+document.getElementById('confirm-new-device-btn').addEventListener('click', async () => {
+  const id    = document.getElementById('new-dev-id').value.trim();
+  const label = document.getElementById('new-dev-label').value.trim();
+  const proto = document.getElementById('new-dev-protocol').value;
+  const csvs  = document.getElementById('new-dev-csvs').value
+    .split('\n').map(s => s.trim()).filter(Boolean);
+
+  if (!id) { showToast('Informe o Device ID.', 'danger'); return; }
+
+  const cfg = {device_id: id, label, protocol: proto, csv_files: csvs};
+  if (proto === 'tcp') {
+    cfg.host    = document.getElementById('new-dev-host').value.trim();
+    cfg.port    = parseInt(document.getElementById('new-dev-port').value, 10);
+    cfg.unit_id = parseInt(document.getElementById('new-dev-unit').value, 10);
+  } else {
+    cfg.serial_port = document.getElementById('new-dev-serial').value.trim();
+    cfg.baudrate    = parseInt(document.getElementById('new-dev-baud').value, 10);
+    cfg.parity      = document.getElementById('new-dev-parity').value;
+    cfg.stopbits    = parseInt(document.getElementById('new-dev-stop').value, 10);
+    cfg.unit_id     = parseInt(document.getElementById('new-dev-unit-rtu').value, 10);
+  }
+
+  try {
+    await apiFetch('/api/devices', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(cfg),
+    });
+    bootstrap.Modal.getInstance(document.getElementById('newDeviceModal')).hide();
+    document.getElementById('new-dev-id').value    = '';
+    document.getElementById('new-dev-label').value = '';
+    showToast(`Device ${id} criado.`);
+    loadDevices();
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+});
+
 // ── Variáveis ─────────────────────────────────────────────────────────────────
 async function loadVariables() {
   const data = await apiFetch('/api/variables');
@@ -413,9 +870,11 @@ async function loadVariables() {
 
 function populateFilters() {
   const groups   = [...new Set(allVariables.map(v => v.group))].sort();
-  const channels = [...new Set(allVariables.map(v => v.channel))].sort();
+  const channels = [...new Set(allVariables.map(v => v.channel).filter(Boolean))].sort();
+  const devices  = [...new Set(allVariables.map(v => v.device).filter(Boolean))].sort();
   fillSelect('filter-group',   groups);
   fillSelect('filter-channel', channels);
+  fillSelect('filter-device',  devices);
 }
 
 function fillSelect(id, options) {
@@ -430,11 +889,13 @@ function getFilteredRows() {
   const grp = document.getElementById('filter-group').value;
   const typ = document.getElementById('filter-type').value;
   const ch  = document.getElementById('filter-channel').value;
+  const dev = document.getElementById('filter-device').value || activeDevice;
   const txt = document.getElementById('filter-text').value.toLowerCase();
   return allVariables.filter(v =>
     (!grp || v.group   === grp) &&
     (!typ || v.type    === typ) &&
     (!ch  || v.channel === ch)  &&
+    (!dev || v.device  === dev) &&
     (!txt || v.tag.toLowerCase().includes(txt) || v.group.toLowerCase().includes(txt))
   );
 }
@@ -457,24 +918,42 @@ const varColumnDefs = [
     headerName: '', checkboxSelection: true, headerCheckboxSelection: true,
     width: 40, suppressMovable: true, pinned: 'left', sortable: false,
   },
-  {
-    headerName: '', field: 'has_override', width: 36, sortable: false,
-    cellRenderer: p => p.value
-      ? '<span class="badge bg-warning text-dark badge-override" title="Override ativo">*</span>' : '',
-  },
   {headerName: 'Tag',   field: 'tag',   sortable: true, filter: true, width: 210},
   {headerName: 'Grupo', field: 'group', sortable: true, filter: true, width: 140},
+  {
+    headerName: 'Device', field: 'device', width: 130, sortable: true,
+    sort: 'asc', sortIndex: 0,
+    cellRenderer: p => p.value
+      ? `<span class="badge bg-secondary">${p.value}</span>`
+      : '<span style="color:#aaa">—</span>',
+  },
   {
     headerName: 'Tipo', field: 'type', width: 80, sortable: true,
     cellStyle: p => ({color: p.value === '%MB' ? '#0d6efd' : '#6f42c1'}),
   },
   {headerName: 'End.', field: 'address', width: 80, sortable: true, type: 'numericColumn'},
   {
-    headerName: 'Canal', field: 'channel', sortable: true, editable: true, width: 150,
-    sort: 'asc', sortIndex: 0,
+    headerName: 'Canal', field: 'channel', sortable: true, editable: true, width: 180,
+    sort: 'asc', sortIndex: 1,
     cellEditor: 'agSelectCellEditor',
-    cellEditorParams: {values: CHANNELS_LIST},
-    onCellValueChanged: onCellChanged,
+    cellEditorParams: () => ({values: ['', ...CHANNELS_LIST]}),
+    cellRenderer: p => {
+      if (!p.value) return '<span style="color:#aaa">⬜ Não atribuída</span>';
+      const idx = getChannelColorIndex(p.value);
+      const colors = ['#007bff','#fd7e14','#28a745','#6f42c1','#6c757d','#dc3545'];
+      const bg = colors[idx] || '#6c757d';
+      return `<span class="badge" style="background:${bg}">${p.value}</span>`;
+    },
+    onCellValueChanged: e => {
+      // '' → desatribuir; string com canal → atribuir
+      const val = e.newValue ?? '';
+      apiFetch(`/api/variables/${encodeURIComponent(e.data.tag)}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({channel: val}),
+      }).then(() => { showToast(`${e.data.tag}.channel → ${val || '(removido)'}`); loadVariables(); })
+        .catch(err => showToast(String(err), 'danger'));
+    },
   },
   {
     headerName: 'Hab.', field: 'enabled', width: 80, sortable: true, editable: true,
@@ -498,13 +977,13 @@ function initVarGrid() {
     rowData: [],
     rowSelection: 'multiple',
     rowClassRules: {
-      'override-row': p => p.data?.has_override,
-      'ch-row-0': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 0,
-      'ch-row-1': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 1,
-      'ch-row-2': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 2,
-      'ch-row-3': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 3,
-      'ch-row-4': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 4,
-      'ch-row-5': p => !p.data?.has_override && getChannelColorIndex(p.data?.channel) === 5,
+      'ch-row-unassigned': p => !p.data?.channel,
+      'ch-row-0': p => p.data?.channel && getChannelColorIndex(p.data?.channel) === 0,
+      'ch-row-1': p => p.data?.channel && getChannelColorIndex(p.data?.channel) === 1,
+      'ch-row-2': p => p.data?.channel && getChannelColorIndex(p.data?.channel) === 2,
+      'ch-row-3': p => p.data?.channel && getChannelColorIndex(p.data?.channel) === 3,
+      'ch-row-4': p => p.data?.channel && getChannelColorIndex(p.data?.channel) === 4,
+      'ch-row-5': p => p.data?.channel && getChannelColorIndex(p.data?.channel) === 5,
     },
     defaultColDef: {resizable: true, suppressMovable: false},
     suppressRowClickSelection: true,
@@ -516,23 +995,6 @@ function initVarGrid() {
     },
   };
   varGrid = agGrid.createGrid(document.getElementById('var-grid'), gridOptions);
-}
-
-async function onCellChanged(event) {
-  const tag   = event.data.tag;
-  const field = event.colDef.field;
-  const value = event.newValue;
-  try {
-    await apiFetch(`/api/variables/${encodeURIComponent(tag)}`, {
-      method: 'PATCH',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({[field]: value}),
-    });
-    showToast(`${tag}.${field} → ${value}`);
-    loadVariables();
-  } catch (e) {
-    showToast(String(e), 'danger');
-  }
 }
 
 async function toggleEnabled(event, tag) {
@@ -554,15 +1016,17 @@ async function toggleEnabled(event, tag) {
 // ── Bulk-assign ───────────────────────────────────────────────────────────────
 function openBulkMoveModal() {
   const sel = document.getElementById('bulk-channel-select');
-  sel.innerHTML = CHANNELS_LIST.map(ch => `<option value="${ch}">${ch}</option>`).join('');
+  sel.innerHTML =
+    '<option value="">✕ Remover atribuição</option>' +
+    CHANNELS_LIST.map(ch => `<option value="${ch}">${ch}</option>`).join('');
   new bootstrap.Modal(document.getElementById('bulkMoveModal')).show();
 }
 
 document.getElementById('confirm-bulk-move-btn').addEventListener('click', async () => {
-  const channel  = document.getElementById('bulk-channel-select').value;
+  const channel  = document.getElementById('bulk-channel-select').value;  // '' = remover
   const selected = varGrid ? varGrid.getSelectedRows() : [];
   const tags     = selected.map(r => r.tag);
-  if (!tags.length || !channel) return;
+  if (!tags.length) return;
   try {
     await apiFetch('/api/variables/bulk-assign', {
       method: 'POST',
@@ -570,7 +1034,8 @@ document.getElementById('confirm-bulk-move-btn').addEventListener('click', async
       body: JSON.stringify({tags, channel}),
     });
     bootstrap.Modal.getInstance(document.getElementById('bulkMoveModal')).hide();
-    showToast(`${tags.length} variável(is) movida(s) para ${channel}.`);
+    const label = channel || '(removido)';
+    showToast(`${tags.length} variável(is) → ${label}.`);
     loadVariables();
     loadChannels();
   } catch (e) {
@@ -663,7 +1128,7 @@ document.getElementById('export-btn').addEventListener('click', () => {
 });
 
 // ── Filtros ───────────────────────────────────────────────────────────────────
-['filter-group','filter-type','filter-channel'].forEach(id =>
+['filter-group','filter-type','filter-channel','filter-device'].forEach(id =>
   document.getElementById(id).addEventListener('change', applyFilters));
 document.getElementById('filter-text').addEventListener('input', applyFilters);
 
@@ -673,6 +1138,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPreviewGrid();
   loadChannels();
   loadVariables();
+  loadDevices();
 });
 </script>
 </body>

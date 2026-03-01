@@ -82,5 +82,14 @@ async def _run_bridge(sio, redis_host: str, redis_port: int) -> None:
             # Deriva o room a partir do nome do canal
             room = channel.removeprefix('plc_') if channel.startswith('plc_') else channel
 
+            # Evento genérico backward-compat — todos os canais
             await sio.emit('plc:data', {'channel': channel, 'data': data}, room=room)
-            logger.debug("Bridge: '%s' → room '%s'", channel, room)
+
+            # Evento específico do canal: 'plc_alarmes' → 'plc:alarmes'
+            # Permite que consumidores externos assinem apenas o canal desejado.
+            channel_event = channel.replace('_', ':', 1)
+            if channel_event != 'plc:data':   # evita colisão com evento genérico
+                await sio.emit(channel_event, data, room=room)
+
+            logger.debug("Bridge: '%s' → room '%s' (events: plc:data + %s)",
+                         channel, room, channel_event)

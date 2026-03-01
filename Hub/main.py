@@ -16,6 +16,8 @@ import json
 import logging
 import os
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 import redis.asyncio as aioredis
@@ -43,8 +45,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
-_REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+_REDIS_HOST  = os.environ.get('REDIS_HOST', 'localhost')
+_REDIS_PORT  = int(os.environ.get('REDIS_PORT', 6379))
+_thread_pool = ThreadPoolExecutor(max_workers=4)
 
 def _derive_rooms() -> list[str]:
     """Deriva rooms Socket.IO a partir dos canais configurados."""
@@ -106,8 +109,8 @@ async def get_channels():
 
 @app.get('/api/groups')
 async def get_groups():
-    """Retorna a seção 'groups' de group_config.json."""
-    return config_store.load_group_config().get('groups', {})
+    """Fase 5: seção 'groups' removida — retorna dict vazio."""
+    return {}
 
 
 @app.get('/')
@@ -132,8 +135,16 @@ class VariablePatch(BaseModel):
 
 @app.patch('/api/variables/{tag}')
 async def patch_variable(tag: str, body: VariablePatch):
-    """Atualiza (ou cria) o override de uma variável individual."""
-    fields = {k: v for k, v in body.model_dump().items() if v is not None}
+    """
+    Atualiza (ou cria) o override de uma variável individual.
+    channel=null ou channel="" → desatribui o canal da variável.
+    """
+    # exclude_unset evita sobrescrever campos não fornecidos;
+    # inclui campos explicitamente definidos (mesmo como None).
+    fields = {k: v for k, v in body.model_dump(exclude_unset=True).items()}
+    # Fallback: se exclude_unset não capturou null, usa model_fields_set
+    if not fields and hasattr(body, 'model_fields_set'):
+        fields = {k: getattr(body, k) for k in body.model_fields_set}
     if not fields:
         raise HTTPException(status_code=422, detail='Nenhum campo fornecido.')
     config_store.patch_variable_override(tag, fields)
@@ -144,12 +155,15 @@ async def patch_variable(tag: str, body: VariablePatch):
 
 class BulkAssignBody(BaseModel):
     tags:    list[str]
-    channel: str
+    channel: str = ''   # '' = remover atribuição; 'plc_xxx' = atribuir
 
 
 @app.post('/api/variables/bulk-assign')
 async def bulk_assign_channel(body: BulkAssignBody):
-    """Move uma lista de variáveis para um canal, criando overrides individuais."""
+    """
+    Move uma lista de variáveis para um canal.
+    channel='' → remove atribuição (variáveis ficam não-atribuídas).
+    """
     for tag in body.tags:
         config_store.patch_variable_override(tag, {'channel': body.channel})
     if redis_pub:
@@ -259,6 +273,231 @@ async def set_channel_history(channel: str, body: HistoryPatch):
         await redis_pub.publish('config_reload', json.dumps({'reload': True}))
 
     return {'channel': channel, 'history_size': body.history_size}
+
+
+# ── Devices ───────────────────────────────────────────────────────────────────
+
+class DeviceCreate(BaseModel):
+    device_id:   str
+    label:       str       = ''
+    protocol:    str       = 'tcp'
+    host:        str       = ''
+    port:        int       = 502
+    unit_id:     int       = 1
+    serial_port: str       = ''
+    baudrate:    int       = 9600
+    parity:      str       = 'N'
+    stopbits:    int       = 1
+    csv_files:   list[str] = []
+
+
+class DevicePatch(BaseModel):
+    enabled:     Optional[bool]      = None
+    label:       Optional[str]       = None
+    protocol:    Optional[str]       = None
+    host:        Optional[str]       = None
+    port:        Optional[int]       = None
+    unit_id:     Optional[int]       = None
+    serial_port: Optional[str]       = None
+    baudrate:    Optional[int]       = None
+    parity:      Optional[str]       = None
+    stopbits:    Optional[int]       = None
+    csv_files:   Optional[list[str]] = None
+
+
+@app.get('/api/devices')
+async def get_devices():
+    """Retorna {device_id: cfg} para todos os devices configurados."""
+    return config_store.get_devices()
+
+
+@app.post('/api/devices', status_code=201)
+async def create_device(body: DeviceCreate):
+    """Cria um novo device em group_config['devices']."""
+    device_id = body.device_id.strip()
+    if not device_id:
+        raise HTTPException(status_code=422, detail='device_id não pode ser vazio.')
+    cfg = body.model_dump(exclude={'device_id'})
+    config_store.create_device(device_id, cfg)
+    return {'device_id': device_id, **cfg}
+
+
+@app.patch('/api/devices/{device_id}')
+async def patch_device(device_id: str, body: DevicePatch):
+    """Atualiza campos de um device existente."""
+    fields = body.model_dump(exclude_none=True)
+    if not fields:
+        raise HTTPException(status_code=422, detail='Nenhum campo fornecido.')
+    try:
+        config_store.update_device(device_id, fields)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {'device_id': device_id, 'updated': fields}
+
+
+@app.delete('/api/devices/{device_id}')
+async def delete_device(device_id: str):
+    """Remove um device."""
+    try:
+        config_store.delete_device(device_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {'deleted': device_id}
+
+
+def _do_ping(cfg: dict) -> dict:
+    """
+    Testa conectividade com um device Modbus (bloqueante — executar em thread pool).
+    TCP: usa pyModbusTCP.  RTU: usa pymodbus.client.ModbusSerialClient.
+    Retorna {'ok': bool, 'latency_ms': float | None, 'error': str | None}
+    """
+    protocol = cfg.get('protocol', 'tcp')
+    t0 = time.monotonic()
+    try:
+        if protocol == 'rtu':
+            from pymodbus.client import ModbusSerialClient
+            client = ModbusSerialClient(
+                port=cfg.get('serial_port', ''),
+                baudrate=cfg.get('baudrate', 9600),
+                parity=cfg.get('parity', 'N'),
+                stopbits=cfg.get('stopbits', 1),
+            )
+            connected = client.connect()
+            if not connected:
+                return {'ok': False, 'latency_ms': None, 'error': 'Falha ao conectar (RTU)'}
+            result = client.read_holding_registers(0, 1, slave=cfg.get('unit_id', 1))
+            client.close()
+        else:
+            from pyModbusTCP.client import ModbusClient
+            client = ModbusClient(
+                host=cfg.get('host', ''),
+                port=cfg.get('port', 502),
+                unit_id=cfg.get('unit_id', 1),
+                auto_open=True,
+                timeout=3,
+            )
+            result = client.read_holding_registers(0, 1)
+            client.close()
+
+        latency = round((time.monotonic() - t0) * 1000, 2)
+        ok = result is not None
+        return {'ok': ok, 'latency_ms': latency if ok else None,
+                'error': None if ok else 'Sem resposta do device'}
+    except Exception as exc:
+        latency = round((time.monotonic() - t0) * 1000, 2)
+        return {'ok': False, 'latency_ms': latency, 'error': str(exc)}
+
+
+@app.post('/api/devices/{device_id}/ping')
+async def ping_device(device_id: str):
+    """Testa conectividade com um device e retorna latência."""
+    devices = config_store.get_devices()
+    if device_id not in devices:
+        raise HTTPException(status_code=404, detail=f"Device '{device_id}' não encontrado.")
+    cfg = devices[device_id]
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(_thread_pool, _do_ping, cfg)
+    return result
+
+
+@app.post('/api/devices/{device_id}/toggle')
+async def toggle_device(device_id: str):
+    """
+    Alterna o campo 'enabled' do device.
+    enabled=True  → device ativo: Delfos lê seus CSVs.
+    enabled=False → device pausado: Delfos ignora seus CSVs.
+    Publica config_reload para que Delfos recarregue imediatamente.
+    """
+    devices = config_store.get_devices()
+    if device_id not in devices:
+        raise HTTPException(status_code=404, detail=f"Device '{device_id}' não encontrado.")
+    current_enabled = devices[device_id].get('enabled', True)
+    new_enabled = not current_enabled
+    config_store.update_device(device_id, {'enabled': new_enabled})
+    if redis_pub:
+        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    return {'device_id': device_id, 'enabled': new_enabled}
+
+
+@app.post('/api/devices/{device_id}/clear')
+async def clear_device(device_id: str, delete_files: bool = False):
+    """
+    Remove os overrides de todas as variáveis associadas ao device.
+    delete_files=true → remove também os arquivos CSV do disco e limpa csv_files.
+    Publica config_reload para que Delfos recarregue.
+    """
+    devices = config_store.get_devices()
+    if device_id not in devices:
+        raise HTTPException(status_code=404, detail=f"Device '{device_id}' não encontrado.")
+
+    dev_cfg = devices[device_id]
+
+    # Determina quais tags pertencem a este device e remove seus overrides
+    variables     = config_store.load_all_variables()
+    tags_to_clear = [v['tag'] for v in variables if v.get('device') == device_id]
+
+    overrides = config_store.load_overrides()
+    for tag in tags_to_clear:
+        overrides.pop(tag, None)
+    config_store.save_overrides(overrides)
+    logger.info("Overrides de %d tag(s) do device '%s' removidos.", len(tags_to_clear), device_id)
+
+    files_deleted = []
+    if delete_files:
+        for fname in dev_cfg.get('csv_files', []):
+            fpath = os.path.join(config_store._TABLES_DIR, fname)
+            try:
+                os.remove(fpath)
+                files_deleted.append(fname)
+                logger.info("CSV '%s' removido.", fpath)
+            except FileNotFoundError:
+                pass
+        config_store.update_device(device_id, {'csv_files': []})
+
+    if redis_pub:
+        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+
+    return {
+        'device_id':     device_id,
+        'cleared_tags':  len(tags_to_clear),
+        'files_deleted': files_deleted,
+    }
+
+
+@app.post('/api/devices/{device_id}/upload-csv')
+async def upload_device_csv(device_id: str, file: UploadFile = File(...)):
+    """
+    Faz upload de um CSV de mapeamento Modbus e associa ao device.
+    O arquivo é salvo em tables/ e adicionado a device.csv_files (se ainda não estiver).
+    Publica config_reload para que Delfos recarregue sem reiniciar.
+    """
+    devices = config_store.get_devices()
+    if device_id not in devices:
+        raise HTTPException(status_code=404, detail=f"Device '{device_id}' não encontrado.")
+
+    content = await file.read()
+
+    # Sanitiza o nome do arquivo — sem path traversal
+    filename = os.path.basename(file.filename or f'{device_id}.csv')
+    if not filename.lower().endswith('.csv'):
+        raise HTTPException(status_code=422, detail='Somente arquivos .csv são aceitos aqui.')
+
+    save_path = os.path.join(config_store._TABLES_DIR, filename)
+    with open(save_path, 'wb') as f:
+        f.write(content)
+    logger.info("CSV '%s' salvo em '%s'.", filename, save_path)
+
+    # Adiciona à lista csv_files do device se não estiver presente
+    dev_cfg   = devices[device_id]
+    csv_files = list(dev_cfg.get('csv_files', []))
+    if filename not in csv_files:
+        csv_files.append(filename)
+        config_store.update_device(device_id, {'csv_files': csv_files})
+
+    if redis_pub:
+        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+
+    return {'device_id': device_id, 'filename': filename, 'csv_files': csv_files}
 
 
 # ── Eventos Socket.IO ─────────────────────────────────────────────────────────

@@ -224,10 +224,9 @@ class TestGroupConfig(unittest.TestCase):
     def test_30_has_meta_section(self):
         self.assertIn('_meta', self.config)
 
-    def test_31_has_groups_section(self):
-        self.assertIn('groups', self.config)
-        self.assertIsInstance(self.config['groups'], dict)
-        self.assertGreater(len(self.config['groups']), 0)
+    def test_31_no_groups_section(self):
+        """Fase 5: seção 'groups' removida de group_config.json."""
+        self.assertNotIn('groups', self.config)
 
     def test_32_meta_fields(self):
         meta = self.config['_meta']
@@ -235,26 +234,20 @@ class TestGroupConfig(unittest.TestCase):
         self.assertIn('default_delay_ms',    meta)
         self.assertIn('default_history_size', meta)
 
-    def test_33_all_operacao_groups_configured(self):
-        """Todos os grupos de operacao.csv devem ter entrada em group_config.json."""
-        configured = set(self.config['groups'].keys())
-        for name in self.operacao_groups:
-            with self.subTest(group=name):
-                self.assertIn(name, configured,
-                              f"Grupo '{name}' ausente em group_config.json")
-
-    def test_34_required_fields_per_group(self):
-        """Após migração, grupos contêm apenas 'channel'; delay/history ficam na seção channels."""
-        for name, cfg in self.config['groups'].items():
-            with self.subTest(group=name):
-                self.assertIn('channel', cfg)
-        # delay_ms e history_size devem existir na seção channels
+    def test_33_channels_have_required_fields(self):
+        """Todos os canais em group_config.json devem ter delay_ms e history_size."""
         channels = self.config.get('channels', {})
         self.assertGreater(len(channels), 0, "Seção 'channels' ausente ou vazia")
         for ch, ch_cfg in channels.items():
             with self.subTest(channel=ch):
-                self.assertIn('delay_ms',    ch_cfg)
+                self.assertIn('delay_ms',     ch_cfg)
                 self.assertIn('history_size', ch_cfg)
+
+    def test_34_channels_section_is_sole_routing_config(self):
+        """Fase 5: roteamento definido apenas em 'channels'; 'groups' ausente."""
+        self.assertNotIn('groups',   self.config)
+        self.assertIn('channels',    self.config)
+        self.assertIsInstance(self.config['channels'], dict)
 
     def test_35_delay_ms_positive(self):
         """delay_ms está na seção channels (não mais nos grupos)."""
@@ -273,15 +266,15 @@ class TestGroupConfig(unittest.TestCase):
                 self.assertGreater(cfg.get('history_size', 0), 0)
 
     def test_37_channels_use_plc_prefix(self):
-        for name, cfg in self.config['groups'].items():
-            with self.subTest(group=name):
-                self.assertTrue(
-                    cfg['channel'].startswith('plc_'),
-                    f"'{name}': canal '{cfg['channel']}' sem prefixo 'plc_'"
-                )
+        """Todos os canais em group_config['channels'] devem ter prefixo 'plc_'."""
+        for ch in self.config.get('channels', {}):
+            with self.subTest(channel=ch):
+                self.assertTrue(ch.startswith('plc_'),
+                                f"Canal '{ch}' sem prefixo 'plc_'")
 
     def test_38_known_channels_present(self):
-        channels = {cfg['channel'] for cfg in self.config['groups'].values()}
+        """Canais obrigatórios devem estar na seção 'channels'."""
+        channels = set(self.config.get('channels', {}).keys())
         for expected in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
             with self.subTest(channel=expected):
                 self.assertIn(expected, channels)

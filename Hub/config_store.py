@@ -83,13 +83,48 @@ def save_overrides(overrides: dict) -> None:
     logger.info("variable_overrides.json salvo.")
 
 
+# ── Operações de device ───────────────────────────────────────────────────────
+
+def get_devices() -> dict:
+    """Retorna {device_id: cfg} para todos os devices configurados."""
+    return load_group_config().get('devices', {})
+
+
+def create_device(device_id: str, cfg: dict) -> None:
+    """Cria ou substitui um device em group_config['devices']."""
+    config = load_group_config()
+    config.setdefault('devices', {})[device_id] = cfg
+    save_group_config(config)
+    logger.info("Device '%s' criado.", device_id)
+
+
+def update_device(device_id: str, fields: dict) -> None:
+    """Atualiza campos de um device existente. Lança KeyError se não encontrado."""
+    config = load_group_config()
+    devices = config.setdefault('devices', {})
+    if device_id not in devices:
+        raise KeyError(f"Device '{device_id}' não encontrado.")
+    devices[device_id].update({k: v for k, v in fields.items() if v is not None})
+    save_group_config(config)
+    logger.info("Device '%s' atualizado: %s", device_id, fields)
+
+
+def delete_device(device_id: str) -> None:
+    """Remove um device. Lança KeyError se não encontrado."""
+    config = load_group_config()
+    if device_id not in config.get('devices', {}):
+        raise KeyError(f"Device '{device_id}' não encontrado.")
+    del config['devices'][device_id]
+    save_group_config(config)
+    logger.info("Device '%s' removido.", device_id)
+
+
 # ── Operações de canal ────────────────────────────────────────────────────────
 
 def get_channels() -> dict:
     """
-    Retorna {channel: {delay_ms, history_size}} para todos os canais conhecidos.
-    Canais derivados dos grupos recebem defaults de _meta; a seção 'channels'
-    tem precedência total.
+    Retorna {channel: {delay_ms, history_size}} para todos os canais configurados.
+    Fonte única: seção 'channels' de group_config.json.
     """
     config = load_group_config()
     meta   = config.get('_meta', {})
@@ -97,12 +132,6 @@ def get_channels() -> dict:
     default_hist  = meta.get('default_history_size', 100)
 
     result: dict = {}
-    # Primeiro: canais referenciados nos grupos (com valores default)
-    for cfg in config.get('groups', {}).values():
-        ch = cfg.get('channel')
-        if ch and ch not in result:
-            result[ch] = {'delay_ms': default_delay, 'history_size': default_hist}
-    # Depois: seção channels sobrescreve os defaults
     for ch, ch_cfg in config.get('channels', {}).items():
         result[ch] = {
             'delay_ms':    ch_cfg.get('delay_ms',    default_delay),
@@ -147,22 +176,11 @@ def update_channel_delay(channel: str, delay_ms: int) -> None:
 
 
 def update_channel_history_size(channel: str, size: int) -> None:
-    """
-    Atualiza history_size do canal.
-    Escreve na seção channels (fonte primária) e também nos grupos que mapeiam
-    para o canal (backward-compat com testes que lêem groups diretamente).
-    """
-    config  = load_group_config()
-    # Seção channels — fonte primária
+    """Atualiza history_size do canal na seção channels de group_config.json."""
+    config = load_group_config()
     config.setdefault('channels', {}).setdefault(channel, {})['history_size'] = size
-    # Grupos — backward-compat
-    updated = 0
-    for cfg in config.get('groups', {}).values():
-        if cfg.get('channel') == channel:
-            cfg['history_size'] = size
-            updated += 1
     save_group_config(config)
-    logger.info("history_size=%d aplicado ao canal '%s' (%d grupos).", size, channel, updated)
+    logger.info("history_size=%d aplicado ao canal '%s'.", size, channel)
 
 
 def patch_variable_override(tag: str, fields: dict) -> None:
@@ -170,101 +188,89 @@ def patch_variable_override(tag: str, fields: dict) -> None:
     Atualiza (ou cria) o override de uma variável individual.
     Campos suportados: enabled, channel.
     Campo delay_ms é ignorado silenciosamente.
+    Valor None remove a chave correspondente do override.
+    Override vazio após a operação → entrada removida completamente.
     """
     allowed = {k: v for k, v in fields.items() if k != 'delay_ms'}
     if not allowed:
         return
     overrides = load_overrides()
-    overrides.setdefault(tag, {}).update(allowed)
+    entry = overrides.setdefault(tag, {})
+    for k, v in allowed.items():
+        if v is None or v == '':
+            entry.pop(k, None)   # None ou string vazia → remove a chave
+        else:
+            entry[k] = v
+    if not entry:
+        del overrides[tag]       # override vazio → remove a entrada
     save_overrides(overrides)
     logger.info("Override da tag '%s' atualizado: %s", tag, allowed)
 
 
 # ── Variáveis: leitura mesclada ───────────────────────────────────────────────
 
-# Grupos do operacao.csv (para detectar colisão com configuracao.csv)
-_OPERACAO_GROUPS: set[str] = set()
-
-
-def _build_group_cfg_key(group: str, source: str) -> str:
-    """
-    Devolve a chave usada em group_config.json para um dado grupo/source.
-    Grupos do configuracao.csv que colidam com operacao.csv recebem sufixo '_cfg'.
-    """
-    if source == 'configuracao' and group in _OPERACAO_GROUPS:
-        return group + '_cfg'
-    return group
-
-
 def load_all_variables() -> list:
     """
     Retorna lista de todas as variáveis com configuração mesclada:
-    CSV → group_config.json (channels section) → variable_overrides.json.
+    CSV → variable_overrides.json.
+
+    Canal efetivo = overrides[tag]['channel'].  None quando não atribuída.
 
     Cada item:
-        tag, group, group_cfg_key, type, address, channel,
-        history_size, enabled, has_override, source
+        tag, group, type, address, channel, history_size, enabled, source, device
     """
-    global _OPERACAO_GROUPS
-
-    group_cfg    = load_group_config()
-    groups_data  = group_cfg.get('groups', {})
-    meta         = group_cfg.get('_meta', {})
+    cfg          = load_group_config()
+    meta         = cfg.get('_meta', {})
     default_hist = meta.get('default_history_size', 100)
     overrides    = load_overrides()
-
-    # Channels section — fonte de history_size por canal
     channels_data = get_channels()
-
-    operacao_path     = os.path.join(_TABLES_DIR, 'operacao.csv')
-    configuracao_path = os.path.join(_TABLES_DIR, 'configuracao.csv')
+    devices      = cfg.get('devices', {})
 
     variables: list[dict] = []
 
-    for csv_path in (operacao_path, configuracao_path):
-        if not os.path.exists(csv_path):
-            continue
+    def _read_csv_files(csv_file_list: list, device_id: str | None) -> None:
+        for csv_name in csv_file_list:
+            csv_path = os.path.join(_TABLES_DIR, csv_name)
+            if not os.path.exists(csv_path):
+                continue
 
-        source = os.path.splitext(os.path.basename(csv_path))[0]
+            source = os.path.splitext(os.path.basename(csv_path))[0]
 
-        df = pd.read_csv(csv_path, sep=',')
-        df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
-        df['Modbus'] = pd.to_numeric(df['Modbus'], errors='coerce').astype('Int64')
+            df = pd.read_csv(csv_path, sep=',')
+            df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
+            df['Modbus'] = pd.to_numeric(df['Modbus'], errors='coerce').astype('Int64')
 
-        if source == 'operacao':
-            _OPERACAO_GROUPS = set(df['key'].unique())
+            for _, row in df.iterrows():
+                tag     = str(row['ObjecTag']).strip()
+                group   = str(row['key']).strip()
+                var_at  = str(row.get('At', '')).strip()
+                address = int(row['Modbus']) if pd.notna(row['Modbus']) else None
 
-        for _, row in df.iterrows():
-            tag     = str(row['ObjecTag']).strip()
-            group   = str(row['key']).strip()
-            var_at  = str(row.get('At', '')).strip()
-            address = int(row['Modbus']) if pd.notna(row['Modbus']) else None
+                ov      = overrides.get(tag, {})
+                enabled = ov.get('enabled', True)
+                channel = ov.get('channel')   # None quando não atribuída
 
-            cfg_key = _build_group_cfg_key(group, source)
-            grp_cfg = groups_data.get(cfg_key, {})
-            channel = grp_cfg.get('channel', 'plc_data')
+                hist = channels_data.get(channel, {}).get('history_size', default_hist) if channel else None
 
-            ov           = overrides.get(tag, {})
-            has_override = bool(ov)
-            enabled      = ov.get('enabled', True)
-            if 'channel' in ov:
-                channel = ov['channel']
+                variables.append({
+                    'tag':          tag,
+                    'group':        group,
+                    'type':         var_at,
+                    'address':      address,
+                    'channel':      channel,
+                    'history_size': hist,
+                    'enabled':      enabled,
+                    'source':       source,
+                    'device':       device_id,
+                })
 
-            # history_size vem do canal efetivo
-            hist = channels_data.get(channel, {}).get('history_size', default_hist)
-
-            variables.append({
-                'tag':           tag,
-                'group':         group,
-                'group_cfg_key': cfg_key,
-                'type':          var_at,
-                'address':       address,
-                'channel':       channel,
-                'history_size':  hist,
-                'enabled':       enabled,
-                'has_override':  has_override,
-                'source':        source,
-            })
+    if devices:
+        for dev_id, dev_cfg in devices.items():
+            csv_files = dev_cfg.get('csv_files', [])
+            _read_csv_files(csv_files, dev_id)
+    else:
+        # backward compat: sem seção devices, usa os CSVs padrão
+        _read_csv_files(['operacao.csv', 'configuracao.csv'], None)
 
     return variables
 
@@ -303,27 +309,49 @@ def generate_export_xlsx() -> bytes:
 
 def parse_upload_xlsx(file_bytes: bytes) -> list:
     """
-    Parseia um .xlsx enviado pelo usuário.
-    Aceita colunas: Tag, Canal, History size, Habilitado (mínimo: Tag + Canal).
+    Parseia um arquivo enviado pelo usuário — aceita .xlsx ou .csv.
+    Detecta o formato pelos magic bytes (xlsx = ZIP → começa com b'PK').
+    Colunas reconhecidas: Tag, Canal, History size, Habilitado (mínimo: Tag + Canal).
     Retorna lista de dicts com os campos reconhecidos.
     """
-    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
-    ws = wb.active
+    _is_xlsx = file_bytes[:2] == b'PK'
 
-    rows = list(ws.iter_rows(values_only=True))
+    if _is_xlsx:
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+    else:
+        import csv
+        text = file_bytes.decode('utf-8-sig', errors='replace')
+        try:
+            dialect = csv.Sniffer().sniff(text[:4096], delimiters=',;\t')
+        except csv.Error:
+            dialect = csv.excel   # fallback: vírgula padrão
+        reader = csv.reader(io.StringIO(text), dialect)
+        rows   = [tuple(row) for row in reader]
+
     if not rows:
         return []
 
     raw_headers = [str(h).strip() if h else '' for h in rows[0]]
 
-    header_map = {
-        'Tag':          'tag',
-        'Canal':        'channel',
-        'History size': 'history_size',
-        'Habilitado':   'enabled',
-        'Grupo':        'group',
-        'Fonte':        'source',
-    }
+    # Detecta formato: CSV nativo Modbus (tem 'ObjecTag') vs exportado pelo Hub (tem 'Tag'+'Canal')
+    if 'ObjecTag' in raw_headers:
+        header_map = {
+            'ObjecTag': 'tag',
+            'key':      'group',   # no CSV nativo, 'key' é o namespace/grupo
+            'At':       'type',
+            'Modbus':   'address',
+        }
+    else:
+        header_map = {
+            'Tag':          'tag',
+            'Canal':        'channel',
+            'History size': 'history_size',
+            'Habilitado':   'enabled',
+            'Grupo':        'group',
+            'Fonte':        'source',
+        }
 
     col_index: dict[str, int] = {}
     for i, h in enumerate(raw_headers):
@@ -331,7 +359,10 @@ def parse_upload_xlsx(file_bytes: bytes) -> list:
             col_index[header_map[h]] = i
 
     if 'tag' not in col_index:
-        raise ValueError("Coluna 'Tag' não encontrada no arquivo.")
+        raise ValueError(
+            "Coluna de tag não encontrada. "
+            "Esperado: 'Tag' (formato exportado) ou 'ObjecTag' (CSV Modbus nativo)."
+        )
 
     result = []
     for row in rows[1:]:
@@ -356,68 +387,39 @@ def apply_upload_config(rows: list) -> None:
     """
     Aplica configuração vinda de um upload (parse_upload_xlsx).
 
-    Lógica:
-      1. Agrupa por group_cfg_key (derivado de group + source).
-      2. Se todos os rows de um grupo têm o mesmo channel →
-         atualiza group_config.json para esse grupo.
-      3. Para cada row cujo channel difere do grupo → override individual.
-      4. enabled=False sempre cria override individual.
-      5. Rows que coincidem exatamente com o grupo e enabled=True → remove override.
+    Para cada linha: atualiza variable_overrides.json com channel e enabled.
+    - channel vazio/None → remove a atribuição de canal
+    - enabled=False → cria override; enabled=True → remove override de enabled
+    - Override vazio após a operação → entrada removida
     """
     if not rows:
         return
 
-    group_cfg  = load_group_config()
-    groups_cfg = group_cfg.get('groups', {})
-    overrides  = load_overrides()
-
-    if not _OPERACAO_GROUPS:
-        load_all_variables()
-
-    from collections import defaultdict
-    by_group: dict[str, list] = defaultdict(list)
-    for row in rows:
-        source  = row.get('source', 'operacao')
-        group   = row.get('group', '')
-        cfg_key = _build_group_cfg_key(group, source) if group else None
-        row['_cfg_key'] = cfg_key
-        if cfg_key:
-            by_group[cfg_key].append(row)
-
-    for cfg_key, group_rows in by_group.items():
-        channels  = {r['channel']  for r in group_rows if r.get('channel')}
-        hist_vals = {r['history_size'] for r in group_rows if r.get('history_size') is not None}
-
-        entry = groups_cfg.setdefault(cfg_key, {})
-        if len(channels) == 1:
-            entry['channel'] = next(iter(channels))
-        if len(hist_vals) == 1:
-            entry['history_size'] = next(iter(hist_vals))
-
-    save_group_config(group_cfg)
-
-    updated_groups = load_group_config().get('groups', {})
+    overrides = load_overrides()
 
     for row in rows:
-        tag     = row.get('tag', '').strip()
-        cfg_key = row.get('_cfg_key')
+        tag = row.get('tag', '').strip()
         if not tag:
             continue
 
-        enabled = row.get('enabled', True)
-        channel = row.get('channel')
+        entry = overrides.get(tag, {})
 
-        grp    = updated_groups.get(cfg_key, {})
-        grp_ch = grp.get('channel')
+        # Só atualiza o campo se a coluna estava presente no arquivo
+        if 'channel' in row:
+            channel = row['channel'] or None   # string vazia → None
+            if channel:
+                entry['channel'] = channel
+            else:
+                entry.pop('channel', None)
 
-        override: dict = {}
-        if not enabled:
-            override['enabled'] = False
-        if channel and channel != grp_ch:
-            override['channel'] = channel
+        if 'enabled' in row:
+            if not row['enabled']:
+                entry['enabled'] = False
+            else:
+                entry.pop('enabled', None)
 
-        if override:
-            overrides.setdefault(tag, {}).update(override)
+        if entry:
+            overrides[tag] = entry
         else:
             overrides.pop(tag, None)
 

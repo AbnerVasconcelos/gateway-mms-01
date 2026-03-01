@@ -78,6 +78,30 @@ def _load_channel_config(group_config, default_delay_ms, default_history) -> dic
     return result
 
 
+def _build_csv_paths(tables_dir: str, group_config: dict) -> list:
+    """
+    Retorna lista de caminhos CSV a ler, respeitando a seção 'devices' e a flag
+    'enabled' por device. Devices desativados (enabled=False) são ignorados.
+    Sem seção 'devices': backward compat com operacao.csv + configuracao.csv.
+    """
+    devices = group_config.get('devices', {})
+    if not devices:
+        return [
+            os.path.join(tables_dir, 'operacao.csv'),
+            os.path.join(tables_dir, 'configuracao.csv'),
+        ]
+    paths = []
+    for dev_id, dev_cfg in devices.items():
+        if not dev_cfg.get('enabled', True):
+            logger.info("Device '%s' desativado — pulando leitura.", dev_id)
+            continue
+        for fname in dev_cfg.get('csv_files', []):
+            path = os.path.join(tables_dir, fname)
+            if path not in paths:
+                paths.append(path)
+    return paths
+
+
 def _apply_overrides(data, overrides):
     """Remove tags com enabled=False dos dados lidos. Preserva estrutura {key: {tag: val}}."""
     if not overrides:
@@ -92,8 +116,6 @@ def _apply_overrides(data, overrides):
 
 
 def main():
-    csv_operacao      = os.path.join(_TABLES_DIR, 'operacao.csv')
-    csv_configuracao  = os.path.join(_TABLES_DIR, 'configuracao.csv')
     group_config_path = os.path.join(_TABLES_DIR, 'group_config.json')
     overrides_path    = os.path.join(_TABLES_DIR, 'variable_overrides.json')
 
@@ -112,7 +134,7 @@ def main():
     # Carrega mapeamento CSV por canal
     try:
         channel_data = extract_parameters_by_channel(
-            [csv_operacao, csv_configuracao], group_config, overrides)
+            _build_csv_paths(_TABLES_DIR, group_config), group_config, overrides)
     except FileNotFoundError as e:
         logger.critical("Arquivo CSV não encontrado: %s", e)
         return
@@ -177,7 +199,7 @@ def main():
                 # Re-computa channel_data com nova config (hot-reload graceful)
                 try:
                     new_channel_data = extract_parameters_by_channel(
-                        [csv_operacao, csv_configuracao], group_config, overrides)
+                        _build_csv_paths(_TABLES_DIR, group_config), group_config, overrides)
                     new_channel_cfg  = _load_channel_config(group_config, default_delay_ms, default_history)
                     # Preserva timers de canais existentes; novos canais publicam imediatamente
                     new_last_read = {ch: last_read.get(ch, 0.0) for ch in new_channel_data}
