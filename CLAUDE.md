@@ -48,8 +48,11 @@ gateway/
 │   ├── main.py                # FastAPI + Socket.IO + endpoints REST
 │   ├── redis_bridge.py        # psubscribe('plc_*') → sio.emit por room (plc:data + plc:<canal>)
 │   ├── config_store.py        # leitura/escrita de group_config.json e variable_overrides.json
+│   ├── process_manager.py     # ProcessManager — subprocessos Delfos/Atena com log capture
+│   ├── simulator_manager.py   # SimulatorManager — simuladores Modbus embarcados (LabTest)
 │   ├── templates/
-│   │   └── index.html         # Painel web (AG Grid + Bootstrap 5 + Socket.IO — CDN)
+│   │   ├── index.html         # Painel web (sidebar + AG Grid + Bootstrap 5.3 + dark mode)
+│   │   └── labtest.html       # Painel LabTest — gerenciamento de simuladores Modbus
 │   ├── .env                   # Credenciais locais (NÃO commitar)
 │   └── .env.example           # Template de variáveis
 │
@@ -58,6 +61,7 @@ gateway/
 │   ├── configuracao.csv       # Parâmetros de configuração: 41 tags
 │   ├── group_config.json      # Devices, canais (delay_ms, history_size)
 │   ├── variable_overrides.json# Exceções por tag individual (enabled, channel)
+│   ├── simulator_config.json   # Config dos simuladores embarcados (gerado pelo Hub)
 │   ├── alarms_data.csv        # Subconjunto de alarmes (referência)
 │   ├── read_data.csv          # Mapeamento simplificado (testes)
 │   └── write_data.csv         # Mapeamento de escrita (testes)
@@ -114,17 +118,22 @@ gateway/
 
 ### Hub — Bridge Redis ↔ WebSocket (`Hub/main.py`)
 
-- **Protocolo:** FastAPI + python-socketio (ASGI), inicia com `uvicorn Hub.main:asgi_app --port 8000`
+- **Protocolo:** FastAPI + python-socketio (ASGI), inicia com `uvicorn Hub.main:asgi_app --port 4567`
 - **Bridge:** `redis_bridge.py` faz `psubscribe('plc_*', 'alarms')` e emite **dois eventos** por mensagem:
   - `plc:data` → backward-compat, payload `{channel, data}`, enviado ao room do canal
   - `plc:<canal>` → específico do canal (ex.: `plc:alarmes`, `plc:process`), payload `data` direto
 - **Rooms:** cada canal `plc_<sufixo>` mapeia para o room `<sufixo>` (ex.: `plc_alarmes` → room `alarmes`)
-- **Painel web:** serve `templates/index.html` em `GET /` — tabela AG Grid com edição inline, upload/export `.xlsx`/`.csv`, preview em tempo real, cards de canal, navbar de abas por device, painel de devices com ping/config/start-stop/limpar.
+- **Painel web:** serve `templates/index.html` em `GET /` — layout sidebar + grid fullscreen:
+  - **Sidebar esquerda (340px):** cards de Processos (Delfos/Atena), Canais Redis, Devices — scroll independente
+  - **Área principal (direita):** tabela AG Grid ocupando todo espaço vertical, com toolbar de filtros
+  - **Dark mode:** toggle no navbar, persiste em `localStorage`, Bootstrap 5.3 nativo + `ag-theme-alpine-dark`
+  - Upload/export `.xlsx`/`.csv`, edição inline, preview em tempo real, navbar de abas por device
 
 **Endpoints REST:**
 
 | Método | Rota | Função |
 |--------|------|--------|
+| `GET` | `/health` | Health check |
 | `GET` | `/api/variables` | Lista todos os tags; `channel=null` quando não atribuída |
 | `PATCH` | `/api/variables/{tag}` | Atualiza override de um tag (`enabled`, `channel`); `channel=""` remove atribuição |
 | `POST` | `/api/variables/bulk-assign` | Atribui/remove canal de múltiplas tags (`{tags, channel}`; `channel=""` remove) |
@@ -145,8 +154,21 @@ gateway/
 | `POST` | `/api/devices/{id}/toggle` | Alterna `enabled` — pausa/retoma leitura do device no Delfos |
 | `POST` | `/api/devices/{id}/clear` | Remove overrides de todas as tags do device; `?delete_files=true` apaga CSVs do disco |
 | `POST` | `/api/devices/{id}/upload-csv` | Salva CSV em `tables/` e adiciona a `device.csv_files` |
+| `GET` | `/api/processes` | Lista processos Delfos/Atena com estado |
+| `POST` | `/api/processes/{proc_type}/start` | Inicia Delfos ou Atena (body: `{device_id}`) |
+| `POST` | `/api/processes/{proc_type}/stop` | Para o processo |
+| `GET` | `/api/processes/{proc_type}/logs` | Últimas linhas de log do processo |
+| `GET` | `/labtest` | Serve página LabTest (simuladores) |
+| `GET` | `/api/simulators` | Lista simuladores com estado |
+| `POST` | `/api/simulators` | Cria novo simulador Modbus |
+| `DELETE` | `/api/simulators/{sim_id}` | Remove simulador (para se rodando) |
+| `PATCH` | `/api/simulators/{sim_id}` | Atualiza config do simulador (deve estar parado) |
+| `POST` | `/api/simulators/{sim_id}/start` | Inicia servidor Modbus TCP |
+| `POST` | `/api/simulators/{sim_id}/stop` | Para servidor Modbus TCP |
+| `GET` | `/api/simulators/{sim_id}/variables` | Lista variáveis com valores atuais e estado de lock |
+| `POST` | `/api/simulators/{sim_id}/upload-csv` | Upload CSV para o simulador |
 
-**Eventos Socket.IO (client → server):** `join`, `plc_write`, `user_status`, `config_save`, `config_get`, `history_set`, `history_get`
+**Eventos Socket.IO (client → server):** `join`, `plc_write`, `user_status`, `config_save`, `config_get`, `history_set`, `history_get`, `sim_subscribe`, `sim_write`, `sim_lock`
 
 **Eventos Socket.IO (server → client):**
 - `plc:data` — todos os canais, payload `{channel, data}` (backward-compat)
@@ -154,8 +176,49 @@ gateway/
 - `config:updated` — broadcast ao salvar configuração
 - `connection_ack` — enviado ao conectar, contém `available_rooms`
 - `history:sizes` — resposta ao `history_get`
+- `proc:status` — mudança de estado de processo Delfos/Atena (start/stop/crash)
+- `sim:status` — mudança de estado de simulador (start/stop/delete)
+- `sim:values` — broadcast periódico (500ms) de valores do simulador ao room `sim:{sim_id}`
 
-**Nota de nomenclatura:** eventos client→server usam underscore (`plc_write`); eventos server→client usam colon (`plc:data`, `config:updated`).
+**Nota de nomenclatura:** eventos client→server usam underscore (`plc_write`, `sim_write`); eventos server→client usam colon (`plc:data`, `proc:status`, `sim:values`).
+
+---
+
+### ProcessManager — Controle de subprocessos (`Hub/process_manager.py`)
+
+Permite iniciar e parar Delfos e Atena diretamente do painel web, sem terminais separados.
+
+- **Abordagem:** lança subprocessos OS via `asyncio.create_subprocess_exec()`
+- **Env vars:** herda `os.environ` e sobrescreve `MODBUS_HOST`, `MODBUS_PORT`, `MODBUS_UNIT_ID`, `REDIS_HOST`, `REDIS_PORT`, `TABLES_DIR` a partir da config do device selecionado. `load_dotenv()` não sobrescreve vars já existentes, então funciona sem alterar Delfos/Atena.
+- **`cwd`:** diretório do processo (`Delfos/` ou `Atena/`) para imports relativos
+- **Log capture:** stdout/stderr capturados linha a linha (buffer de 200 linhas)
+- **Exit detection:** task `_watch_exit()` detecta crash e notifica via `proc:status`
+- **Stop:** `terminate()` → timeout 5s → `kill()`
+- **Python:** detecta `.venv/Scripts/python.exe` (Win) ou `.venv/bin/python` (Linux), fallback `sys.executable`
+
+**Sem persistência** — processos são efêmeros e param junto com o Hub (`shutdown_all()` no lifecycle).
+
+---
+
+### LabTest — Simuladores Modbus embarcados (`Hub/simulator_manager.py`)
+
+Substitui `tests/modbus_simulator.py` standalone — simuladores rodam dentro do Hub com interface web.
+
+- **Acesso:** `GET /labtest` → painel web em `templates/labtest.html`
+- **Persistência:** `tables/simulator_config.json` (criado dinamicamente)
+- **Auto-start:** simuladores com `auto_start: true` iniciam no startup do Hub
+
+**SimulatorInstance:**
+- Encapsula um `ModbusTcpServer` (pymodbus) com contexto carregado de CSVs
+- Suporta coils (tipo M) e holding registers (tipo D)
+- **Simulação automática:** varia registers por onda senoidal, coils por toggle aleatório (a cada 2s)
+- **Lock de tags:** `sim_lock` trava variável — simulação não sobrescreve, permite escrita manual via `sim_write`
+- **Broadcast:** valores emitidos via `sim:values` a cada 500ms ao room `sim:{sim_id}`
+
+**SimulatorManager:**
+- CRUD de simuladores com persistência em JSON
+- Inicialização via `init_from_config()` no startup do Hub
+- Reutiliza `LoggingDataBlock`, `load_csv`, `_initial_register_value` de `tests/modbus_simulator.py`
 
 ---
 
@@ -183,8 +246,9 @@ gateway/
 
 ## Variáveis de ambiente
 
-Ambos os processos usam o mesmo conjunto de variáveis. Copie `.env.example` para `.env` em cada diretório:
+Delfos e Atena usam o mesmo conjunto de variáveis Modbus. O Hub usa variáveis Redis + porta. Copie `.env.example` para `.env` em cada diretório:
 
+**Delfos / Atena `.env`:**
 ```bash
 MODBUS_HOST=192.168.1.2
 MODBUS_PORT=502
@@ -194,7 +258,18 @@ REDIS_PORT=6379
 TABLES_DIR=../tables
 ```
 
+**Hub `.env`:**
+```bash
+REDIS_HOST=localhost
+REDIS_PORT=6379
+TABLES_DIR=../tables
+HUB_HOST=0.0.0.0
+HUB_PORT=4567
+```
+
 **Regra:** `.env` nunca entra no git. `.env.example` sim.
+
+**Nota:** quando Delfos/Atena são iniciados via ProcessManager (painel web), as env vars são passadas programaticamente a partir da config do device — o `.env` local é ignorado (pois `load_dotenv()` não sobrescreve vars já definidas).
 
 ---
 
@@ -294,6 +369,31 @@ Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a ca
 - Tag sem `channel` (ausente do arquivo ou `channel` removido) → **não lida, não publicada**
 - `enabled: false` → excluída mesmo com canal atribuído
 
+### `simulator_config.json` — configuração dos simuladores embarcados
+
+Gerado e gerenciado pelo Hub (LabTest). Persistido em `tables/`. Cada chave é um `sim_id`.
+
+```json
+{
+  "sim_clp1": {
+    "label": "Simulador CLP Principal",
+    "protocol": "tcp",
+    "port": 5020,
+    "unit_id": 1,
+    "csv_files": ["operacao.csv"],
+    "simulate": true,
+    "auto_start": false
+  }
+}
+```
+
+**Campos:**
+- `protocol` — `"tcp"` ou `"rtu_tcp"` (RTU framer sobre TCP)
+- `port` — porta TCP do servidor Modbus
+- `csv_files` — lista de CSVs em `tables/` para carregar contexto
+- `simulate` — `true` = variação automática de valores; `false` = valores estáticos
+- `auto_start` — `true` = inicia automaticamente no startup do Hub
+
 ---
 
 ## Upload de planilhas
@@ -358,15 +458,6 @@ cp Hub/.env.example    Hub/.env
 # Editar os .env com os valores reais do ambiente
 ```
 
-**Hub `.env`:**
-```bash
-REDIS_HOST=localhost
-REDIS_PORT=6379
-TABLES_DIR=../tables
-HUB_HOST=0.0.0.0
-HUB_PORT=8000
-```
-
 ### 3. Iniciar Redis
 
 ```bash
@@ -377,8 +468,22 @@ docker run -d -p 6379:6379 --name redis redis:alpine
 redis-server
 ```
 
-### 4. Iniciar os processos (terminais separados)
+### 4. Iniciar o Hub
 
+```bash
+uvicorn Hub.main:asgi_app --host 0.0.0.0 --port 4567
+# Painel web disponível em http://localhost:4567
+```
+
+### 5. Iniciar Delfos e Atena
+
+**Opção A — Via painel web (recomendado para desenvolvimento):**
+1. Acesse http://localhost:4567
+2. Crie ou selecione um simulador em http://localhost:4567/labtest e inicie-o
+3. No card "Processos" (sidebar), selecione o device e clique "Iniciar" para Delfos e/ou Atena
+4. Monitore via botão "Logs"
+
+**Opção B — Terminais separados (produção ou debug direto):**
 ```bash
 # Terminal 1 — simulador (desenvolvimento/testes)
 python tests/modbus_simulator.py --port 5020 --simulate
@@ -388,10 +493,6 @@ cd Delfos && python delfos.py
 
 # Terminal 3
 cd Atena && python atena.py
-
-# Terminal 4
-uvicorn Hub.main:asgi_app --host 0.0.0.0 --port 8000
-# Painel web disponível em http://localhost:8000
 ```
 
 **Atenção Windows/Cursor IDE:** o Cursor pode interceptar conexões `localhost`. Use o IP da máquina (`192.168.x.x`) para acessar o Hub via browser.
@@ -412,10 +513,10 @@ python -m pytest tests/test_hub.py tests/test_segmented_reading.py -v
 |---------|-------|--------|
 | `tests/modbus_simulator.py` | Servidor Modbus TCP que lê os CSVs e simula o CLP | — |
 | `tests/test_integration.py` | Simulador — leitura/escrita Modbus direta | 15 |
-| `tests/test_segmented_reading.py` | Delfos — leitura segmentada por canal, delays, hot-reload | 27 |
+| `tests/test_segmented_reading.py` | Delfos — leitura segmentada por canal, delays, hot-reload | 30 |
 | `tests/test_atena.py` | Atena — loop Redis → Modbus | 6 |
 | `tests/test_full_loop.py` | Loop completo Delfos+Atena simultâneos | 7 |
-| `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping | 64 |
+| `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping, simulators | 61 |
 
 **Total unit tests (sem deps externas):** 91 passando (`test_hub` + `test_segmented_reading`)
 
@@ -442,10 +543,10 @@ cp tests/.env.test Atena/.env
 
 1. **`handle_ia_data_message`** é um stub — lógica de processamento de dados da IA não implementada
 2. **Código duplicado:** `redis_config_functions.py` e `modbus_functions.py` são idênticos em Delfos e Atena — candidatos a um módulo compartilhado
-3. **Eventos Socket.IO — nomenclatura inconsistente:** client→server usa underscore (`plc_write`); server→client usa colon (`plc:data`, `config:updated`). Frontends devem seguir a implementação
-4. **Sem gerenciamento de processos:** não há supervisor/systemd para reinício automático em produção
-5. **Redis sem replicação:** ponto único de falha
-6. **Delfos — device único por instância:** Delfos usa um único cliente Modbus; para múltiplos devices físicos simultâneos seria necessário múltiplos clientes (atualmente lê devices em série, não em paralelo)
+3. **Eventos Socket.IO — nomenclatura intencional:** client→server usa underscore (`plc_write`, `sim_write`); server→client usa colon (`plc:data`, `proc:status`, `sim:values`). Frontends devem seguir esta convenção.
+4. **Redis sem replicação:** ponto único de falha
+5. **Delfos — device único por instância:** Delfos usa um único cliente Modbus; para múltiplos devices físicos simultâneos seria necessário múltiplos clientes (atualmente lê devices em série, não em paralelo)
+6. **ProcessManager sem reinício automático:** processos que crasham são detectados (`proc:status` com `exit_code`) mas não reiniciam sozinhos — o usuário precisa clicar "Iniciar" novamente
 
 ---
 

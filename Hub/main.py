@@ -3,9 +3,9 @@
 Hub — Socket.IO bridge + Config Panel REST API.
 
 Inicia com:
-    cd Hub && uvicorn main:asgi_app --host 0.0.0.0 --port 8000 --reload
+    cd Hub && uvicorn main:asgi_app --host 0.0.0.0 --port 4567 --reload
     ou
-    uvicorn Hub.main:asgi_app --host 0.0.0.0 --port 8000  (a partir de gateway/)
+    uvicorn Hub.main:asgi_app --host 0.0.0.0 --port 4567  (a partir de gateway/)
 
 Variáveis de ambiente (.env):
     REDIS_HOST, REDIS_PORT, TABLES_DIR, HUB_HOST, HUB_PORT
