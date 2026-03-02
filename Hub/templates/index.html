@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-bs-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gateway Config Panel</title>
 
-  <!-- Bootstrap 5 -->
+  <!-- Bootstrap 5.3 (com suporte nativo a dark mode) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
 
   <!-- AG Grid Community -->
@@ -13,8 +13,50 @@
   <link href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-theme-alpine.css" rel="stylesheet" />
 
   <style>
-    body { background: #f8f9fa; }
+    /* ── Layout base ─────────────────────────────────────────────────────── */
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body { display: flex; flex-direction: column; }
 
+    .main-wrapper {
+      flex: 1 1 0;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 340px;
+      min-width: 280px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      border-right: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+    }
+    .sidebar .card { border-radius: 0; border-left: 0; border-right: 0; }
+    .sidebar .card + .card { border-top: 0; }
+    .sidebar .card-header { padding: .5rem .75rem; font-size: .85rem; }
+    .sidebar .card-body { padding: .5rem .75rem; }
+
+    /* ── Grid area ───────────────────────────────────────────────────────── */
+    .grid-area {
+      flex: 1 1 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+    .grid-toolbar {
+      flex-shrink: 0;
+      padding: .4rem .75rem;
+      border-bottom: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+    }
+    #var-grid {
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    /* ── Status dots ─────────────────────────────────────────────────────── */
     .status-dot {
       display: inline-block; width: 10px; height: 10px;
       border-radius: 50%; margin-right: 6px;
@@ -22,73 +64,107 @@
     .dot-ok   { background: #28a745; }
     .dot-warn { background: #ffc107; }
     .dot-err  { background: #dc3545; }
+    .dot-grey { background: #6c757d; }
 
-    #var-grid { height: 520px; }
     .badge-override { font-size: .7em; vertical-align: middle; }
 
-    /* Channel cards */
+    /* ── Channel cards ───────────────────────────────────────────────────── */
     .channel-card {
-      min-width: 220px; cursor: pointer;
+      cursor: pointer;
       transition: box-shadow 0.2s;
+      border: 1px solid var(--bs-border-color);
+      border-radius: .375rem;
+      padding: .5rem !important;
     }
     .channel-card:hover { box-shadow: 0 0 0 2px rgba(13,110,253,.35); }
     .channel-card.active-filter { box-shadow: 0 0 0 2px #0d6efd; }
 
     .activity-dot {
       width: 10px; height: 10px; border-radius: 50%;
-      background: #ccc; flex-shrink: 0;
+      background: var(--bs-secondary-bg); flex-shrink: 0;
       transition: background 0.3s;
     }
     .activity-dot.active { background: #28a745; }
 
-    .delay-input   { width: 72px; }
-    .history-input { width: 72px; }
+    .delay-input   { width: 64px; }
+    .history-input { width: 64px; }
 
-    /* Row color palette by channel (6 pastel colors) */
+    /* ── Row color palette by channel (6 pastel colors) ──────────────────── */
     .ch-row-0 { background-color: #e8f4f8 !important; }
-    .ch-row-1 { background-color: #fef9e7 !important; }
-    .ch-row-2 { background-color: #eafaf1 !important; }
-    .ch-row-3 { background-color: #fdf2f8 !important; }
-    .ch-row-4 { background-color: #f5f5f5 !important; }
-    .ch-row-5 { background-color: #fff5e6 !important; }
+    .ch-row-1 { background-color: #fff3e0 !important; }
+    .ch-row-2 { background-color: #e8f5e9 !important; }
+    .ch-row-3 { background-color: #f3e5f5 !important; }
+    .ch-row-4 { background-color: #eceff1 !important; }
+    .ch-row-5 { background-color: #fce4ec !important; }
 
-    /* Não-atribuída */
+    /* dark mode row colors */
+    [data-bs-theme="dark"] .ch-row-0 { background-color: #1a2e35 !important; }
+    [data-bs-theme="dark"] .ch-row-1 { background-color: #2e2510 !important; }
+    [data-bs-theme="dark"] .ch-row-2 { background-color: #1a2e1e !important; }
+    [data-bs-theme="dark"] .ch-row-3 { background-color: #261a2e !important; }
+    [data-bs-theme="dark"] .ch-row-4 { background-color: #222528 !important; }
+    [data-bs-theme="dark"] .ch-row-5 { background-color: #2e1a22 !important; }
+
     .ch-row-unassigned { background-color: #f0f0f0 !important; color: #999 !important; }
+    [data-bs-theme="dark"] .ch-row-unassigned { background-color: #1e1e1e !important; color: #666 !important; }
 
-    /* Device panel */
-    .device-card { min-width: 300px; }
+    /* ── Device panel ────────────────────────────────────────────────────── */
+    .device-card { border: 1px solid var(--bs-border-color); border-radius: .375rem; }
     .device-card .status-dot { width: 12px; height: 12px; }
-    .dot-grey { background: #adb5bd; }
+
+    /* ── Process cards (sidebar) ─────────────────────────────────────────── */
+    .proc-card {
+      border: 1px solid var(--bs-border-color);
+      border-radius: .375rem;
+      padding: .5rem;
+    }
+
+    /* ── Dark mode toggle ────────────────────────────────────────────────── */
+    .theme-toggle {
+      background: none; border: none; cursor: pointer;
+      font-size: 1.2rem; padding: 0 4px; line-height: 1;
+    }
+
+    /* ── Sidebar section labels ──────────────────────────────────────────── */
+    .sidebar-section-label {
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: .4rem .75rem .15rem;
+      color: var(--bs-secondary-color);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
 
 <!-- ── Navbar ──────────────────────────────────────────────────────────────── -->
-<nav class="navbar navbar-dark bg-dark px-3">
+<nav class="navbar navbar-dark bg-dark px-3 py-1" style="flex-shrink:0">
   <div class="d-flex align-items-center gap-3">
-    <span class="navbar-brand fw-bold mb-0">Gateway Config Panel</span>
-    <a href="/labtest" class="btn btn-sm btn-outline-light">LabTest</a>
+    <span class="navbar-brand fw-bold mb-0" style="font-size:.95rem">Gateway Config Panel</span>
+    <a href="/labtest" class="btn btn-sm btn-outline-light py-0">LabTest</a>
   </div>
-  <div class="d-flex align-items-center gap-3">
+  <div class="d-flex align-items-center gap-2">
     <span id="ws-status" class="text-white small">
       <span class="status-dot dot-warn" id="ws-dot"></span>Conectando...
     </span>
-    <label class="btn btn-sm btn-outline-light mb-0" title="Upload .xlsx ou .csv">
-      📂 Upload .xlsx/.csv
+    <label class="btn btn-sm btn-outline-light mb-0 py-0" title="Upload .xlsx ou .csv">
+      Upload
       <input type="file" id="upload-input" accept=".xlsx,.csv" class="d-none" />
     </label>
-    <button class="btn btn-sm btn-outline-light" id="export-btn">⬇ Export</button>
+    <button class="btn btn-sm btn-outline-light py-0" id="export-btn">Export</button>
+    <button class="theme-toggle text-white" id="theme-toggle" title="Alternar tema">&#9790;</button>
   </div>
 </nav>
 
 <!-- ── Device tabs navbar ──────────────────────────────────────────────────── -->
-<nav class="navbar navbar-expand navbar-light bg-white border-bottom px-3 py-1">
-  <ul class="nav nav-pills gap-1" id="device-tabs">
-    <li><a class="nav-link active" data-device="" href="#" onclick="setActiveDevice('',this);return false">Todos</a></li>
+<nav class="navbar navbar-expand navbar-light border-bottom px-3 py-0" style="flex-shrink:0;min-height:32px">
+  <ul class="nav nav-pills gap-1" id="device-tabs" style="font-size:.8rem">
+    <li><a class="nav-link active py-1 px-2" data-device="" href="#" onclick="setActiveDevice('',this);return false">Todos</a></li>
   </ul>
-  <button class="btn btn-sm btn-outline-primary ms-auto"
+  <button class="btn btn-sm btn-outline-primary ms-auto py-0" style="font-size:.75rem"
           data-bs-toggle="modal" data-bs-target="#newDeviceModal">
-    + Novo device
+    + Device
   </button>
 </nav>
 
@@ -138,7 +214,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-primary" id="confirm-upload-btn">✔ Aplicar</button>
+        <button class="btn btn-primary" id="confirm-upload-btn">Aplicar</button>
       </div>
     </div>
   </div>
@@ -247,53 +323,125 @@
   </div>
 </div>
 
-<!-- ── Main content ────────────────────────────────────────────────────────── -->
-<div class="container-fluid py-3">
-
-  <!-- Canais Redis -->
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span class="fw-semibold">Canais Redis</span>
-      <div class="d-flex align-items-center gap-2">
-        <span class="text-muted small" id="channel-last-update"></span>
-        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newChannelModal">+ Novo canal</button>
+<!-- ── Modal de logs de processo ────────────────────────────────────────── -->
+<div class="modal fade" id="processLogsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="processLogsTitle">Logs</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <pre id="processLogsContent" style="background:#1e1e1e; color:#d4d4d4; padding:12px;
+             max-height:400px; overflow:auto; font-size:.8em; margin:0; white-space:pre-wrap;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-outline-secondary" id="processLogsRefresh">Atualizar</button>
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Fechar</button>
       </div>
     </div>
-    <div class="card-body">
-      <div id="channels-container" class="d-flex flex-wrap gap-3"></div>
-    </div>
   </div>
+</div>
 
-  <!-- Variáveis -->
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <span class="fw-semibold">Variáveis</span>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <button class="btn btn-sm btn-outline-secondary" id="bulk-move-btn"
-                disabled onclick="openBulkMoveModal()">↗ Mover selecionadas</button>
-        <select id="filter-group"   class="form-select form-select-sm" style="width:140px"><option value="">Grupo</option></select>
-        <select id="filter-type"    class="form-select form-select-sm" style="width:100px">
-          <option value="">Tipo</option>
-          <option>%MB</option>
-          <option>%MW</option>
-        </select>
-        <select id="filter-channel" class="form-select form-select-sm" style="width:160px"><option value="">Canal</option></select>
-        <select id="filter-device"  class="form-select form-select-sm" style="width:140px"><option value="">Device</option></select>
-        <input  id="filter-text"    class="form-control form-control-sm" placeholder="Buscar..." style="width:160px" />
-        <span   id="var-count"      class="text-muted small ms-1"></span>
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- ── Main layout: Sidebar + Grid ─────────────────────────────────────── -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="main-wrapper">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+  <div class="sidebar">
+
+    <!-- Processos -->
+    <div class="sidebar-section-label">Processos</div>
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex gap-2 mb-2">
+          <!-- Delfos -->
+          <div class="proc-card flex-fill">
+            <div class="d-flex align-items-center mb-1">
+              <span class="status-dot dot-grey" id="proc-dot-delfos"></span>
+              <strong class="small">Delfos</strong>
+              <span class="badge bg-secondary ms-auto" style="font-size:.65em" id="proc-badge-delfos">Parado</span>
+            </div>
+            <select class="form-select form-select-sm mb-1" style="font-size:.75rem" id="proc-device-delfos"></select>
+            <div class="d-flex gap-1">
+              <button class="btn btn-success py-0 px-2" style="font-size:.7rem" id="proc-start-delfos"
+                      onclick="startProcess('delfos')">Iniciar</button>
+              <button class="btn btn-danger py-0 px-2 d-none" style="font-size:.7rem" id="proc-stop-delfos"
+                      onclick="stopProcess('delfos')">Parar</button>
+              <button class="btn btn-outline-secondary py-0 px-2" style="font-size:.7rem"
+                      onclick="showProcessLogs('delfos')">Logs</button>
+            </div>
+          </div>
+          <!-- Atena -->
+          <div class="proc-card flex-fill">
+            <div class="d-flex align-items-center mb-1">
+              <span class="status-dot dot-grey" id="proc-dot-atena"></span>
+              <strong class="small">Atena</strong>
+              <span class="badge bg-secondary ms-auto" style="font-size:.65em" id="proc-badge-atena">Parado</span>
+            </div>
+            <select class="form-select form-select-sm mb-1" style="font-size:.75rem" id="proc-device-atena"></select>
+            <div class="d-flex gap-1">
+              <button class="btn btn-success py-0 px-2" style="font-size:.7rem" id="proc-start-atena"
+                      onclick="startProcess('atena')">Iniciar</button>
+              <button class="btn btn-danger py-0 px-2 d-none" style="font-size:.7rem" id="proc-stop-atena"
+                      onclick="stopProcess('atena')">Parar</button>
+              <button class="btn btn-outline-secondary py-0 px-2" style="font-size:.7rem"
+                      onclick="showProcessLogs('atena')">Logs</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="card-body p-0">
-      <div id="var-grid" class="ag-theme-alpine"></div>
+
+    <!-- Canais Redis -->
+    <div class="sidebar-section-label d-flex align-items-center justify-content-between">
+      <span>Canais Redis</span>
+      <button class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size:.65rem"
+              data-bs-toggle="modal" data-bs-target="#newChannelModal">+ Canal</button>
     </div>
+    <div class="card">
+      <div class="card-body">
+        <div id="channels-container" class="d-flex flex-column gap-2"></div>
+        <div class="text-end mt-1">
+          <span class="text-muted" style="font-size:.65rem" id="channel-last-update"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Devices -->
+    <div class="sidebar-section-label">Devices</div>
+    <div class="card">
+      <div class="card-body">
+        <div id="devices-container" class="d-flex flex-column gap-2"></div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Devices -->
-  <div class="card">
-    <div class="card-header fw-semibold">Devices</div>
-    <div class="card-body">
-      <div id="devices-container" class="d-flex flex-wrap gap-3"></div>
+  <!-- ── Grid area ────────────────────────────────────────────────────────── -->
+  <div class="grid-area">
+
+    <!-- Filter toolbar -->
+    <div class="grid-toolbar d-flex align-items-center gap-2 flex-wrap">
+      <span class="fw-semibold small">Variáveis</span>
+      <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.75rem" id="bulk-move-btn"
+              disabled onclick="openBulkMoveModal()">Mover sel.</button>
+      <select id="filter-group"   class="form-select form-select-sm" style="width:120px;font-size:.75rem"><option value="">Grupo</option></select>
+      <select id="filter-type"    class="form-select form-select-sm" style="width:85px;font-size:.75rem">
+        <option value="">Tipo</option>
+        <option>%MB</option>
+        <option>%MW</option>
+      </select>
+      <select id="filter-channel" class="form-select form-select-sm" style="width:140px;font-size:.75rem"><option value="">Canal</option></select>
+      <select id="filter-device"  class="form-select form-select-sm" style="width:120px;font-size:.75rem"><option value="">Device</option></select>
+      <input  id="filter-text"    class="form-control form-control-sm" placeholder="Buscar..." style="width:140px;font-size:.75rem" />
+      <span   id="var-count"      class="text-muted small ms-auto" style="font-size:.75rem"></span>
     </div>
+
+    <!-- AG Grid -->
+    <div id="var-grid" class="ag-theme-alpine"></div>
+
   </div>
 
 </div>
@@ -322,7 +470,7 @@ let varGrid       = null;
 let previewGrid   = null;
 let knownRooms    = [];
 
-// Canal → índice de cor (0-5), populado ao carregar canais
+// Canal -> indice de cor (0-5), populado ao carregar canais
 const CHANNEL_COLORS = {};
 let   CHANNELS_LIST  = [];
 
@@ -330,6 +478,37 @@ let   CHANNELS_LIST  = [];
 let   activeDevice  = '';          // '' = Todos
 const deviceStats   = {};          // {device_id: {ok, err, lastLatency, lastOk}}
 let   DEVICES_LIST  = {};          // {device_id: cfg}
+
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem('gateway-theme');
+  if (saved === 'dark') setTheme('dark');
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-bs-theme', theme);
+  localStorage.setItem('gateway-theme', theme);
+
+  // AG Grid: swap theme class
+  const gridEl = document.getElementById('var-grid');
+  const previewEl = document.getElementById('preview-grid');
+  [gridEl, previewEl].forEach(el => {
+    if (!el) return;
+    el.classList.remove('ag-theme-alpine', 'ag-theme-alpine-dark');
+    el.classList.add(theme === 'dark' ? 'ag-theme-alpine-dark' : 'ag-theme-alpine');
+  });
+
+  // Update toggle icon
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-bs-theme');
+  setTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'success') {
@@ -411,7 +590,7 @@ async function loadChannels() {
   const container = document.getElementById('channels-container');
   container.innerHTML = '';
 
-  // Reconstrói CHANNELS_LIST e CHANNEL_COLORS preservando ordem estável
+  // Reconstroi CHANNELS_LIST e CHANNEL_COLORS preservando ordem estavel
   const sorted = Object.keys(data).sort();
   sorted.forEach((ch, i) => { CHANNEL_COLORS[ch] = i % 6; });
   CHANNELS_LIST = sorted;
@@ -426,42 +605,42 @@ async function loadChannels() {
     }
   }
 
-  // Reconstrói cores de linha
+  // Reconstroi cores de linha
   if (varGrid) varGrid.redrawRows();
 
-  // Obtém canal filtrado atualmente para restaurar active-filter
+  // Obtem canal filtrado atualmente para restaurar active-filter
   const activeFilter = document.getElementById('filter-channel').value;
 
   Object.entries(data).forEach(([ch, cfg]) => {
     const card = document.createElement('div');
     card.id        = 'card-' + ch;
-    card.className = 'card channel-card p-3' + (activeFilter === ch ? ' active-filter' : '');
+    card.className = 'channel-card' + (activeFilter === ch ? ' active-filter' : '');
     card.onclick   = () => filterByChannel(ch, card);
     card.innerHTML = `
-      <div class="d-flex align-items-center mb-2">
+      <div class="d-flex align-items-center mb-1">
         <span class="activity-dot me-2" id="act-${ch}"></span>
-        <div class="fw-semibold text-truncate flex-grow-1 small" title="${ch}">${ch}</div>
-        <button class="btn btn-sm btn-outline-danger py-0 px-1 ms-2"
+        <div class="fw-semibold text-truncate flex-grow-1" style="font-size:.8rem" title="${ch}">${ch}</div>
+        <button class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" style="font-size:.6rem"
                 onclick="event.stopPropagation(); removeChannel('${ch}', this)"
                 title="Remover canal">✕</button>
       </div>
       <div class="d-flex align-items-center gap-1 mb-1">
-        <label class="small text-muted mb-0" style="white-space:nowrap">Delay:</label>
-        <input type="number" class="form-control form-control-sm delay-input"
+        <label class="text-muted mb-0" style="font-size:.7rem;white-space:nowrap">Delay:</label>
+        <input type="number" class="form-control form-control-sm delay-input" style="font-size:.75rem"
                value="${cfg.delay_ms}" min="1" max="100000"
                onclick="event.stopPropagation()" />
-        <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+        <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:.65rem"
                 onclick="event.stopPropagation(); applyDelay('${ch}', this)"
                 title="Aplicar delay">ms</button>
       </div>
       <div class="d-flex align-items-center gap-1">
-        <label class="small text-muted mb-0" style="white-space:nowrap">History:</label>
-        <input type="number" class="form-control form-control-sm history-input"
+        <label class="text-muted mb-0" style="font-size:.7rem;white-space:nowrap">History:</label>
+        <input type="number" class="form-control form-control-sm history-input" style="font-size:.75rem"
                value="${cfg.history_size}" min="1" max="10000"
                onclick="event.stopPropagation()" />
-        <button class="btn btn-sm btn-primary py-0 px-2"
+        <button class="btn btn-sm btn-primary py-0 px-1" style="font-size:.65rem"
                 onclick="event.stopPropagation(); applyHistory('${ch}', this)"
-                title="Aplicar history">✓</button>
+                title="Aplicar history">ok</button>
       </div>`;
     container.appendChild(card);
   });
@@ -495,7 +674,7 @@ async function removeChannel(channel, btn) {
 }
 
 async function applyDelay(channel, btn) {
-  const input = btn.closest('.card').querySelector('.delay-input');
+  const input = btn.closest('.channel-card').querySelector('.delay-input');
   const delay = parseInt(input.value, 10);
   if (!delay || delay < 1) { showToast('Valor inválido.', 'danger'); return; }
   try {
@@ -511,7 +690,7 @@ async function applyDelay(channel, btn) {
 }
 
 async function applyHistory(channel, btn) {
-  const input = btn.closest('.card').querySelector('.history-input');
+  const input = btn.closest('.channel-card').querySelector('.history-input');
   const size  = parseInt(input.value, 10);
   if (!size || size < 1) { showToast('Valor inválido.', 'danger'); return; }
   try {
@@ -543,6 +722,7 @@ async function loadDevices() {
   DEVICES_LIST = await apiFetch('/api/devices');
   renderDeviceTabs();
   renderDeviceCards();
+  updateProcessDeviceSelects();
 }
 
 function renderDeviceTabs() {
@@ -555,7 +735,7 @@ function renderDeviceTabs() {
   Object.entries(DEVICES_LIST).forEach(([id, cfg]) => {
     const li = document.createElement('li');
     const a  = document.createElement('a');
-    a.className   = 'nav-link' + (activeDevice === id ? ' active' : '');
+    a.className   = 'nav-link py-1 px-2' + (activeDevice === id ? ' active' : '');
     a.href        = '#';
     a.dataset.device = id;
     a.onclick     = (e) => { e.preventDefault(); setActiveDevice(id, a); };
@@ -584,105 +764,95 @@ function renderDeviceCards() {
     const dotCls    = stats.hasOwnProperty('ok')
       ? (stats.ok ? 'dot-ok' : 'dot-err') : 'dot-grey';
     const isTcp     = (cfg.protocol || 'tcp') === 'tcp';
-    const isEnabled = cfg.enabled !== false;   // default: true
+    const isEnabled = cfg.enabled !== false;
 
     const card = document.createElement('div');
-    card.className = 'card device-card p-3';
+    card.className = 'device-card p-2';
     card.id        = 'devcard-' + id;
     card.innerHTML = `
-      <div class="d-flex align-items-center mb-2">
-        <span class="status-dot ${dotCls}" id="devdot-${id}"></span>
-        <span class="fw-semibold flex-grow-1">${cfg.label || id} <small class="text-muted">(${id})</small></span>
-        <span class="badge ${isEnabled ? 'bg-success' : 'bg-secondary'} me-2"
+      <div class="d-flex align-items-center mb-1">
+        <span class="status-dot ${dotCls}" id="devdot-${id}" style="width:10px;height:10px"></span>
+        <span class="fw-semibold small flex-grow-1">${cfg.label || id} <small class="text-muted">(${id})</small></span>
+        <span class="badge ${isEnabled ? 'bg-success' : 'bg-secondary'} me-1" style="font-size:.6em"
               id="devenabled-${id}">${isEnabled ? 'Ativo' : 'Pausado'}</span>
-        <button class="btn btn-sm btn-outline-danger py-0 px-1"
+        <button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:.6rem"
                 onclick="removeDevice('${id}')">✕</button>
       </div>
-      <div class="d-flex align-items-center gap-2 mb-2">
-        <label class="small text-muted mb-0">Protocolo:</label>
-        <select class="form-select form-select-sm" style="width:100px"
+      <div class="d-flex align-items-center gap-1 mb-1">
+        <label class="text-muted mb-0" style="font-size:.7rem">Proto:</label>
+        <select class="form-select form-select-sm py-0" style="width:72px;font-size:.75rem"
                 id="devproto-${id}" onchange="toggleDevProtocol('${id}')">
           <option value="tcp" ${isTcp?'selected':''}>TCP</option>
           <option value="rtu" ${!isTcp?'selected':''}>RTU</option>
         </select>
-        <span class="small ms-auto">Status: <span class="status-dot ${dotCls}" id="devstatus-${id}"
-              style="display:inline-block;width:10px;height:10px;border-radius:50%"></span></span>
+        <span class="small ms-auto">
+          <span class="status-dot ${dotCls}" id="devstatus-${id}" style="display:inline-block;width:8px;height:8px;border-radius:50%"></span>
+        </span>
       </div>
-      <hr class="my-2" />
       <!-- TCP fields -->
       <div id="devtcp-${id}" class="${isTcp?'':'d-none'}">
-        <div class="row g-1 mb-2">
+        <div class="row g-1 mb-1">
           <div class="col-6">
-            <label class="form-label small mb-0">Host</label>
-            <input type="text" class="form-control form-control-sm" id="devhost-${id}"
-                   value="${cfg.host||''}" />
+            <input type="text" class="form-control form-control-sm py-0" style="font-size:.75rem"
+                   id="devhost-${id}" value="${cfg.host||''}" placeholder="Host" />
           </div>
           <div class="col-3">
-            <label class="form-label small mb-0">Port</label>
-            <input type="number" class="form-control form-control-sm" id="devport-${id}"
-                   value="${cfg.port||502}" />
+            <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
+                   id="devport-${id}" value="${cfg.port||502}" placeholder="Port" />
           </div>
           <div class="col-3">
-            <label class="form-label small mb-0">Unit</label>
-            <input type="number" class="form-control form-control-sm" id="devunit-${id}"
-                   value="${cfg.unit_id||1}" />
+            <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
+                   id="devunit-${id}" value="${cfg.unit_id||1}" placeholder="Unit" />
           </div>
         </div>
       </div>
       <!-- RTU fields -->
       <div id="devrtu-${id}" class="${!isTcp?'':'d-none'}">
-        <div class="row g-1 mb-2">
+        <div class="row g-1 mb-1">
           <div class="col-5">
-            <label class="form-label small mb-0">Serial</label>
-            <input type="text" class="form-control form-control-sm" id="devserial-${id}"
-                   value="${cfg.serial_port||''}" />
+            <input type="text" class="form-control form-control-sm py-0" style="font-size:.75rem"
+                   id="devserial-${id}" value="${cfg.serial_port||''}" placeholder="Serial" />
           </div>
           <div class="col-3">
-            <label class="form-label small mb-0">Baud</label>
-            <input type="number" class="form-control form-control-sm" id="devbaud-${id}"
-                   value="${cfg.baudrate||9600}" />
+            <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
+                   id="devbaud-${id}" value="${cfg.baudrate||9600}" placeholder="Baud" />
           </div>
           <div class="col-2">
-            <label class="form-label small mb-0">Par.</label>
-            <select class="form-select form-select-sm" id="devparity-${id}">
+            <select class="form-select form-select-sm py-0" style="font-size:.75rem" id="devparity-${id}">
               ${['N','E','O'].map(p=>`<option ${p===cfg.parity?'selected':''}>${p}</option>`).join('')}
             </select>
           </div>
           <div class="col-2">
-            <label class="form-label small mb-0">Stop</label>
-            <input type="number" class="form-control form-control-sm" id="devstop-${id}"
-                   value="${cfg.stopbits||1}" min="1" max="2" />
+            <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
+                   id="devstop-${id}" value="${cfg.stopbits||1}" min="1" max="2" placeholder="Stop" />
           </div>
         </div>
-        <div class="mb-2">
-          <label class="form-label small mb-0">Unit ID</label>
-          <input type="number" class="form-control form-control-sm" id="devunit-rtu-${id}"
-                 value="${cfg.unit_id||1}" />
+        <div class="mb-1">
+          <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
+                 id="devunit-rtu-${id}" value="${cfg.unit_id||1}" placeholder="Unit ID" />
         </div>
       </div>
-      <div class="mb-2">
-        <span class="small text-muted">CSVs: ${(cfg.csv_files||[]).join(', ') || '—'}</span>
+      <div class="mb-1">
+        <span class="text-muted" style="font-size:.65rem">CSVs: ${(cfg.csv_files||[]).join(', ') || '—'}</span>
       </div>
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <button class="btn btn-sm btn-outline-primary" onclick="saveDevice('${id}')">Salvar config</button>
-        <button class="btn btn-sm ${isEnabled ? 'btn-outline-danger' : 'btn-outline-success'}"
+      <div class="d-flex align-items-center gap-1 flex-wrap">
+        <button class="btn btn-outline-primary py-0 px-2" style="font-size:.65rem" onclick="saveDevice('${id}')">Salvar</button>
+        <button class="btn ${isEnabled ? 'btn-outline-danger' : 'btn-outline-success'} py-0 px-2" style="font-size:.65rem"
                 id="devtoggle-${id}" onclick="toggleDeviceEnabled('${id}')">
-          ${isEnabled ? '■ Pausar' : '▶ Iniciar'}
+          ${isEnabled ? 'Pausar' : 'Iniciar'}
         </button>
-        <label class="btn btn-sm btn-outline-secondary mb-0" title="Upload CSV de mapeamento Modbus">
-          📂 CSV
-          <input type="file" class="d-none" accept=".csv"
-                 onchange="uploadDeviceCsv('${id}', this)" />
+        <label class="btn btn-outline-secondary py-0 px-2 mb-0" style="font-size:.65rem">
+          CSV <input type="file" class="d-none" accept=".csv" onchange="uploadDeviceCsv('${id}', this)" />
         </label>
-        <button class="btn btn-sm btn-outline-warning" onclick="clearDevice('${id}')"
-                title="Limpar atribuições de canal das variáveis deste device">🗑 Limpar</button>
-        <button class="btn btn-sm btn-outline-secondary" id="devping-${id}"
-                onclick="pingDevice('${id}')">▶ Ping</button>
-        <span id="devlatency-${id}" class="small text-muted"></span>
-        <span class="small text-muted ms-auto" id="devstats-${id}">
-          ${stats.hasOwnProperty('ok') ?
-            `OK: ${stats.ok||0}  Err: ${stats.err||0}  Últ: ${stats.lastOk||'—'}` : ''}
-        </span>
+        <button class="btn btn-outline-warning py-0 px-2" style="font-size:.65rem"
+                onclick="clearDevice('${id}')">Limpar</button>
+        <button class="btn btn-outline-secondary py-0 px-2" style="font-size:.65rem" id="devping-${id}"
+                onclick="pingDevice('${id}')">Ping</button>
+        <span id="devlatency-${id}" class="text-muted" style="font-size:.65rem"></span>
+      </div>
+      <div class="text-muted mt-1" style="font-size:.6rem" id="devstats-${id}">
+        ${stats.hasOwnProperty('ok') ?
+          `OK: ${stats.ok||0}  Err: ${stats.err||0}  Últ: ${stats.lastOk||'—'}` : ''}
       </div>`;
     container.appendChild(card);
   });
@@ -767,7 +937,7 @@ async function uploadDeviceCsv(deviceId, input) {
 async function toggleDeviceEnabled(id) {
   try {
     const res = await apiFetch(`/api/devices/${encodeURIComponent(id)}/toggle`, {method: 'POST'});
-    showToast(`Device ${id} ${res.enabled ? '▶ iniciado' : '■ pausado'}.`);
+    showToast(`Device ${id} ${res.enabled ? 'iniciado' : 'pausado'}.`);
     loadDevices();
   } catch (e) {
     showToast(String(e), 'danger');
@@ -794,7 +964,7 @@ async function clearDevice(id) {
 async function pingDevice(id) {
   const btn = document.getElementById('devping-' + id);
   const lat = document.getElementById('devlatency-' + id);
-  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
   try {
     const res = await apiFetch(`/api/devices/${encodeURIComponent(id)}/ping`, {method: 'POST'});
     if (!deviceStats[id]) deviceStats[id] = {ok: 0, err: 0, lastLatency: null, lastOk: null};
@@ -819,7 +989,7 @@ async function pingDevice(id) {
   } catch (e) {
     if (lat) lat.textContent = String(e);
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '▶ Ping'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Ping'; }
   }
 }
 
@@ -862,7 +1032,7 @@ document.getElementById('confirm-new-device-btn').addEventListener('click', asyn
   }
 });
 
-// ── Variáveis ─────────────────────────────────────────────────────────────────
+// ── Variaveis ─────────────────────────────────────────────────────────────────
 async function loadVariables() {
   const data = await apiFetch('/api/variables');
   allVariables = data.variables || [];
@@ -915,7 +1085,7 @@ function updateVarCount() {
     `${filtered} / ${allVariables.length} variáveis`;
 }
 
-// ── AG Grid — tabela de variáveis ─────────────────────────────────────────────
+// ── AG Grid — tabela de variaveis ─────────────────────────────────────────────
 const varColumnDefs = [
   {
     headerName: '', checkboxSelection: true, headerCheckboxSelection: true,
@@ -941,14 +1111,14 @@ const varColumnDefs = [
     cellEditor: 'agSelectCellEditor',
     cellEditorParams: () => ({values: ['', ...CHANNELS_LIST]}),
     cellRenderer: p => {
-      if (!p.value) return '<span style="color:#aaa">⬜ Não atribuída</span>';
+      if (!p.value) return '<span style="color:#aaa">Nao atribuida</span>';
       const idx = getChannelColorIndex(p.value);
       const colors = ['#007bff','#fd7e14','#28a745','#6f42c1','#6c757d','#dc3545'];
       const bg = colors[idx] || '#6c757d';
       return `<span class="badge" style="background:${bg}">${p.value}</span>`;
     },
     onCellValueChanged: e => {
-      // '' → desatribuir; string com canal → atribuir
+      // '' -> desatribuir; string com canal -> atribuir
       const val = e.newValue ?? '';
       apiFetch(`/api/variables/${encodeURIComponent(e.data.tag)}`, {
         method: 'PATCH',
@@ -964,7 +1134,7 @@ const varColumnDefs = [
       `<input type="checkbox" ${p.value ? 'checked' : ''} onclick="toggleEnabled(event, '${p.data.tag}')" />`,
   },
   {
-    headerName: 'Último valor', field: 'last_value', width: 180, sortable: false,
+    headerName: 'Ultimo valor', field: 'last_value', width: 180, sortable: false,
     valueGetter: p => {
       const lv = lastValues[p.data.tag];
       if (!lv) return '—';
@@ -1020,7 +1190,7 @@ async function toggleEnabled(event, tag) {
 function openBulkMoveModal() {
   const sel = document.getElementById('bulk-channel-select');
   sel.innerHTML =
-    '<option value="">✕ Remover atribuição</option>' +
+    '<option value="">Remover atribuição</option>' +
     CHANNELS_LIST.map(ch => `<option value="${ch}">${ch}</option>`).join('');
   new bootstrap.Modal(document.getElementById('bulkMoveModal')).show();
 }
@@ -1135,13 +1305,130 @@ document.getElementById('export-btn').addEventListener('click', () => {
   document.getElementById(id).addEventListener('change', applyFilters));
 document.getElementById('filter-text').addEventListener('input', applyFilters);
 
+// ── Processos (Delfos / Atena) ──────────────────────────────────────────────
+const processState = {delfos: null, atena: null};
+
+socket.on('proc:status', (state) => {
+  processState[state.proc_type] = state;
+  renderProcessCard(state.proc_type);
+});
+
+async function loadProcesses() {
+  try {
+    const data = await apiFetch('/api/processes');
+    Object.values(data).forEach(s => {
+      processState[s.proc_type] = s;
+      renderProcessCard(s.proc_type);
+    });
+  } catch {}
+  // Garante render inicial mesmo se nenhum processo existir
+  ['delfos', 'atena'].forEach(t => renderProcessCard(t));
+}
+
+function renderProcessCard(procType) {
+  const st = processState[procType];
+  const running = st && st.running;
+  const crashed = st && !st.running && st.exit_code != null && st.exit_code !== 0;
+
+  const dot   = document.getElementById('proc-dot-'    + procType);
+  const badge = document.getElementById('proc-badge-'  + procType);
+  const startBtn = document.getElementById('proc-start-' + procType);
+  const stopBtn  = document.getElementById('proc-stop-'  + procType);
+  const select   = document.getElementById('proc-device-' + procType);
+
+  if (dot) {
+    dot.className = 'status-dot ' + (running ? 'dot-ok' : crashed ? 'dot-err' : 'dot-grey');
+  }
+  if (badge) {
+    badge.textContent = running ? 'Rodando' : crashed ? 'Erro (exit ' + st.exit_code + ')' : 'Parado';
+    badge.className = 'badge ms-auto ' + (running ? 'bg-success' : crashed ? 'bg-danger' : 'bg-secondary');
+  }
+  if (startBtn) startBtn.classList.toggle('d-none', !!running);
+  if (stopBtn)  stopBtn.classList.toggle('d-none', !running);
+  if (select)   select.disabled = !!running;
+}
+
+function updateProcessDeviceSelects() {
+  ['delfos', 'atena'].forEach(procType => {
+    const sel = document.getElementById('proc-device-' + procType);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '';
+    Object.entries(DEVICES_LIST).forEach(([id, cfg]) => {
+      const label = cfg.label ? `${id} (${cfg.label})` : id;
+      sel.add(new Option(label, id));
+    });
+    if (cur && sel.querySelector(`option[value="${cur}"]`)) sel.value = cur;
+  });
+}
+
+async function startProcess(procType) {
+  const sel = document.getElementById('proc-device-' + procType);
+  const deviceId = sel ? sel.value : '';
+  if (!deviceId) { showToast('Selecione um device.', 'warning'); return; }
+  const btn = document.getElementById('proc-start-' + procType);
+  if (btn) { btn.disabled = true; btn.textContent = 'Iniciando...'; }
+  try {
+    const res = await apiFetch(`/api/processes/${procType}/start`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({device_id: deviceId}),
+    });
+    processState[procType] = res;
+    renderProcessCard(procType);
+    showToast(`${procType} iniciado.`);
+  } catch (e) {
+    showToast(String(e), 'danger');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Iniciar'; }
+  }
+}
+
+async function stopProcess(procType) {
+  const btn = document.getElementById('proc-stop-' + procType);
+  if (btn) { btn.disabled = true; btn.textContent = 'Parando...'; }
+  try {
+    const res = await apiFetch(`/api/processes/${procType}/stop`, {method: 'POST'});
+    processState[procType] = res;
+    renderProcessCard(procType);
+    showToast(`${procType} parado.`);
+  } catch (e) {
+    showToast(String(e), 'danger');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Parar'; }
+  }
+}
+
+let _currentLogsProc = null;
+async function showProcessLogs(procType) {
+  _currentLogsProc = procType;
+  document.getElementById('processLogsTitle').textContent =
+    `Logs — ${procType.charAt(0).toUpperCase() + procType.slice(1)}`;
+  await _refreshProcessLogs();
+  new bootstrap.Modal(document.getElementById('processLogsModal')).show();
+}
+
+async function _refreshProcessLogs() {
+  if (!_currentLogsProc) return;
+  try {
+    const data = await apiFetch(`/api/processes/${_currentLogsProc}/logs?last_n=200`);
+    const pre = document.getElementById('processLogsContent');
+    pre.textContent = (data.lines || []).join('\n') || '(sem logs)';
+    pre.scrollTop = pre.scrollHeight;
+  } catch {}
+}
+
+document.getElementById('processLogsRefresh').addEventListener('click', _refreshProcessLogs);
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initVarGrid();
   initPreviewGrid();
   loadChannels();
   loadVariables();
   loadDevices();
+  loadProcesses();
 });
 </script>
 </body>

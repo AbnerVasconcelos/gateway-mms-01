@@ -36,6 +36,7 @@ sys.path.insert(0, _GATEWAY_DIR)
 
 import config_store          # noqa: E402  (Hub/config_store.py)
 from redis_bridge import start_bridge  # noqa: E402  (Hub/redis_bridge.py)
+from process_manager import ProcessManager      # noqa: E402
 from simulator_manager import SimulatorManager  # noqa: E402
 
 load_dotenv(os.path.join(_HUB_DIR, '.env'))
@@ -53,6 +54,9 @@ _thread_pool = ThreadPoolExecutor(max_workers=4)
 
 # SimulatorManager — simuladores Modbus embarcados
 sim_manager: SimulatorManager | None = None
+
+# ProcessManager — subprocessos Delfos/Atena
+proc_manager: ProcessManager | None = None
 
 def _derive_rooms() -> list[str]:
     """Deriva rooms Socket.IO a partir dos canais configurados."""
@@ -85,7 +89,7 @@ redis_pub: aioredis.Redis | None = None
 
 @app.on_event('startup')
 async def on_startup():
-    global redis_pub, sim_manager
+    global redis_pub, sim_manager, proc_manager
     redis_pub = aioredis.Redis(host=_REDIS_HOST, port=_REDIS_PORT, db=0)
     logger.info('Hub: Redis publisher pronto em %s:%s', _REDIS_HOST, _REDIS_PORT)
     asyncio.create_task(start_bridge(sio, _REDIS_HOST, _REDIS_PORT))
@@ -94,11 +98,18 @@ async def on_startup():
     sim_manager = SimulatorManager(config_store._TABLES_DIR)
     await sim_manager.init_from_config()
     asyncio.create_task(_sim_broadcast_loop())
+
+    # Inicializa ProcessManager
+    proc_manager = ProcessManager(_GATEWAY_DIR)
+    proc_manager.set_status_callback(_proc_status_broadcast)
+
     logger.info('Hub iniciado.')
 
 
 @app.on_event('shutdown')
 async def on_shutdown():
+    if proc_manager:
+        await proc_manager.shutdown_all()
     if sim_manager:
         await sim_manager.shutdown_all()
     if redis_pub:
@@ -124,6 +135,85 @@ async def _sim_broadcast_loop():
                 }, room=f'sim:{sim_id}')
             except Exception as exc:
                 logger.debug("Erro no broadcast sim:%s: %s", sim_id, exc)
+
+
+async def _proc_status_broadcast(state: dict) -> None:
+    """Callback do ProcessManager — emite proc:status para todos os clientes."""
+    await sio.emit('proc:status', state)
+
+
+# ── Processos (Delfos / Atena) ────────────────────────────────────────────
+
+class ProcessStartBody(BaseModel):
+    device_id: str
+
+
+@app.get('/api/processes')
+async def list_processes():
+    """Lista todos os processos com estado."""
+    if not proc_manager:
+        return {}
+    return proc_manager.list_processes()
+
+
+@app.post('/api/processes/{proc_type}/start')
+async def start_process(proc_type: str, body: ProcessStartBody):
+    """Inicia Delfos ou Atena apontando para um device."""
+    if proc_type not in ('delfos', 'atena'):
+        raise HTTPException(status_code=422, detail="proc_type deve ser 'delfos' ou 'atena'.")
+    if not proc_manager:
+        raise HTTPException(status_code=503, detail='ProcessManager nao inicializado.')
+
+    # Busca config do device
+    devices = config_store.get_devices()
+    if body.device_id not in devices:
+        raise HTTPException(status_code=404, detail=f"Device '{body.device_id}' nao encontrado.")
+    dev = devices[body.device_id]
+
+    config = {
+        'modbus_host': dev.get('host', ''),
+        'modbus_port': dev.get('port', 502),
+        'modbus_unit_id': dev.get('unit_id', 1),
+        'redis_host': _REDIS_HOST,
+        'redis_port': _REDIS_PORT,
+        'tables_dir': os.path.abspath(config_store._TABLES_DIR),
+    }
+
+    try:
+        proc = await proc_manager.start_process(proc_type, proc_type, config)
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return proc.to_state_dict()
+
+
+@app.post('/api/processes/{proc_type}/stop')
+async def stop_process(proc_type: str):
+    """Para o processo Delfos ou Atena."""
+    if proc_type not in ('delfos', 'atena'):
+        raise HTTPException(status_code=422, detail="proc_type deve ser 'delfos' ou 'atena'.")
+    if not proc_manager:
+        raise HTTPException(status_code=503, detail='ProcessManager nao inicializado.')
+    try:
+        proc = await proc_manager.stop_process(proc_type)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return proc.to_state_dict()
+
+
+@app.get('/api/processes/{proc_type}/logs')
+async def get_process_logs(proc_type: str, last_n: int = 100):
+    """Retorna as ultimas linhas de log do processo."""
+    if proc_type not in ('delfos', 'atena'):
+        raise HTTPException(status_code=422, detail="proc_type deve ser 'delfos' ou 'atena'.")
+    if not proc_manager:
+        return {'lines': []}
+    proc = proc_manager.get_process(proc_type)
+    if not proc:
+        return {'lines': []}
+    return {'lines': proc.get_logs(last_n)}
 
 
 # ── REST endpoints ────────────────────────────────────────────────────────────

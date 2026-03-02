@@ -6,22 +6,11 @@
     "default_history_size": 100
   },
   "devices": {
-    "default": {
-      "label": "CLP Principal",
-      "protocol": "tcp",
-      "host": "192.168.1.2",
-      "port": 502,
-      "unit_id": 2,
-      "csv_files": [
-        "operacao.csv"
-      ],
-      "enabled": true
-    },
-    "clp2": {
+    "simulador": {
       "label": "",
-      "protocol": "rtu",
-      "host": "",
-      "port": 502,
+      "protocol": "tcp",
+      "host": "localhost",
+      "port": 5020,
       "unit_id": 1,
       "serial_port": "",
       "baudrate": 9600,
@@ -29,8 +18,7 @@
       "stopbits": 1,
       "csv_files": [
         "operacao.csv"
-      ],
-      "enabled": false
+      ]
     }
   },
   "channels": {
