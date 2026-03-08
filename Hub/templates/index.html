@@ -559,7 +559,13 @@ socket.on('disconnect', () => setWsStatus(false));
 
 socket.on('plc:data', ({channel, data}) => {
   const ts = data.timestamp || new Date().toISOString();
-  const all = {...(data.coils || {}), ...(data.registers || {})};
+  // Merge coils + registers por grupo sem sobrescrever (deep merge)
+  const all = {};
+  for (const section of [data.coils || {}, data.registers || {}]) {
+    for (const [group, tags] of Object.entries(section)) {
+      all[group] = {...(all[group] || {}), ...tags};
+    }
+  }
   Object.entries(all).forEach(([, tags]) => {
     if (typeof tags !== 'object') return;
     Object.entries(tags).forEach(([tag, val]) => {

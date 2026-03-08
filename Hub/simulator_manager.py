@@ -318,19 +318,19 @@ class SimulatorInstance:
                 except Exception:
                     pass
 
-            # Simula coils (toggle aleatório com baixa probabilidade)
-            if step % 5 == 0:
-                for addr in self._coil_addresses[:6]:
-                    tag = addr_to_tag_coil.get(addr)
-                    if tag and tag in self._locked_tags:
-                        continue
-                    if random.random() < 0.1:
-                        try:
-                            vals = slave.getValues(1, addr, 1)
-                            current = vals[0] if vals else 0
-                            slave.setValues(1, addr, [1 - current])
-                        except Exception:
-                            pass
+            # Simula coils (toggle aleatório a cada ciclo)
+            n_coil = min(12, len(self._coil_addresses))
+            for addr in self._coil_addresses[:n_coil]:
+                tag = addr_to_tag_coil.get(addr)
+                if tag and tag in self._locked_tags:
+                    continue
+                if random.random() < 0.3:
+                    try:
+                        vals = slave.getValues(1, addr, 1)
+                        current = vals[0] if vals else 0
+                        slave.setValues(1, addr, [1 - current])
+                    except Exception:
+                        pass
 
 
 # ---------------------------------------------------------------------------
