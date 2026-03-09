@@ -190,6 +190,302 @@ class TestConfigStore(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Suite 1b — TestPerDeviceConfig (unitário, sem deps externas)
+# ---------------------------------------------------------------------------
+
+class TestPerDeviceConfig(unittest.TestCase):
+    """
+    Testa funcionalidades per-device de config_store:
+    channels inside devices, per-device overrides, device-scoped channel CRUD.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        # Create a minimal group_config with per-device channels
+        self.group_config = {
+            '_meta': {
+                'aggregate_channel': 'plc_data',
+                'backward_compatible': True,
+                'default_delay_ms': 1000,
+                'default_history_size': 100,
+            },
+            'devices': {
+                'sim': {
+                    'label': 'Simulador',
+                    'protocol': 'tcp',
+                    'host': 'localhost',
+                    'port': 5020,
+                    'unit_id': 1,
+                    'csv_files': ['test_vars.csv'],
+                    'channels': {
+                        'plc_alarmes': {'delay_ms': 200, 'history_size': 55},
+                        'plc_process': {'delay_ms': 500, 'history_size': 100},
+                    },
+                    'command_channel': 'sim_commands',
+                },
+                'west': {
+                    'label': 'West',
+                    'protocol': 'tcp',
+                    'host': 'localhost',
+                    'port': 5021,
+                    'unit_id': 1,
+                    'csv_files': ['test_vars2.csv'],
+                    'channels': {
+                        'west_data': {'delay_ms': 1000, 'history_size': 50},
+                    },
+                    'command_channel': 'west_commands',
+                },
+            },
+            'channels': {},  # empty global channels
+        }
+        with open(os.path.join(self.temp_dir, 'group_config.json'), 'w') as f:
+            json.dump(self.group_config, f)
+
+        # Create global overrides
+        self.global_overrides = {
+            'tagA': {'channel': 'plc_alarmes'},
+            'tagB': {'channel': 'plc_process', 'enabled': False},
+        }
+        with open(os.path.join(self.temp_dir, 'variable_overrides.json'), 'w') as f:
+            json.dump(self.global_overrides, f)
+
+        # Create a test CSV
+        csv_content = "key,ObjecTag,Tipo,Modbus,At\nalarmes,tagA,M,0,%MB\nprocess,tagB,D,100,%MW\n"
+        with open(os.path.join(self.temp_dir, 'test_vars.csv'), 'w') as f:
+            f.write(csv_content)
+
+        csv_content2 = "key,ObjecTag,Tipo,Modbus,At\ntemp,tagC,D,200,%MW\ntemp,tagD,D,201,%MW\n"
+        with open(os.path.join(self.temp_dir, 'test_vars2.csv'), 'w') as f:
+            f.write(csv_content2)
+
+        self._orig_tables_dir = config_store._TABLES_DIR
+        config_store._TABLES_DIR = self.temp_dir
+
+    def tearDown(self):
+        config_store._TABLES_DIR = self._orig_tables_dir
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    # ── get_channels from devices ────────────────────────────────────────────
+
+    def test_get_channels_from_devices(self):
+        """get_channels() deve ler channels de dentro dos devices."""
+        channels = config_store.get_channels()
+        self.assertIn('plc_alarmes', channels)
+        self.assertIn('plc_process', channels)
+        self.assertIn('west_data', channels)
+        # Verifica que device_id é retornado
+        self.assertEqual(channels['plc_alarmes']['device_id'], 'sim')
+        self.assertEqual(channels['west_data']['device_id'], 'west')
+        self.assertEqual(channels['plc_alarmes']['delay_ms'], 200)
+        self.assertEqual(channels['plc_alarmes']['history_size'], 55)
+
+    # ── get_device_channels ──────────────────────────────────────────────────
+
+    def test_get_device_channels(self):
+        """get_device_channels() deve retornar apenas canais do device especificado."""
+        sim_channels = config_store.get_device_channels('sim')
+        self.assertIn('plc_alarmes', sim_channels)
+        self.assertIn('plc_process', sim_channels)
+        self.assertNotIn('west_data', sim_channels)
+        self.assertEqual(sim_channels['plc_alarmes']['delay_ms'], 200)
+
+        west_channels = config_store.get_device_channels('west')
+        self.assertIn('west_data', west_channels)
+        self.assertNotIn('plc_alarmes', west_channels)
+
+    def test_get_device_channels_nonexistent_device(self):
+        """get_device_channels() para device inexistente retorna dict vazio."""
+        channels = config_store.get_device_channels('nao_existe')
+        self.assertEqual(channels, {})
+
+    # ── Per-device overrides ─────────────────────────────────────────────────
+
+    def test_overrides_per_device_load(self):
+        """load_overrides('sim') deve carregar variable_overrides_sim.json."""
+        # Create per-device overrides file
+        sim_overrides = {'tagA': {'channel': 'plc_alarmes', 'enabled': True}}
+        with open(os.path.join(self.temp_dir, 'variable_overrides_sim.json'), 'w') as f:
+            json.dump(sim_overrides, f)
+
+        loaded = config_store.load_overrides('sim')
+        self.assertEqual(loaded, sim_overrides)
+
+        # Global overrides should be independent
+        global_loaded = config_store.load_overrides()
+        self.assertEqual(global_loaded, self.global_overrides)
+
+    def test_overrides_per_device_load_missing_returns_empty(self):
+        """load_overrides('nonexistent') sem arquivo retorna {}."""
+        loaded = config_store.load_overrides('nonexistent')
+        self.assertEqual(loaded, {})
+
+    def test_overrides_per_device_save(self):
+        """save_overrides(data, 'sim') deve gravar em variable_overrides_sim.json."""
+        data = {'tagX': {'channel': 'plc_process'}}
+        config_store.save_overrides(data, 'sim')
+
+        path = os.path.join(self.temp_dir, 'variable_overrides_sim.json')
+        self.assertTrue(os.path.exists(path))
+
+        with open(path, 'r') as f:
+            saved = json.load(f)
+        self.assertEqual(saved, data)
+
+        # Global overrides file should not be affected
+        global_loaded = config_store.load_overrides()
+        self.assertEqual(global_loaded, self.global_overrides)
+
+    def test_patch_variable_override_per_device(self):
+        """patch_variable_override com device_id opera no arquivo per-device."""
+        config_store.patch_variable_override('tagA', {'channel': 'plc_process'}, device_id='sim')
+
+        # Per-device file should have the patch
+        sim_overrides = config_store.load_overrides('sim')
+        self.assertIn('tagA', sim_overrides)
+        self.assertEqual(sim_overrides['tagA']['channel'], 'plc_process')
+
+        # Global overrides should remain unchanged
+        global_overrides = config_store.load_overrides()
+        self.assertEqual(global_overrides['tagA']['channel'], 'plc_alarmes')
+
+    # ── Channel CRUD device-scoped ───────────────────────────────────────────
+
+    def test_create_channel_in_device(self):
+        """create_channel com device_id cria canal dentro de devices[device_id].channels."""
+        config_store.create_channel('plc_new', delay_ms=300, history_size=75, device_id='sim')
+
+        cfg = config_store.load_group_config()
+        dev_channels = cfg['devices']['sim']['channels']
+        self.assertIn('plc_new', dev_channels)
+        self.assertEqual(dev_channels['plc_new']['delay_ms'], 300)
+        self.assertEqual(dev_channels['plc_new']['history_size'], 75)
+
+    def test_create_channel_in_nonexistent_device_raises(self):
+        """create_channel em device inexistente deve lançar KeyError."""
+        with self.assertRaises(KeyError):
+            config_store.create_channel('plc_x', device_id='nao_existe')
+
+    def test_delete_channel_from_device(self):
+        """delete_channel com device_id remove canal de devices[device_id].channels."""
+        config_store.delete_channel('plc_alarmes', device_id='sim')
+
+        cfg = config_store.load_group_config()
+        dev_channels = cfg['devices']['sim']['channels']
+        self.assertNotIn('plc_alarmes', dev_channels)
+        # Other channels in the same device should remain
+        self.assertIn('plc_process', dev_channels)
+
+    def test_delete_channel_system_raises(self):
+        """delete_channel de canal de sistema deve lançar ValueError."""
+        with self.assertRaises(ValueError):
+            config_store.delete_channel('user_status', device_id='sim')
+
+    def test_delete_channel_nonexistent_in_device_raises(self):
+        """delete_channel de canal inexistente no device deve lançar KeyError."""
+        with self.assertRaises(KeyError):
+            config_store.delete_channel('canal_fantasma', device_id='sim')
+
+    # ── create_device auto command_channel ───────────────────────────────────
+
+    def test_create_device_auto_command_channel(self):
+        """create_device auto-gera command_channel e channels vazio se não fornecido."""
+        cfg = {'label': 'CLP 3', 'protocol': 'tcp', 'host': '10.0.0.1',
+               'port': 502, 'unit_id': 1, 'csv_files': []}
+        config_store.create_device('clp3', cfg)
+
+        devices = config_store.get_devices()
+        self.assertIn('clp3', devices)
+        self.assertEqual(devices['clp3']['command_channel'], 'clp3_commands')
+        self.assertEqual(devices['clp3']['channels'], {})
+
+    def test_create_device_preserves_explicit_command_channel(self):
+        """create_device preserva command_channel se já fornecido."""
+        cfg = {'label': 'CLP 4', 'protocol': 'tcp', 'host': '10.0.0.2',
+               'port': 502, 'unit_id': 1, 'csv_files': [],
+               'command_channel': 'custom_cmd'}
+        config_store.create_device('clp4', cfg)
+
+        devices = config_store.get_devices()
+        self.assertEqual(devices['clp4']['command_channel'], 'custom_cmd')
+
+    # ── load_all_variables per-device overrides ──────────────────────────────
+
+    def test_load_all_variables_per_device_overrides(self):
+        """load_all_variables usa per-device override quando arquivo existe."""
+        # Create per-device overrides for 'sim' with different channel
+        sim_overrides = {'tagA': {'channel': 'plc_process'}, 'tagB': {'channel': 'plc_alarmes'}}
+        config_store.save_overrides(sim_overrides, 'sim')
+
+        variables = config_store.load_all_variables()
+
+        # Find variables from 'sim' device
+        sim_vars = [v for v in variables if v['device'] == 'sim']
+        self.assertGreater(len(sim_vars), 0)
+
+        tagA = next((v for v in sim_vars if v['tag'] == 'tagA'), None)
+        self.assertIsNotNone(tagA)
+        # Should use per-device override (plc_process), not global (plc_alarmes)
+        self.assertEqual(tagA['channel'], 'plc_process')
+
+        tagB = next((v for v in sim_vars if v['tag'] == 'tagB'), None)
+        self.assertIsNotNone(tagB)
+        # Per-device override has enabled=True (default), global has enabled=False
+        self.assertTrue(tagB['enabled'])
+        self.assertEqual(tagB['channel'], 'plc_alarmes')
+
+    def test_load_all_variables_falls_back_to_global_overrides(self):
+        """load_all_variables usa global overrides quando per-device não existe."""
+        # No per-device override file for 'sim' — should fall back to global
+        variables = config_store.load_all_variables()
+
+        sim_vars = [v for v in variables if v['device'] == 'sim']
+        tagB = next((v for v in sim_vars if v['tag'] == 'tagB'), None)
+        self.assertIsNotNone(tagB)
+        # Should use global override (enabled=False)
+        self.assertFalse(tagB['enabled'])
+        self.assertEqual(tagB['channel'], 'plc_process')
+
+    # ── SYSTEM_CHANNELS updated ──────────────────────────────────────────────
+
+    def test_system_channels_updated(self):
+        """SYSTEM_CHANNELS deve conter apenas user_status, ia_status, ia_data."""
+        self.assertEqual(
+            config_store.SYSTEM_CHANNELS,
+            frozenset(['user_status', 'ia_status', 'ia_data']),
+        )
+        # Channels removed from SYSTEM_CHANNELS
+        self.assertNotIn('config_reload', config_store.SYSTEM_CHANNELS)
+        self.assertNotIn('plc_commands', config_store.SYSTEM_CHANNELS)
+        self.assertNotIn('plc_data', config_store.SYSTEM_CHANNELS)
+        self.assertNotIn('alarms', config_store.SYSTEM_CHANNELS)
+
+    # ── get_channel_history_sizes aggregates from devices ────────────────────
+
+    def test_get_channel_history_sizes_from_devices(self):
+        """get_channel_history_sizes deve agregar de todos os devices."""
+        sizes = config_store.get_channel_history_sizes()
+        self.assertIn('plc_alarmes', sizes)
+        self.assertIn('plc_process', sizes)
+        self.assertIn('west_data', sizes)
+        self.assertEqual(sizes['plc_alarmes'], 55)
+        self.assertEqual(sizes['west_data'], 50)
+
+    # ── update_channel_delay / history_size device-scoped ────────────────────
+
+    def test_update_channel_delay_in_device(self):
+        """update_channel_delay com device_id opera em devices[device_id].channels."""
+        config_store.update_channel_delay('plc_alarmes', 150, device_id='sim')
+        cfg = config_store.load_group_config()
+        self.assertEqual(cfg['devices']['sim']['channels']['plc_alarmes']['delay_ms'], 150)
+
+    def test_update_channel_history_size_in_device(self):
+        """update_channel_history_size com device_id opera em devices[device_id].channels."""
+        config_store.update_channel_history_size('plc_alarmes', 200, device_id='sim')
+        cfg = config_store.load_group_config()
+        self.assertEqual(cfg['devices']['sim']['channels']['plc_alarmes']['history_size'], 200)
+
+
+# ---------------------------------------------------------------------------
 # Suite 2 — TestHubIntegration (requer Redis + Hub rodando)
 # ---------------------------------------------------------------------------
 
