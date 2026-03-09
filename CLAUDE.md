@@ -18,7 +18,7 @@ CLP (Modbus TCP/RTU)          [múltiplos devices]
                                                    Hub  (FastAPI + Socket.IO)
                                                     ↓
                                               Browser / Frontend / IA
-  Atena   (escrita)  ←  Redis plc_commands / ia_status / ia_data  ←  [Hub / IA]
+  Atena   (escrita)  ←  Redis {device_id}_commands / ia_status / ia_data  ←  [Hub / IA]
 ```
 
 ---
@@ -49,8 +49,8 @@ gateway/
 │
 ├── Hub/                       # Processo bridge Redis ↔ WebSocket + painel web
 │   ├── main.py                # FastAPI + Socket.IO + endpoints REST
-│   ├── redis_bridge.py        # psubscribe('plc_*') → sio.emit por room (plc:data + plc:<canal>)
-│   ├── config_store.py        # leitura/escrita de group_config.json e variable_overrides.json
+│   ├── redis_bridge.py        # subscrição dinâmica por device → sio.emit por room (device:data + channel:data)
+│   ├── config_store.py        # leitura/escrita de group_config.json e variable_overrides_{device_id}.json
 │   ├── process_manager.py     # ProcessManager — subprocessos Delfos/Atena com log capture
 │   ├── simulator_manager.py   # SimulatorManager — simuladores Modbus embarcados (LabTest)
 │   ├── templates/
@@ -67,13 +67,14 @@ gateway/
 │   ├── globais.csv            # Variáveis globais do CLP
 │   ├── temperatura_24z.csv    # Mapeamento controlador temperatura 24 zonas
 │   ├── temperatura_28z.csv    # Mapeamento controlador temperatura 28 zonas
-│   ├── group_config.json      # Devices, canais (delay_ms, history_size)
-│   ├── variable_overrides.json# Atribuição direta por tag (canal, enabled)
+│   ├── group_config.json      # Devices com canais por device (delay_ms, history_size)
+│   ├── variable_overrides_{device_id}.json  # Overrides por device (canal, enabled)
 │   ├── simulator_config.json  # Config dos simuladores embarcados (gerado pelo Hub)
 │   └── csv_individuais/       # Backup dos CSVs individuais originais
 │
 ├── scripts/
-│   └── transform_tables.py    # Script de transformação de tabelas brutas → CSVs formatados
+│   ├── transform_tables.py    # Script de transformação de tabelas brutas → CSVs formatados
+│   └── migrate_config.py      # Migração: global variable_overrides.json → per-device files
 │
 ├── .gitignore
 ├── requirements.txt
@@ -87,11 +88,12 @@ gateway/
 
 ### Delfos — Leitor do CLP (`Delfos/delfos.py`)
 
-- **Loop:** time-tracking com tick de ~50ms; **o canal é a unidade de publicação** — cada canal tem seu próprio timer configurado em `group_config.json["channels"]`
-- **Multi-device:** `_build_csv_paths(tables_dir, group_config)` lê a seção `devices` e constrói a lista de CSVs a ler, **pulando devices com `enabled=False`**
+- **Isolamento por device:** cada instância Delfos opera sobre um único device. Requer `DEVICE_ID` (obrigatório) como variável de ambiente.
+- **Loop:** time-tracking com tick de ~50ms; **o canal é a unidade de publicação** — cada canal tem seu próprio timer configurado nos `channels` do device em `group_config.json`
+- **CSVs:** lê apenas os CSVs do seu device (`group_config["devices"][DEVICE_ID]["csv_files"]`)
 - **Lê:** coils e holding registers do CLP via Modbus TCP/RTU, **por canal** (todos os grupos mapeados para o canal são lidos juntos numa única passagem)
-- **Publica:** canais segmentados `plc_alarmes`, `plc_process`, `plc_visual`, `plc_config` + `plc_data` (legado, backward-compatible)
-- **Assina:** `user_status` (estado do usuário), `config_reload` (hot-reload de config sem reiniciar)
+- **Publica:** canais segmentados conforme configurados no device (ex.: `plc_alarmes`, `plc_process`, `plc_visual`, `plc_config`)
+- **Assina:** `user_status` (estado do usuário), `config_reload_{device_id}` (hot-reload de config sem reiniciar)
 
 **Formato da mensagem publicada:**
 ```json
@@ -102,36 +104,39 @@ gateway/
 }
 ```
 
-**Otimização Modbus:** `extract_parameters_by_channel()` (em `table_filter.py`) agrega endereços num pool cross-group por canal e calcula grupos contíguos globais, minimizando roundtrips de rede. **Apenas variáveis com canal explícito em `variable_overrides.json` são lidas** — sem canal = ignorada.
+**Otimização Modbus:** `extract_parameters_by_channel()` (em `table_filter.py`) agrega endereços num pool cross-group por canal e calcula grupos contíguos globais, minimizando roundtrips de rede. **Apenas variáveis com canal explícito em `variable_overrides_{device_id}.json` são lidas** — sem canal = ignorada.
 
-**Hot-reload:** ao receber `config_reload`, Delfos recarrega `group_config.json` e `variable_overrides.json`, re-computa `channel_data` (respeitando `enabled` por device) e preserva os timers de canais já existentes.
+**Hot-reload:** ao receber `config_reload_{device_id}`, Delfos recarrega `group_config.json` e `variable_overrides_{device_id}.json`, re-computa `channel_data` e preserva os timers de canais já existentes.
 
 ---
 
 ### Atena — Escritor do CLP (`Atena/atena.py`)
 
+- **Isolamento por device:** cada instância Atena opera sobre um único device. Requer `DEVICE_ID` (obrigatório) e `COMMAND_CHANNEL` (obrigatório) como variáveis de ambiente.
 - **Loop:** blocking `pubsub.listen()` — orientado a eventos
-- **Assina:** `user_status`, `plc_commands`, `ia_status`, `ia_data`
+- **CSVs:** lê apenas os CSVs do seu device (`group_config["devices"][DEVICE_ID]["csv_files"]`)
+- **Assina:** `user_status`, `{device_id}_commands` (via `COMMAND_CHANNEL`), `ia_status`, `ia_data`
 - **Escreve:** coils e holding registers no CLP via Modbus TCP ou RTU over TCP
 
 | Canal | Handler | Função | Status |
 |-------|---------|--------|--------|
 | `user_status` | `handle_user_status_message` | Atualiza `user_state` | Completo |
-| `plc_commands` | `handle_plc_commands_message` | Escreve no CLP se `user_state=True` | Completo |
+| `{device_id}_commands` | `handle_plc_commands_message` | Escreve no CLP se `user_state=True` | Completo |
 | `ia_status` | `handle_ia_status_message` | Atualiza `ia_mode` | Completo |
 | `ia_data` | `handle_ia_data_message` | Processa dados da IA | **STUB — sem implementação** |
 
-**Lookup de endereço:** `find_values_by_object_tag()` busca no CSV pelo campo `ObjecTag` e retorna endereços Modbus correspondentes.
+**Lookup de endereço:** `find_values_by_object_tag()` busca nos CSVs do device pelo campo `ObjecTag` e retorna endereços Modbus correspondentes. `handle_plc_commands_message` aceita lista de caminhos CSV.
 
 ---
 
 ### Hub — Bridge Redis ↔ WebSocket (`Hub/main.py`)
 
 - **Protocolo:** FastAPI + python-socketio (ASGI), inicia com `uvicorn Hub.main:asgi_app --port 4567`
-- **Bridge:** `redis_bridge.py` faz `psubscribe('plc_*', 'alarms')` e emite **dois eventos** por mensagem:
-  - `plc:data` → backward-compat, payload `{channel, data}`, enviado ao room do canal
-  - `plc:<canal>` → específico do canal (ex.: `plc:alarmes`, `plc:process`), payload `data` direto
-- **Rooms:** cada canal `plc_<sufixo>` mapeia para o room `<sufixo>` (ex.: `plc_alarmes` → room `alarmes`)
+- **Bridge:** `redis_bridge.py` usa subscrição dinâmica baseada nos canais configurados em cada device. `start_bridge(sio, get_channel_map)` recebe um callable que retorna o mapa de canais ativos. Emite **dois eventos** por mensagem:
+  - `device:data` → payload `{channel, data}`, enviado ao room do device (`device_id`)
+  - `channel:data` → payload `{channel, data}`, enviado ao room do canal (`device_id:channel`)
+- **Rooms:** cada device mapeia para o room `device_id`; cada canal mapeia para o room `device_id:channel` (ex.: `simulador:plc_alarmes`)
+- **Hot-reload de subscrições:** ao receber mensagem no canal `_bridge_reload`, a bridge recalcula as subscrições via `get_channel_map()` e atualiza dinamicamente
 - **Painel web:** serve `templates/index.html` em `GET /` — layout sidebar + grid fullscreen:
   - **Sidebar esquerda (340px):** cards de Processos (Delfos/Atena), Canais Redis, Devices — scroll independente
   - **Área principal (direita):** tabela AG Grid ocupando todo espaço vertical, com toolbar de filtros
@@ -151,7 +156,7 @@ gateway/
 | `POST` | `/api/channels` | Cria canal com prefixo `plc_` |
 | `DELETE` | `/api/channels/{channel}` | Remove canal (bloqueia canais de sistema) |
 | `GET` | `/api/channels/system` | Lista canais de sistema que não podem ser removidos |
-| `PATCH` | `/api/channels/{channel}/delay` | Atualiza `delay_ms` do canal + publica `config_reload` |
+| `PATCH` | `/api/channels/{channel}/delay` | Atualiza `delay_ms` do canal + publica `config_reload_{device_id}` |
 | `PATCH` | `/api/channels/{channel}/history` | Atualiza `history_size` + aplica `ltrim` imediato no Redis |
 | `GET` | `/api/groups` | Retorna `{}` — seção groups removida na Fase 5 |
 | `POST` | `/api/upload` | Parseia `.xlsx` ou `.csv` e retorna preview |
@@ -167,8 +172,8 @@ gateway/
 | `POST` | `/api/devices/{id}/upload-csv` | Salva CSV em `tables/` e adiciona a `device.csv_files` |
 | `GET` | `/api/processes` | Lista processos Delfos/Atena com estado |
 | `POST` | `/api/processes/{proc_type}/start` | Inicia Delfos ou Atena (body: `{device_id}`) |
-| `POST` | `/api/processes/{proc_type}/stop` | Para o processo |
-| `GET` | `/api/processes/{proc_type}/logs` | Últimas linhas de log do processo |
+| `POST` | `/api/processes/{proc_type}/stop` | Para o processo (body: `{device_id}`) |
+| `GET` | `/api/processes/{proc_type}/logs` | Últimas linhas de log do processo (`?device_id=`) |
 | `GET` | `/labtest` | Serve página LabTest (simuladores) |
 | `GET` | `/monitor` | Serve página Monitor — visualizador de dados Redis/Socket.IO em tempo real |
 | `GET` | `/api/simulators` | Lista simuladores com estado |
@@ -183,8 +188,8 @@ gateway/
 **Eventos Socket.IO (client → server):** `join`, `plc_write`, `user_status`, `config_save`, `config_get`, `history_set`, `history_get`, `sim_subscribe`, `sim_write`, `sim_lock`
 
 **Eventos Socket.IO (server → client):**
-- `plc:data` — todos os canais, payload `{channel, data}` (backward-compat)
-- `plc:alarmes`, `plc:process`, `plc:visual`, `plc:config` — por canal, payload `data` direto
+- `device:data` — dados por device, payload `{channel, data}`, enviado ao room `device_id`
+- `channel:data` — dados por canal, payload `{channel, data}`, enviado ao room `device_id:channel`
 - `config:updated` — broadcast ao salvar configuração
 - `connection_ack` — enviado ao conectar, contém `available_rooms`
 - `history:sizes` — resposta ao `history_get`
@@ -192,21 +197,23 @@ gateway/
 - `sim:status` — mudança de estado de simulador (start/stop/delete)
 - `sim:values` — broadcast periódico (500ms) de valores do simulador ao room `sim:{sim_id}`
 
-**Nota de nomenclatura:** eventos client→server usam underscore (`plc_write`, `sim_write`); eventos server→client usam colon (`plc:data`, `proc:status`, `sim:values`).
+**Nota de nomenclatura:** eventos client→server usam underscore (`plc_write`, `sim_write`); eventos server→client usam colon (`device:data`, `channel:data`, `proc:status`, `sim:values`).
 
 ---
 
 ### ProcessManager — Controle de subprocessos (`Hub/process_manager.py`)
 
-Permite iniciar e parar Delfos e Atena diretamente do painel web, sem terminais separados.
+Permite iniciar e parar Delfos e Atena diretamente do painel web, sem terminais separados. Suporta **múltiplos processos do mesmo tipo** para devices diferentes.
 
+- **Assinatura:** `start_process(proc_type, device_id, config)` — `proc_id` é derivado como `{proc_type}:{device_id}` (ex.: `delfos:simulador`, `atena:clp2`)
 - **Abordagem:** lança subprocessos OS via `asyncio.create_subprocess_exec()`
-- **Env vars:** herda `os.environ` e sobrescreve `MODBUS_HOST`, `MODBUS_PORT`, `MODBUS_UNIT_ID`, `MODBUS_PROTOCOL`, `REDIS_HOST`, `REDIS_PORT`, `TABLES_DIR` a partir da config do device selecionado. `load_dotenv()` não sobrescreve vars já existentes, então funciona sem alterar Delfos/Atena.
+- **Env vars:** herda `os.environ` e sobrescreve `MODBUS_HOST`, `MODBUS_PORT`, `MODBUS_UNIT_ID`, `MODBUS_PROTOCOL`, `REDIS_HOST`, `REDIS_PORT`, `TABLES_DIR` a partir da config do device selecionado. Adicionalmente passa `DEVICE_ID`, `COMMAND_CHANNEL` (ex.: `{device_id}_commands`) e `CONFIG_RELOAD_CHANNEL` (ex.: `config_reload_{device_id}`). `load_dotenv()` não sobrescreve vars já existentes, então funciona sem alterar Delfos/Atena.
 - **`cwd`:** diretório do processo (`Delfos/` ou `Atena/`) para imports relativos
 - **Log capture:** stdout/stderr capturados linha a linha (buffer de 200 linhas)
 - **Exit detection:** task `_watch_exit()` detecta crash e notifica via `proc:status`
 - **Stop:** `terminate()` → timeout 5s → `kill()`
 - **Python:** detecta `.venv/Scripts/python.exe` (Win) ou `.venv/bin/python` (Linux), fallback `sys.executable`
+- **Multi-device:** pode rodar simultaneamente `delfos:simulador`, `delfos:clp2`, `atena:simulador`, etc.
 
 **Sem persistência** — processos são efêmeros e param junto com o Hub (`shutdown_all()` no lifecycle).
 
@@ -258,17 +265,16 @@ Substitui `tests/modbus_simulator.py` standalone — simuladores rodam dentro do
 | `plc_process` | → | Delfos | Hub, externos | 500ms | Extrusora, Puxador, producao, dosador, alimentador, saidasDigitais |
 | `plc_visual` | → | Delfos | Hub, externos | 1s | threeJs (visualização 3D) |
 | `plc_config` | → | Delfos | Hub, externos | 5s | totalizadores, configuracao |
-| `plc_data` | → | Delfos | Legado | igual ao grupo mais rápido | Todos os dados (backward-compatible) |
-| `alarms` | → | Delfos | Hub, externos | igual `plc_config` | Dados de alarmes + timestamp |
-| `plc_commands` | → | Hub/UI | Atena | sob demanda | Comandos de escrita no CLP |
+| `{device_id}_commands` | → | Hub/UI | Atena | sob demanda | Comandos de escrita no CLP (por device) |
 | `user_status` | ↔ | Hub/UI | Delfos, Atena | sob demanda | `{"user_state": true/false}` |
-| `config_reload` | → | Hub | Delfos | sob demanda | `{"reload": true}` — aciona hot-reload |
+| `config_reload_{device_id}` | → | Hub | Delfos | sob demanda | `{"reload": true}` — aciona hot-reload do device |
+| `_bridge_reload` | → | Hub | redis_bridge | sob demanda | Aciona recalculo de subscrições da bridge |
 | `ia_status` | → | IA/Cloud | Atena | sob demanda | `{"ia_state": true/false}` |
 | `ia_data` | → | IA/Cloud | Atena | sob demanda | Dados do modelo de IA (stub) |
 
 **Persistência adicional (só Delfos):**
 - `last_message:{channel}` — último valor publicado (SET Redis)
-- `history:{channel}` — histórico com tamanho configurável por canal em `group_config.json` (LIST Redis)
+- `history:{channel}` — histórico com tamanho configurável por canal nos `channels` do device em `group_config.json` (LIST Redis)
 
 ---
 
@@ -278,13 +284,16 @@ Delfos e Atena usam o mesmo conjunto de variáveis Modbus. O Hub usa variáveis 
 
 **Delfos / Atena `.env`:**
 ```bash
+DEVICE_ID=simulador            # (obrigatório) ID do device em group_config.json
 MODBUS_HOST=192.168.1.2
 MODBUS_PORT=502
 MODBUS_UNIT_ID=2
-MODBUS_PROTOCOL=tcp          # tcp ou rtu_tcp (RTU over TCP)
+MODBUS_PROTOCOL=tcp            # tcp ou rtu_tcp (RTU over TCP)
 REDIS_HOST=localhost
 REDIS_PORT=6379
 TABLES_DIR=../tables
+COMMAND_CHANNEL=simulador_commands      # (Atena only) canal de comandos do device
+CONFIG_RELOAD_CHANNEL=config_reload_simulador  # canal de hot-reload do device
 ```
 
 **Hub `.env`:**
@@ -329,13 +338,11 @@ Colunas relevantes (mesmo formato em todos):
 
 ### `group_config.json` — devices e canais
 
-Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a cada `config_reload`.
+Define devices Modbus com canais Redis **por device**. Lido pelo Delfos na inicialização e a cada `config_reload_{device_id}`.
 
 ```json
 {
   "_meta": {
-    "aggregate_channel": "plc_data",
-    "backward_compatible": true,
     "default_delay_ms": 1000,
     "default_history_size": 100
   },
@@ -346,7 +353,14 @@ Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a ca
       "host": "localhost",
       "port": 5020,
       "unit_id": 1,
-      "csv_files": ["mapeamento_clp.csv"]
+      "csv_files": ["mapeamento_clp.csv"],
+      "command_channel": "simulador_commands",
+      "channels": {
+        "plc_alarmes": { "delay_ms": 200,  "history_size": 55  },
+        "plc_process": { "delay_ms": 500,  "history_size": 100 },
+        "plc_visual":  { "delay_ms": 1000, "history_size": 100 },
+        "plc_config":  { "delay_ms": 1000, "history_size": 100 }
+      }
     },
     "clp2": {
       "label": "CLP Secundário",
@@ -357,14 +371,12 @@ Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a ca
       "stopbits": 1,
       "unit_id": 1,
       "enabled": true,
-      "csv_files": ["clp2_tags.csv"]
+      "csv_files": ["clp2_tags.csv"],
+      "command_channel": "clp2_commands",
+      "channels": {
+        "plc_process": { "delay_ms": 500,  "history_size": 100 }
+      }
     }
-  },
-  "channels": {
-    "plc_alarmes": { "delay_ms": 200,  "history_size": 55  },
-    "plc_process": { "delay_ms": 500,  "history_size": 100 },
-    "plc_visual":  { "delay_ms": 1000, "history_size": 100 },
-    "plc_config":  { "delay_ms": 1000, "history_size": 100 }
   }
 }
 ```
@@ -372,20 +384,20 @@ Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a ca
 **Campos de device:**
 - TCP: `protocol="tcp"`, `host`, `port`, `unit_id`
 - RTU: `protocol="rtu"`, `serial_port`, `baudrate`, `parity` ("N"/"E"/"O"), `stopbits`, `unit_id`
-- Comum: `label`, `csv_files` (lista de arquivos em `tables/`), `enabled` (default `true`)
+- Comum: `label`, `csv_files` (lista de arquivos em `tables/`), `enabled` (default `true`), `command_channel` (canal de comandos do device), `channels` (canais Redis com `delay_ms` e `history_size`)
 
 **Regras:**
-- `delay_ms` e `history_size` ficam exclusivamente na seção `channels`
+- `delay_ms` e `history_size` ficam dentro da seção `channels` de cada device
 - Canais sem entrada em `channels` usam os defaults de `_meta`
-- **Não existe mais seção `groups`** — nunca adicionar mapeamento grupo→canal aqui
 - `enabled: false` em um device → Delfos ignora todos os seus CSVs no próximo hot-reload
 - Devices com `csv_files` idênticos causam variáveis duplicadas — **cada device deve ter CSVs exclusivos**
+- **Não existe seção `channels` global** — canais são sempre definidos dentro de cada device
 
-**Canais de sistema (`SYSTEM_CHANNELS`):** `user_status`, `config_reload`, `plc_commands`, `plc_data`, `alarms`, `ia_status`, `ia_data` — são protegidos contra remoção via API (`DELETE /api/channels/{channel}` retorna 403). O painel web marca esses canais com badge "SISTEMA" e oculta o botão de remoção.
+**Canais de sistema (`SYSTEM_CHANNELS`):** `user_status`, `ia_status`, `ia_data` — são protegidos contra remoção via API (`DELETE /api/channels/{channel}` retorna 403). O painel web marca esses canais com badge "SISTEMA" e oculta o botão de remoção. Canais derivados por device (`{device_id}_commands`, `config_reload_{device_id}`) são gerenciados automaticamente.
 
-### `variable_overrides.json` — atribuição direta por tag
+### `variable_overrides_{device_id}.json` — atribuição direta por tag (per-device)
 
-**Única fonte de roteamento.** Define qual canal cada tag publica. Tags ausentes deste arquivo não são lidas pelo Delfos. Editável pelo painel web ou via `PATCH /api/variables/{tag}`.
+**Única fonte de roteamento por device.** Cada device tem seu próprio arquivo de overrides (ex.: `variable_overrides_simulador.json`, `variable_overrides_clp2.json`). Define qual canal cada tag publica. Tags ausentes do arquivo do device não são lidas pela instância Delfos correspondente. Editável pelo painel web ou via `PATCH /api/variables/{tag}`.
 
 ```json
 {
@@ -399,10 +411,12 @@ Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a ca
 - `channel` — canal Redis onde a tag será publicada (string não-vazia)
 - `enabled` — `false` exclui a tag da leitura mesmo que tenha canal atribuído
 
-**Regra de roteamento (Fase 5):**
+**Regra de roteamento:**
 - Tag com `channel` definido → lida e publicada no canal correspondente
 - Tag sem `channel` (ausente do arquivo ou `channel` removido) → **não lida, não publicada**
 - `enabled: false` → excluída mesmo com canal atribuído
+
+**Migração:** o script `scripts/migrate_config.py` migra o antigo `variable_overrides.json` global para arquivos per-device, distribuindo as tags conforme os CSVs de cada device.
 
 ### `simulator_config.json` — configuração dos simuladores embarcados
 
@@ -587,10 +601,9 @@ cp tests/.env.test Atena/.env
 
 1. **`handle_ia_data_message`** é um stub — lógica de processamento de dados da IA não implementada
 2. **Código duplicado parcialmente resolvido:** `modbus_functions.py` foi extraído para `shared/` com `ModbusClientWrapper` unificado; `redis_config_functions.py` ainda é duplicado em Delfos e Atena
-3. **Eventos Socket.IO — nomenclatura intencional:** client→server usa underscore (`plc_write`, `sim_write`); server→client usa colon (`plc:data`, `proc:status`, `sim:values`). Frontends devem seguir esta convenção.
+3. **Eventos Socket.IO — nomenclatura intencional:** client→server usa underscore (`plc_write`, `sim_write`); server→client usa colon (`device:data`, `proc:status`, `sim:values`). Frontends devem seguir esta convenção.
 4. **Redis sem replicação:** ponto único de falha
-5. **Delfos — device único por instância:** Delfos usa um único cliente Modbus; para múltiplos devices físicos simultâneos seria necessário múltiplos clientes (atualmente lê devices em série, não em paralelo)
-6. **ProcessManager sem reinício automático:** processos que crasham são detectados (`proc:status` com `exit_code`) mas não reiniciam sozinhos — o usuário precisa clicar "Iniciar" novamente
+5. **ProcessManager sem reinício automático:** processos que crasham são detectados (`proc:status` com `exit_code`) mas não reiniciam sozinhos — o usuário precisa clicar "Iniciar" novamente. Suporta múltiplos processos do mesmo tipo para devices diferentes.
 
 ---
 
@@ -602,4 +615,4 @@ cp tests/.env.test Atena/.env
 - Não modificar CSVs de mapeamento Modbus sem entender o impacto nos endereços
 - Não alterar a ordem das colunas nos CSVs (a leitura depende dos nomes das colunas)
 - Não adicionar o mesmo CSV a múltiplos devices (causa variáveis duplicadas nos overrides)
-- Não adicionar seção `groups` ao `group_config.json` — removida na Fase 5
+- Não adicionar seção `groups` nem seção `channels` global ao `group_config.json` — canais são sempre definidos dentro de cada device
