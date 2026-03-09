@@ -27,9 +27,30 @@ _TABLES_DIR = os.environ.get('TABLES_DIR', '../tables')
 
 
 def main():
-    csv_path = os.path.join(_TABLES_DIR, 'operacao.csv')
+    device_id = os.environ.get('DEVICE_ID')
+    if not device_id:
+        logger.critical("DEVICE_ID env var obrigatoria. Encerrando.")
+        return
 
-    channels = ['user_status', 'plc_commands', 'ia_status', 'ia_data']
+    command_channel = os.environ.get('COMMAND_CHANNEL', f'{device_id}_commands')
+
+    import json
+    group_config_path = os.path.join(_TABLES_DIR, 'group_config.json')
+    try:
+        with open(group_config_path) as f:
+            group_config = json.load(f)
+    except Exception as e:
+        logger.critical("Erro ao carregar group_config.json: %s", e)
+        return
+
+    device_cfg = group_config.get('devices', {}).get(device_id, {})
+    csv_files = device_cfg.get('csv_files', [])
+    csv_paths = [os.path.join(_TABLES_DIR, f) for f in csv_files]
+
+    if not csv_paths:
+        logger.warning("Device '%s' nao tem csv_files configurados.", device_id)
+
+    channels = ['user_status', command_channel, 'ia_status', 'ia_data']
     r, pubsub = setup_redis()
     if r is None or pubsub is None:
         logger.critical("Falha ao conectar ao Redis. Encerrando.")
@@ -43,6 +64,8 @@ def main():
         logger.critical("Falha ao conectar ao Modbus. Encerrando.")
         return
 
+    logger.info("Atena iniciado para device '%s'. Command channel: '%s'", device_id, command_channel)
+
     ia_mode    = False
     user_state = False
 
@@ -50,8 +73,8 @@ def main():
         if message and message['type'] == 'message':
             channel = message['channel'].decode()
 
-            if channel == 'plc_commands':
-                handle_plc_commands_message(message, user_state, client, csv_path)
+            if channel == command_channel:
+                handle_plc_commands_message(message, user_state, client, csv_paths)
 
             elif channel == 'user_status':
                 user_state = handle_user_status_message(message)

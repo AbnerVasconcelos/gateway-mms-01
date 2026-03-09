@@ -11,16 +11,33 @@ from table_filter import find_values_by_object_tag
 logger = logging.getLogger(__name__)
 
 
-def handle_plc_commands_message(message, user_state, client, csv_path):
+def handle_plc_commands_message(message, user_state, client, csv_paths):
+    """csv_paths is now a list of paths (backward-compat: also accepts a single string)."""
     if user_state:
         write_data, timestamp = get_write_data(message)
-        matching_modbus_coils, matching_values_coils, matching_modbus_registers, matching_values_registers = find_values_by_object_tag(csv_path, write_data)
 
-        logger.info("Coils — endereços: %s | valores: %s", matching_modbus_coils, matching_values_coils)
-        logger.info("Registers — endereços: %s | valores: %s", matching_modbus_registers, matching_values_registers)
+        all_coils_addr, all_coils_vals = [], []
+        all_regs_addr, all_regs_vals = [], []
 
-        write_coils_to_device(client, matching_modbus_coils, matching_values_coils)
-        write_registers_to_device(client, matching_modbus_registers, matching_values_registers)
+        # Support both single path (backward compat) and list
+        if isinstance(csv_paths, str):
+            csv_paths = [csv_paths]
+
+        for csv_path in csv_paths:
+            try:
+                c_addr, c_vals, r_addr, r_vals = find_values_by_object_tag(csv_path, write_data)
+                all_coils_addr.extend(c_addr)
+                all_coils_vals.extend(c_vals)
+                all_regs_addr.extend(r_addr)
+                all_regs_vals.extend(r_vals)
+            except Exception as e:
+                logger.error("Erro ao buscar tags em '%s': %s", csv_path, e)
+
+        logger.info("Coils -- enderecos: %s | valores: %s", all_coils_addr, all_coils_vals)
+        logger.info("Registers -- enderecos: %s | valores: %s", all_regs_addr, all_regs_vals)
+
+        write_coils_to_device(client, all_coils_addr, all_coils_vals)
+        write_registers_to_device(client, all_regs_addr, all_regs_vals)
         logger.info("Dados escritos com sucesso no CLP.")
 
 
