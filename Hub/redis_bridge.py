@@ -1,17 +1,18 @@
 """
-redis_bridge — background task que assina canais Redis e encaminha
+redis_bridge -- background task que assina canais Redis e encaminha
 mensagens para clientes Socket.IO em tempo real.
 
-Padrão de assinatura:
-  psubscribe('plc_*')  → todos os canais segmentados do Delfos
-  subscribe('alarms')  → canal legado de alarmes/configuração
+Assinatura dinamica baseada no channel map de devices:
+  get_channel_map() retorna {channel_name: device_id}
+  Ex.: {'plc_alarmes': 'sim', 'west_temp': 'west'}
 
-Mapeamento canal → room:
-  'plc_alarmes'  → room 'alarmes'
-  'plc_process'  → room 'process'
-  'plc_visual'   → room 'visual'
-  'plc_config'   → room 'config'
-  'alarms'       → room 'alarms'   (legado)
+Rooms Socket.IO:
+  device_id       -- todos os canais do device (ex.: 'sim')
+  device_id:canal -- canal especifico (ex.: 'sim:plc_alarmes')
+
+Reload dinamico:
+  Publicar no canal Redis '_bridge_reload' faz a bridge re-avaliar
+  o channel map e atualizar as subscriptions sem reiniciar.
 """
 
 import asyncio
@@ -22,46 +23,58 @@ import redis.asyncio as aioredis
 
 logger = logging.getLogger(__name__)
 
-# Pausa entre tentativas de reconexão ao Redis (segundos)
+# Pausa entre tentativas de reconexao ao Redis (segundos)
 _RECONNECT_DELAY = 2
 
 
-async def start_bridge(sio, redis_host: str, redis_port: int) -> None:
+async def start_bridge(sio, redis_host: str, redis_port: int, get_channel_map=None) -> None:
     """
-    Loop de bridge Redis → Socket.IO com reconexão automática.
-    Deve ser chamado como asyncio.create_task() no startup da aplicação.
+    Loop de bridge Redis -> Socket.IO com reconexao automatica.
+    Deve ser chamado como asyncio.create_task() no startup da aplicacao.
+
+    Args:
+        sio: instancia python-socketio AsyncServer
+        redis_host: host do Redis
+        redis_port: porta do Redis
+        get_channel_map: callable que retorna {channel_name: device_id}.
+                         Quando None, a bridge nao assina nenhum canal.
     """
     logger.info("Redis bridge: iniciando em %s:%s", redis_host, redis_port)
 
     while True:
         try:
-            await _run_bridge(sio, redis_host, redis_port)
+            await _run_bridge(sio, redis_host, redis_port, get_channel_map)
         except asyncio.CancelledError:
             logger.info("Redis bridge: cancelado.")
             break
         except Exception as e:
-            logger.error("Redis bridge: erro inesperado — %s. Reconectando em %ss.", e, _RECONNECT_DELAY)
+            logger.error("Redis bridge: erro inesperado -- %s. Reconectando em %ss.", e, _RECONNECT_DELAY)
             await asyncio.sleep(_RECONNECT_DELAY)
 
 
-async def _run_bridge(sio, redis_host: str, redis_port: int) -> None:
-    """Conecta ao Redis e encaminha mensagens até a conexão cair."""
+async def _run_bridge(sio, redis_host: str, redis_port: int, get_channel_map) -> None:
+    """Conecta ao Redis e encaminha mensagens ate a conexao cair."""
     r = aioredis.Redis(host=redis_host, port=redis_port, db=0)
 
-    # Verifica conexão antes de entrar no loop
+    # Verifica conexao antes de entrar no loop
     try:
         await r.ping()
     except Exception as e:
-        logger.error("Redis bridge: ping falhou — %s. Tentando novamente em %ss.", e, _RECONNECT_DELAY)
+        logger.error("Redis bridge: ping falhou -- %s. Tentando novamente em %ss.", e, _RECONNECT_DELAY)
         await r.aclose()
         await asyncio.sleep(_RECONNECT_DELAY)
         return
 
-    logger.info("Redis bridge: conectado. Assinando plc_* e alarms...")
+    channel_map = get_channel_map() if get_channel_map else {}
+
+    logger.info("Redis bridge: conectado. Assinando %d canais + _bridge_reload...",
+                len(channel_map))
 
     async with r.pubsub() as ps:
-        await ps.psubscribe('plc_*')
-        await ps.subscribe('alarms')
+        # Subscribe to all device channels + reload signal
+        if channel_map:
+            await ps.subscribe(*channel_map.keys())
+        await ps.subscribe('_bridge_reload')
 
         while True:
             msg = await ps.get_message(ignore_subscribe_messages=True, timeout=1.0)
@@ -73,23 +86,38 @@ async def _run_bridge(sio, redis_host: str, redis_port: int) -> None:
 
             channel = msg['channel'].decode()
 
+            # Handle reload signal
+            if channel == '_bridge_reload':
+                new_map = get_channel_map() if get_channel_map else {}
+                old_channels = set(channel_map.keys())
+                new_channels = set(new_map.keys())
+                to_unsub = old_channels - new_channels
+                to_sub = new_channels - old_channels
+                if to_unsub:
+                    await ps.unsubscribe(*to_unsub)
+                if to_sub:
+                    await ps.subscribe(*to_sub)
+                channel_map = new_map
+                logger.info("Bridge: re-subscribed. Channels: %s", list(new_map.keys()))
+                continue
+
             try:
                 data = json.loads(msg['data'])
             except Exception as e:
-                logger.warning("Bridge: payload inválido em '%s': %s", channel, e)
+                logger.warning("Bridge: invalid payload in '%s': %s", channel, e)
                 continue
 
-            # Deriva o room a partir do nome do canal
-            room = channel.removeprefix('plc_') if channel.startswith('plc_') else channel
+            device_id = channel_map.get(channel, 'unknown')
 
-            # Evento genérico backward-compat — todos os canais
-            await sio.emit('plc:data', {'channel': channel, 'data': data}, room=room)
+            # Emit to device room
+            await sio.emit('device:data', {
+                'device_id': device_id,
+                'channel': channel,
+                'data': data,
+            }, room=device_id)
 
-            # Evento específico do canal: 'plc_alarmes' → 'plc:alarmes'
-            # Permite que consumidores externos assinem apenas o canal desejado.
-            channel_event = channel.replace('_', ':', 1)
-            if channel_event != 'plc:data':   # evita colisão com evento genérico
-                await sio.emit(channel_event, data, room=room)
+            # Emit to channel-specific room
+            await sio.emit('channel:data', data, room=f'{device_id}:{channel}')
 
-            logger.debug("Bridge: '%s' → room '%s' (events: plc:data + %s)",
-                         channel, room, channel_event)
+            logger.debug("Bridge: '%s' -> device '%s' (rooms: %s, %s:%s)",
+                         channel, device_id, device_id, device_id, channel)
