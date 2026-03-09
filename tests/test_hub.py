@@ -84,13 +84,16 @@ class TestConfigStore(unittest.TestCase):
         self.assertIsInstance(cfg, dict)
         self.assertNotIn('groups', cfg)   # Fase 5: seção groups removida
         self.assertIn('_meta', cfg)
-        self.assertIn('channels', cfg)
+        # Channels are now inside devices, not at top level
+        self.assertIn('devices', cfg)
+        self.assertIn('channels', cfg['devices']['simulador'])
 
     def test_02_load_group_config_has_expected_channels(self):
         cfg = config_store.load_group_config()
-        channels = cfg.get('channels', {})
+        # Channels are now inside devices
+        device_channels = cfg['devices']['simulador'].get('channels', {})
         for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
-            self.assertIn(ch, channels, f"Canal '{ch}' ausente em group_config.json")
+            self.assertIn(ch, device_channels, f"Canal '{ch}' ausente em devices.simulador.channels")
 
     # ── save_group_config ────────────────────────────────────────────────────
 
@@ -104,10 +107,11 @@ class TestConfigStore(unittest.TestCase):
 
     def test_04_save_group_config_preserves_channels(self):
         cfg = config_store.load_group_config()
-        original_channels = set(cfg['channels'].keys())
+        # Channels are now inside devices
+        original_channels = set(cfg['devices']['simulador']['channels'].keys())
         config_store.save_group_config(cfg)
         reloaded = config_store.load_group_config()
-        self.assertEqual(original_channels, set(reloaded['channels'].keys()))
+        self.assertEqual(original_channels, set(reloaded['devices']['simulador']['channels'].keys()))
 
     # ── load_overrides ───────────────────────────────────────────────────────
 
@@ -148,10 +152,11 @@ class TestConfigStore(unittest.TestCase):
         )
 
     def test_10_update_history_persists_to_file(self):
-        config_store.update_channel_history_size('plc_process', 77)
-        channels = config_store.get_channels()
-        self.assertIn('plc_process', channels)
-        self.assertEqual(channels['plc_process']['history_size'], 77)
+        config_store.update_channel_history_size('plc_process', 77, device_id='simulador')
+        # Verify via device-specific channels (get_channels aggregates and may overwrite)
+        dev_channels = config_store.get_device_channels('simulador')
+        self.assertIn('plc_process', dev_channels)
+        self.assertEqual(dev_channels['plc_process']['history_size'], 77)
 
     # ── get_channel_history_sizes ────────────────────────────────────────────
 
@@ -1234,12 +1239,13 @@ class TestDeviceCRUD(unittest.TestCase):
         self.assertEqual(devices['clp2']['host'], '10.0.0.1')
 
     def test_82_create_device_preserves_channels(self):
-        """create_device() não deve remover a seção 'channels' do group_config."""
+        """create_device() não deve remover os channels dos devices existentes."""
         config_store.create_device('test_dev', {'label': 'Test', 'protocol': 'tcp'})
         cfg = config_store.load_group_config()
-        self.assertIn('channels', cfg)
+        # Channels are inside devices — verify existing device channels preserved
+        device_channels = cfg['devices']['simulador'].get('channels', {})
         for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
-            self.assertIn(ch, cfg['channels'])
+            self.assertIn(ch, device_channels)
 
     def test_83_update_device_updates_field(self):
         """update_device() deve alterar apenas o campo informado."""

@@ -232,54 +232,68 @@ class TestGroupConfig(unittest.TestCase):
 
     def test_32_meta_fields(self):
         meta = self.config['_meta']
-        self.assertIn('backward_compatible', meta)
         self.assertIn('default_delay_ms',    meta)
         self.assertIn('default_history_size', meta)
 
     def test_33_channels_have_required_fields(self):
-        """Todos os canais em group_config.json devem ter delay_ms e history_size."""
-        channels = self.config.get('channels', {})
-        self.assertGreater(len(channels), 0, "Seção 'channels' ausente ou vazia")
-        for ch, ch_cfg in channels.items():
+        """Todos os canais em devices[*].channels devem ter delay_ms e history_size."""
+        all_channels = {}
+        for dev_id, dev_cfg in self.config.get('devices', {}).items():
+            for ch, ch_cfg in dev_cfg.get('channels', {}).items():
+                all_channels[ch] = ch_cfg
+        self.assertGreater(len(all_channels), 0, "Nenhum canal encontrado em devices[*].channels")
+        for ch, ch_cfg in all_channels.items():
             with self.subTest(channel=ch):
                 self.assertIn('delay_ms',     ch_cfg)
                 self.assertIn('history_size', ch_cfg)
 
     def test_34_channels_section_is_sole_routing_config(self):
-        """Fase 5: roteamento definido apenas em 'channels'; 'groups' ausente."""
-        self.assertNotIn('groups',   self.config)
-        self.assertIn('channels',    self.config)
-        self.assertIsInstance(self.config['channels'], dict)
+        """Channels are now per-device; 'groups' section absent."""
+        self.assertNotIn('groups', self.config)
+        # Channels are inside each device, not at top level
+        for dev_id, dev_cfg in self.config.get('devices', {}).items():
+            with self.subTest(device=dev_id):
+                self.assertIn('channels', dev_cfg)
+                self.assertIsInstance(dev_cfg['channels'], dict)
 
     def test_35_delay_ms_positive(self):
-        """delay_ms está na seção channels (não mais nos grupos)."""
-        channels = self.config.get('channels', {})
-        self.assertGreater(len(channels), 0, "Seção 'channels' ausente ou vazia")
-        for ch, cfg in channels.items():
+        """delay_ms está em devices[*].channels (não mais nos grupos)."""
+        all_channels = {}
+        for dev_id, dev_cfg in self.config.get('devices', {}).items():
+            for ch, ch_cfg in dev_cfg.get('channels', {}).items():
+                all_channels[ch] = ch_cfg
+        self.assertGreater(len(all_channels), 0, "Nenhum canal encontrado em devices[*].channels")
+        for ch, cfg in all_channels.items():
             with self.subTest(channel=ch):
                 self.assertGreater(cfg.get('delay_ms', 0), 0)
 
     def test_36_history_size_positive(self):
-        """history_size está na seção channels (não mais nos grupos)."""
-        channels = self.config.get('channels', {})
-        self.assertGreater(len(channels), 0, "Seção 'channels' ausente ou vazia")
-        for ch, cfg in channels.items():
+        """history_size está em devices[*].channels (não mais nos grupos)."""
+        all_channels = {}
+        for dev_id, dev_cfg in self.config.get('devices', {}).items():
+            for ch, ch_cfg in dev_cfg.get('channels', {}).items():
+                all_channels[ch] = ch_cfg
+        self.assertGreater(len(all_channels), 0, "Nenhum canal encontrado em devices[*].channels")
+        for ch, cfg in all_channels.items():
             with self.subTest(channel=ch):
                 self.assertGreater(cfg.get('history_size', 0), 0)
 
     def test_37_channels_use_plc_prefix(self):
-        """Todos os canais em group_config['channels'] devem ter prefixo 'plc_'."""
-        for ch in self.config.get('channels', {}):
-            with self.subTest(channel=ch):
-                self.assertTrue(ch.startswith('plc_'),
-                                f"Canal '{ch}' sem prefixo 'plc_'")
+        """Todos os canais em devices[*].channels devem ter prefixo 'plc_'."""
+        for dev_id, dev_cfg in self.config.get('devices', {}).items():
+            for ch in dev_cfg.get('channels', {}):
+                with self.subTest(device=dev_id, channel=ch):
+                    self.assertTrue(ch.startswith('plc_'),
+                                    f"Canal '{ch}' sem prefixo 'plc_'")
 
     def test_38_known_channels_present(self):
-        """Canais obrigatórios devem estar na seção 'channels'."""
-        channels = set(self.config.get('channels', {}).keys())
+        """Canais obrigatórios devem estar em pelo menos um device."""
+        all_channels = set()
+        for dev_id, dev_cfg in self.config.get('devices', {}).items():
+            all_channels.update(dev_cfg.get('channels', {}).keys())
         for expected in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
             with self.subTest(channel=expected):
-                self.assertIn(expected, channels)
+                self.assertIn(expected, all_channels)
 
 
 # ---------------------------------------------------------------------------

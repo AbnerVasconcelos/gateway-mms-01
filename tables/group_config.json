@@ -74,5 +74,10 @@
       },
       "command_channel": "west_commands"
     }
+  },
+  "channels": {
+    "plc_alarmes": {
+      "history_size": 55
+    }
   }
 }
