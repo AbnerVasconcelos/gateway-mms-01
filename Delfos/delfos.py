@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 _TABLES_DIR = os.environ.get('TABLES_DIR', '../tables')
 
-# Tick do loop principal em segundos — resolução mínima de delay entre canais.
+# Tick do loop principal em segundos — resolucao minima de delay entre canais.
 _LOOP_TICK = 0.05
 
 
@@ -35,7 +35,7 @@ def retry_on_failure(fn, attempts=3, delay=1):
         except Exception as e:
             logger.warning("Erro: %s, nova tentativa em %ss.", e, delay)
             sleep(delay)
-    logger.error("Falha após %s tentativas.", attempts)
+    logger.error("Falha apos %s tentativas.", attempts)
     return None
 
 
@@ -53,53 +53,8 @@ def _load_variable_overrides(path):
         with open(path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        logger.warning("Erro ao carregar variable_overrides.json: %s. Usando vazio.", e)
+        logger.warning("Erro ao carregar overrides '%s': %s. Usando vazio.", path, e)
         return {}
-
-
-def _load_channel_config(group_config, default_delay_ms, default_history) -> dict:
-    """
-    Retorna {channel: {delay_ms, history_size}} lendo a seção 'channels' do
-    group_config. Canais referenciados nos grupos mas sem entrada em 'channels'
-    recebem os valores default.
-    """
-    result: dict = {}
-    # Canais inferidos dos grupos (com defaults)
-    for cfg in group_config.get('groups', {}).values():
-        ch = cfg.get('channel')
-        if ch and ch not in result:
-            result[ch] = {'delay_ms': default_delay_ms, 'history_size': default_history}
-    # Seção channels sobrescreve
-    for ch, ch_cfg in group_config.get('channels', {}).items():
-        result[ch] = {
-            'delay_ms':    ch_cfg.get('delay_ms',    default_delay_ms),
-            'history_size': ch_cfg.get('history_size', default_history),
-        }
-    return result
-
-
-def _build_csv_paths(tables_dir: str, group_config: dict) -> list:
-    """
-    Retorna lista de caminhos CSV a ler, respeitando a seção 'devices' e a flag
-    'enabled' por device. Devices desativados (enabled=False) são ignorados.
-    Sem seção 'devices': backward compat com operacao.csv + configuracao.csv.
-    """
-    devices = group_config.get('devices', {})
-    if not devices:
-        return [
-            os.path.join(tables_dir, 'operacao.csv'),
-            os.path.join(tables_dir, 'configuracao.csv'),
-        ]
-    paths = []
-    for dev_id, dev_cfg in devices.items():
-        if not dev_cfg.get('enabled', True):
-            logger.info("Device '%s' desativado — pulando leitura.", dev_id)
-            continue
-        for fname in dev_cfg.get('csv_files', []):
-            path = os.path.join(tables_dir, fname)
-            if path not in paths:
-                paths.append(path)
-    return paths
 
 
 def _apply_overrides(data, overrides):
@@ -116,27 +71,55 @@ def _apply_overrides(data, overrides):
 
 
 def main():
-    group_config_path = os.path.join(_TABLES_DIR, 'group_config.json')
-    overrides_path    = os.path.join(_TABLES_DIR, 'variable_overrides.json')
+    # ── DEVICE_ID obrigatorio ────────────────────────────────────────────────
+    device_id = os.environ.get('DEVICE_ID')
+    if not device_id:
+        logger.critical("DEVICE_ID env var obrigatoria. Encerrando.")
+        return
 
-    # Carrega configuração de canais e overrides
+    group_config_path = os.path.join(_TABLES_DIR, 'group_config.json')
+    overrides_path    = os.path.join(_TABLES_DIR, f'variable_overrides_{device_id}.json')
+
+    # Carrega configuracao e overrides do device
     group_config = retry_on_failure(lambda: _load_group_config(group_config_path))
     if group_config is None:
-        logger.critical("Não foi possível carregar group_config.json. Encerrando.")
+        logger.critical("Nao foi possivel carregar group_config.json. Encerrando.")
         return
+
+    device_cfg = group_config.get('devices', {}).get(device_id)
+    if not device_cfg:
+        logger.critical("Device '%s' nao encontrado em group_config.json.", device_id)
+        return
+
     overrides = _load_variable_overrides(overrides_path)
 
-    meta               = group_config.get('_meta', {})
-    backward_compatible = meta.get('backward_compatible', True)
-    default_delay_ms   = meta.get('default_delay_ms', 1000)
-    default_history    = meta.get('default_history_size', 100)
+    meta             = group_config.get('_meta', {})
+    default_delay_ms = meta.get('default_delay_ms', 1000)
+    default_history  = meta.get('default_history_size', 100)
+
+    # Caminhos CSV apenas deste device
+    csv_paths = [os.path.join(_TABLES_DIR, f) for f in device_cfg.get('csv_files', [])]
+
+    # Channel config do device (nao global)
+    channel_cfg = {}
+    for ch, ch_c in device_cfg.get('channels', {}).items():
+        channel_cfg[ch] = {
+            'delay_ms':     ch_c.get('delay_ms', default_delay_ms),
+            'history_size': ch_c.get('history_size', default_history),
+        }
+
+    # Build device-scoped group_config para extract_parameters_by_channel
+    device_group_config = {
+        '_meta':    meta,
+        'channels': device_cfg.get('channels', {}),
+    }
 
     # Carrega mapeamento CSV por canal
     try:
         channel_data = extract_parameters_by_channel(
-            _build_csv_paths(_TABLES_DIR, group_config), group_config, overrides)
+            csv_paths, device_group_config, overrides)
     except FileNotFoundError as e:
-        logger.critical("Arquivo CSV não encontrado: %s", e)
+        logger.critical("Arquivo CSV nao encontrado: %s", e)
         return
     except Exception as e:
         logger.critical("Erro inesperado ao processar arquivos CSV: %s", e)
@@ -146,7 +129,6 @@ def main():
         logger.critical("Nenhum canal carregado dos CSVs. Encerrando.")
         return
 
-    channel_cfg = _load_channel_config(group_config, default_delay_ms, default_history)
     logger.info("Canais ativos: %s", list(channel_data.keys()))
 
     # Redis
@@ -157,7 +139,8 @@ def main():
     if r is None or pubsub is None:
         return
 
-    subscribe_to_channels(pubsub, ['user_status', 'config_reload'])
+    config_reload_channel = os.environ.get('CONFIG_RELOAD_CHANNEL', f'config_reload_{device_id}')
+    subscribe_to_channels(pubsub, ['user_status', config_reload_channel])
 
     # Modbus
     _modbus_protocol = os.environ.get('MODBUS_PROTOCOL', 'tcp')
@@ -171,7 +154,8 @@ def main():
     successful_reads   = 0
     unsuccessful_reads = 0
 
-    logger.info("Delfos iniciado. Tick=%ss, canais=%d", _LOOP_TICK, len(channel_data))
+    logger.info("Delfos iniciado para device '%s'. Tick=%ss, canais=%d",
+                device_id, _LOOP_TICK, len(channel_data))
 
     while True:
         loop_start = time()
@@ -184,24 +168,38 @@ def main():
             if ch_msg == 'user_status':
                 data       = json.loads(message['data'].decode())
                 user_state = data['user_state']
-                logger.info("Estado do usuário atualizado: conectado=%s", user_state)
+                logger.info("Estado do usuario atualizado: conectado=%s", user_state)
 
-            elif ch_msg == 'config_reload':
+            elif ch_msg == config_reload_channel:
                 new_cfg = _load_group_config(group_config_path)
                 new_overrides = _load_variable_overrides(overrides_path)
                 if new_cfg:
-                    group_config        = new_cfg
-                    meta                = group_config.get('_meta', {})
-                    backward_compatible = meta.get('backward_compatible', True)
-                    default_delay_ms    = meta.get('default_delay_ms', 1000)
-                    default_history     = meta.get('default_history_size', 100)
+                    group_config     = new_cfg
+                    meta             = group_config.get('_meta', {})
+                    default_delay_ms = meta.get('default_delay_ms', 1000)
+                    default_history  = meta.get('default_history_size', 100)
+                    device_cfg       = group_config.get('devices', {}).get(device_id, device_cfg)
                     logger.info("group_config.json recarregado.")
                 overrides = new_overrides
+
                 # Re-computa channel_data com nova config (hot-reload graceful)
                 try:
+                    new_csv_paths = [os.path.join(_TABLES_DIR, f)
+                                     for f in device_cfg.get('csv_files', [])]
+                    new_device_group_config = {
+                        '_meta':    meta,
+                        'channels': device_cfg.get('channels', {}),
+                    }
                     new_channel_data = extract_parameters_by_channel(
-                        _build_csv_paths(_TABLES_DIR, group_config), group_config, overrides)
-                    new_channel_cfg  = _load_channel_config(group_config, default_delay_ms, default_history)
+                        new_csv_paths, new_device_group_config, overrides)
+
+                    new_channel_cfg = {}
+                    for ch, ch_c in device_cfg.get('channels', {}).items():
+                        new_channel_cfg[ch] = {
+                            'delay_ms':     ch_c.get('delay_ms', default_delay_ms),
+                            'history_size': ch_c.get('history_size', default_history),
+                        }
+
                     # Preserva timers de canais existentes; novos canais publicam imediatamente
                     new_last_read = {ch: last_read.get(ch, 0.0) for ch in new_channel_data}
                     channel_data = new_channel_data
@@ -211,18 +209,14 @@ def main():
                 except Exception as e:
                     logger.error("Erro ao recarregar channel_data: %s", e)
 
-        # ── Sem usuário conectado: aguarda sem ler CLP ──────────────────────
+        # ── Sem usuario conectado: aguarda sem ler CLP ──────────────────────
         if not user_state:
             sleep(0.5)
             continue
 
-        # ── Leitura e publicação por canal ──────────────────────────────────
+        # ── Leitura e publicacao por canal ──────────────────────────────────
         ts = datetime.datetime.now().isoformat()
-
-        # Acumuladores backward-compat (plc_data / alarms)
-        agg_operacao     = {'coils': {}, 'registers': {}} if backward_compatible else None
-        agg_configuracao = {'coils': {}, 'registers': {}} if backward_compatible else None
-        published_count  = 0
+        published_count = 0
 
         for ch, ch_data in channel_data.items():
             cfg   = channel_cfg.get(ch, {})
@@ -231,7 +225,7 @@ def main():
             if loop_start - last_read[ch] < delay:
                 continue
 
-            # Lê coils do canal (cross-group aggregado)
+            # Le coils do canal (cross-group aggregado)
             try:
                 coil_data, _ = read_coils(
                     client,
@@ -245,7 +239,7 @@ def main():
                 coil_data = {}
                 unsuccessful_reads += 1
 
-            # Lê registers do canal
+            # Le registers do canal
             try:
                 reg_data, _ = read_registers(
                     client,
@@ -259,7 +253,7 @@ def main():
                 reg_data = {}
                 unsuccessful_reads += 1
 
-            # Aplica overrides (enabled=False em runtime, segurança extra)
+            # Aplica overrides (enabled=False em runtime, seguranca extra)
             coil_data = _apply_overrides(dict(coil_data), overrides)
             reg_data  = _apply_overrides(dict(reg_data),  overrides)
 
@@ -276,30 +270,11 @@ def main():
             last_read[ch]   = loop_start
             published_count += 1
 
-            if backward_compatible:
-                sources = ch_data.get('sources', set())
-                if 'operacao' in sources:
-                    agg_operacao['coils'].update(coil_data)
-                    agg_operacao['registers'].update(reg_data)
-                if 'configuracao' in sources:
-                    agg_configuracao['coils'].update(coil_data)
-                    agg_configuracao['registers'].update(reg_data)
-
-        # ── Publica canais backward-compat ──────────────────────────────────
-        if backward_compatible and published_count:
-            if agg_operacao['coils'] or agg_operacao['registers']:
-                agg_operacao['timestamp'] = ts
-                publish_to_channel(r, json.dumps(agg_operacao, indent=4), 'plc_data')
-
-            if agg_configuracao['coils'] or agg_configuracao['registers']:
-                agg_configuracao['timestamp'] = ts
-                publish_to_channel(r, json.dumps(agg_configuracao, indent=4), 'alarms')
-
         if published_count:
             logger.info("Tick: %d canais publicados | ok=%d err=%d",
                         published_count, successful_reads, unsuccessful_reads)
 
-        # ── Dorme até o próximo tick ────────────────────────────────────────
+        # ── Dorme ate o proximo tick ────────────────────────────────────────
         elapsed = time() - loop_start
         sleep(max(0.0, _LOOP_TICK - elapsed))
 
