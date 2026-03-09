@@ -1,0 +1,100 @@
+key,ObjecTag,Identifiers,Tipo,Delta Adress,Modbus,At,comentarios,Classe
+entrada_digital_base,di1,DI1,M,,16000,%MB,Entrada digital 1,io_fisica
+entrada_digital_base,di2,DI2,M,,16001,%MB,Entrada digital 2,io_fisica
+entrada_digital_base,di3,DI3,M,,16002,%MB,Entrada digital 3,io_fisica
+entrada_digital_base,di4,DI4,M,,16003,%MB,Entrada digital 4,io_fisica
+entrada_digital_base,di5,DI5,M,,16004,%MB,Entrada digital 5,io_fisica
+entrada_digital_base,di6,DI6,M,,16005,%MB,Entrada digital 6,io_fisica
+entrada_digital_base,di7,DI7,M,,16006,%MB,Entrada digital 7,io_fisica
+entrada_digital_base,di8,DI8,M,,16007,%MB,Entrada digital 8,io_fisica
+entrada_digital_base,di9,DI9,M,,16008,%MB,Entrada digital 9,io_fisica
+entrada_digital_base,di10,DI10,M,,16009,%MB,Entrada digital 10,io_fisica
+entrada_digital_slot1,di101,DI101,M,,16016,%MB,Entrada digital 1 - Slot 1,io_fisica
+entrada_digital_slot1,di102,DI102,M,,16017,%MB,Entrada digital 2 - Slot 1,io_fisica
+entrada_digital_slot1,di103,DI103,M,,16018,%MB,Entrada digital 3 - Slot 1,io_fisica
+entrada_digital_slot1,di104,DI104,M,,16019,%MB,Entrada digital 4 - Slot 1,io_fisica
+entrada_digital_slot1,di105,DI105,M,,16020,%MB,Entrada digital 5 - Slot 1,io_fisica
+entrada_digital_slot1,di106,DI106,M,,16021,%MB,Entrada digital 6 - Slot 1,io_fisica
+entrada_digital_slot1,di107,DI107,M,,16022,%MB,Entrada digital 7 - Slot 1,io_fisica
+entrada_digital_slot1,di108,DI108,M,,16023,%MB,Entrada digital 8 - Slot 1,io_fisica
+entrada_digital_slot1,di109,DI109,M,,16024,%MB,Entrada digital 9 - Slot 1,io_fisica
+entrada_digital_slot1,di110,DI110,M,,16025,%MB,Entrada digital 10 - Slot 1,io_fisica
+entrada_digital_slot1,di111,DI111,M,,16026,%MB,Entrada digital 11 - Slot 1,io_fisica
+entrada_digital_slot1,di112,DI112,M,,16027,%MB,Entrada digital 12 - Slot 1,io_fisica
+entrada_digital_slot1,di113,DI113,M,,16028,%MB,Entrada digital 13 - Slot 1,io_fisica
+entrada_digital_slot1,di114,DI114,M,,16029,%MB,Entrada digital 14 - Slot 1,io_fisica
+entrada_digital_slot1,di115,DI115,M,,16030,%MB,Entrada digital 15 - Slot 1,io_fisica
+entrada_digital_slot1,di116,DI116,M,,16031,%MB,Entrada digital 16 - Slot 1,io_fisica
+entrada_digital_slot2,di201,DI201,M,,16032,%MB,Entrada digital 1 - Slot 2,io_fisica
+entrada_digital_slot2,di202,DI202,M,,16033,%MB,Entrada digital 2 - Slot 2,io_fisica
+entrada_digital_slot2,di203,DI203,M,,16034,%MB,Entrada digital 3 - Slot 2,io_fisica
+entrada_digital_slot2,di204,DI204,M,,16035,%MB,Entrada digital 4 - Slot 2,io_fisica
+entrada_digital_slot2,di205,DI205,M,,16036,%MB,Entrada digital 5 - Slot 2,io_fisica
+entrada_digital_slot2,di206,DI206,M,,16037,%MB,Entrada digital 6 - Slot 2,io_fisica
+entrada_digital_slot2,di207,DI207,M,,16038,%MB,Entrada digital 7 - Slot 2,io_fisica
+entrada_digital_slot2,di208,DI208,M,,16039,%MB,Entrada digital 8 - Slot 2,io_fisica
+entrada_digital_slot2,di209,DI209,M,,16040,%MB,Entrada digital 9 - Slot 2,io_fisica
+entrada_digital_slot2,di210,DI210,M,,16041,%MB,Entrada digital 10 - Slot 2,io_fisica
+entrada_digital_slot2,di211,DI211,M,,16042,%MB,Entrada digital 11 - Slot 2,io_fisica
+entrada_digital_slot2,di212,DI212,M,,16043,%MB,Entrada digital 12 - Slot 2,io_fisica
+entrada_digital_slot2,di213,DI213,M,,16044,%MB,Entrada digital 13 - Slot 2,io_fisica
+entrada_digital_slot2,di214,DI214,M,,16045,%MB,Entrada digital 14 - Slot 2,io_fisica
+entrada_digital_slot2,di215,DI215,M,,16046,%MB,Entrada digital 15 - Slot 2,io_fisica
+entrada_digital_slot2,di216,DI216,M,,16047,%MB,Entrada digital 16 - Slot 2,io_fisica
+entrada_analogica_base,ai1,AI1,D,,5003,%MW,Entrada analógica 1,io_fisica
+entrada_analogica_slot1,ai101,AI101,D,,5004,%MW,Entrada analógica 1 _ Slot 1,io_fisica
+entrada_analogica_slot1,ai102,AI102,D,,5005,%MW,Entrada analógica 2 _ Slot 1,io_fisica
+entrada_analogica_slot1,ai103,AI103,D,,5006,%MW,Entrada analógica 3 _ Slot 1,io_fisica
+entrada_analogica_slot1,ai104,AI104,D,,5007,%MW,Entrada analógica 4 _ Slot 1,io_fisica
+entrada_analogica_slot1,ai105,AI105,D,,5008,%MW,Entrada analógica 5 _ Slot 1,io_fisica
+entrada_analogica_slot2,ai201,AI201,D,,5009,%MW,Entrada analógica 1 _ Slot 2,io_fisica
+entrada_analogica_slot2,ai202,AI202,D,,5010,%MW,Entrada analógica 2 _ Slot 2,io_fisica
+entrada_analogica_slot2,ai203,AI203,D,,5011,%MW,Entrada analógica 3 _ Slot 2,io_fisica
+entrada_analogica_slot2,ai204,AI204,D,,5012,%MW,Entrada analógica 4 _ Slot 2,io_fisica
+entrada_analogica_slot2,ai205,AI205,D,,5013,%MW,Entrada analógica 5 _ Slot 2,io_fisica
+saida_digital_base,do1,DO1,M,,16000,%MB,Saída digital 1,io_fisica
+saida_digital_base,do2,DO2,M,,16001,%MB,Saída digital 2,io_fisica
+saida_digital_base,do3,DO3,M,,16002,%MB,Saída digital 3,io_fisica
+saida_digital_base,do4,DO4,M,,16003,%MB,Saída digital 4,io_fisica
+saida_digital_base,do5,DO5,M,,16004,%MB,Saída digital 5,io_fisica
+saida_digital_base,do6,DO6,M,,16005,%MB,Saída digital 6,io_fisica
+saida_digital_base,do7,DO7,M,,16006,%MB,Saída digital 7,io_fisica
+saida_digital_base,do8,DO8,M,,16007,%MB,Saída digital 8,io_fisica
+saida_digital_base,do9,DO9,M,,16008,%MB,Saída digital 9,io_fisica
+saida_digital_slot1,do101,DO101,M,,16016,%MB,Saída digital 1 - Slot 1,io_fisica
+saida_digital_slot1,do102,DO102,M,,16017,%MB,Saída digital 2 - Slot 1,io_fisica
+saida_digital_slot1,do103,DO103,M,,16018,%MB,Saída digital 3 - Slot 1,io_fisica
+saida_digital_slot1,do104,DO104,M,,16019,%MB,Saída digital 4 - Slot 1,io_fisica
+saida_digital_slot1,do105,DO105,M,,16020,%MB,Saída digital 5 - Slot 1,io_fisica
+saida_digital_slot1,do106,DO106,M,,16021,%MB,Saída digital 6 - Slot 1,io_fisica
+saida_digital_slot1,do107,DO107,M,,16022,%MB,Saída digital 7 - Slot 1,io_fisica
+saida_digital_slot1,do108,DO108,M,,16023,%MB,Saída digital 8 - Slot 1,io_fisica
+saida_digital_slot1,do109,DO109,M,,16024,%MB,Saída digital 9 - Slot 1,io_fisica
+saida_digital_slot1,do110,DO110,M,,16025,%MB,Saída digital 10 - Slot 1,io_fisica
+saida_digital_slot1,do111,DO111,M,,16026,%MB,Saída digital 11 - Slot 1,io_fisica
+saida_digital_slot1,do112,DO112,M,,16027,%MB,Saída digital 12 - Slot 1,io_fisica
+saida_digital_slot1,do113,DO113,M,,16028,%MB,Saída digital 13 - Slot 1,io_fisica
+saida_digital_slot1,do114,DO114,M,,16029,%MB,Saída digital 14 - Slot 1,io_fisica
+saida_digital_slot1,do115,DO115,M,,16030,%MB,Saída digital 15 - Slot 1,io_fisica
+saida_digital_slot1,do116,DO116,M,,16031,%MB,Saída digital 16 - Slot 1,io_fisica
+saida_digital_slot2,do201,DO201,M,,16032,%MB,Saída digital 1 - Slot 2,io_fisica
+saida_digital_slot2,do202,DO202,M,,16033,%MB,Saída digital 2 - Slot 2,io_fisica
+saida_digital_slot2,do203,DO203,M,,16034,%MB,Saída digital 3 - Slot 2,io_fisica
+saida_digital_slot2,do204,DO204,M,,16035,%MB,Saída digital 4 - Slot 2,io_fisica
+saida_digital_slot2,do205,DO205,M,,16036,%MB,Saída digital 5 - Slot 2,io_fisica
+saida_digital_slot2,do206,DO206,M,,16037,%MB,Saída digital 6 - Slot 2,io_fisica
+saida_digital_slot2,do207,DO207,M,,16038,%MB,Saída digital 7 - Slot 2,io_fisica
+saida_digital_slot2,do208,DO208,M,,16039,%MB,Saída digital 8 - Slot 2,io_fisica
+saida_digital_slot2,do209,DO209,M,,16040,%MB,Saída digital 9 - Slot 2,io_fisica
+saida_digital_slot2,do210,DO210,M,,16041,%MB,Saída digital 10 - Slot 2,io_fisica
+saida_digital_slot2,do211,DO211,M,,16042,%MB,Saída digital 11 - Slot 2,io_fisica
+saida_digital_slot2,do212,DO212,M,,16043,%MB,Saída digital 12 - Slot 2,io_fisica
+saida_digital_slot2,do213,DO213,M,,16044,%MB,Saída digital 13 - Slot 2,io_fisica
+saida_digital_slot2,do214,DO214,M,,16045,%MB,Saída digital 14 - Slot 2,io_fisica
+saida_digital_slot2,do215,DO215,M,,16046,%MB,Saída digital 15 - Slot 2,io_fisica
+saida_digital_slot2,do216,DO216,M,,16047,%MB,Saída digital 16 - Slot 2,io_fisica
+saida_analogica_base,ao1,AO1,D,,5003,%MW,Saída analógica 1,io_fisica
+saida_analogica_slot1,ao101,AO101,D,,5004,%MW,Saída analógica 1 - Slot 1,io_fisica
+saida_analogica_slot1,ao102,AO102,D,,5005,%MW,Saída analógica 2 - Slot 1,io_fisica
+saida_analogica_slot2,ao201,AO201,D,,5006,%MW,Saída analógica 1 - Slot 2,io_fisica
+saida_analogica_slot2,ao202,AO202,D,,5007,%MW,Saída analógica 2 - Slot 2,io_fisica

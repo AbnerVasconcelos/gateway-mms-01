@@ -294,6 +294,23 @@ async def bulk_assign_channel(body: BulkAssignBody):
     return {'assigned': len(body.tags), 'channel': body.channel}
 
 
+class BulkEnableBody(BaseModel):
+    tags:    list[str]
+    enabled: bool
+
+
+@app.post('/api/variables/bulk-enable')
+async def bulk_enable(body: BulkEnableBody):
+    """
+    Habilita ou desabilita uma lista de variáveis.
+    """
+    for tag in body.tags:
+        config_store.patch_variable_override(tag, {'enabled': body.enabled})
+    if redis_pub:
+        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    return {'updated': len(body.tags), 'enabled': body.enabled}
+
+
 @app.post('/api/upload')
 async def upload_xlsx(file: UploadFile = File(...)):
     """Parseia .xlsx enviado e retorna preview sem salvar."""
@@ -637,6 +654,12 @@ async def upload_device_csv(device_id: str, file: UploadFile = File(...)):
 async def labtest_page():
     """Serve a página LabTest."""
     return FileResponse(os.path.join(_HUB_DIR, 'templates', 'labtest.html'))
+
+
+@app.get('/monitor')
+async def monitor_page():
+    """Serve a página Monitor — visualizador de dados Redis/Socket.IO em tempo real."""
+    return FileResponse(os.path.join(_HUB_DIR, 'templates', 'monitor.html'))
 
 
 @app.get('/api/simulators')

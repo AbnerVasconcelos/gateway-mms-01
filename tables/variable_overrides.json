@@ -1,12 +1,13 @@
 {
   "tempoCorte": {
-    "channel": "plc_config"
+    "channel": "plc_visual",
+    "enabled": false
   },
   "comprCorte": {
-    "channel": "plc_config"
+    "channel": "plc_visual"
   },
   "fatorAjusteCal1": {
-    "channel": "plc_config"
+    "channel": "plc_visual"
   },
   "fatorAjusteCal3": {
     "channel": "plc_config"
@@ -61,7 +62,8 @@
     "enabled": true
   },
   "almPressHhCoex": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "rampaAceleraCoExt1": {
     "channel": "plc_process"
@@ -70,10 +72,12 @@
     "channel": "plc_process"
   },
   "almPressHBomba": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "almPressHhBomba": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "spProdPrearraste": {
     "channel": "plc_process"
@@ -88,34 +92,44 @@
     "channel": "plc_process"
   },
   "alarmesWord1": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord2": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord3": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord4": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord5": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord6": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord7": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord8": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord9": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord10": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "trate2Extr": {
     "channel": "plc_process"
@@ -199,16 +213,20 @@
     "channel": "plc_process"
   },
   "alCanBomba": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alCanPrearraste": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alCanBobinador1": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alCanBobinador2": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "multistateCoextrusora": {
     "channel": "plc_process"
@@ -241,16 +259,19 @@
     "channel": "plc_process"
   },
   "alCanRuwRem": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alCanRuwPan": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "setPointVelCal2Marcha": {
     "channel": "plc_process"
   },
   "alCanExtrusora": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "velFinalExtrusora": {
     "channel": "plc_process"
@@ -259,7 +280,8 @@
     "channel": "plc_process"
   },
   "alCanCoextrusora": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "velCal1Mpm": {
     "channel": "plc_process"
@@ -271,7 +293,8 @@
     "channel": "plc_process"
   },
   "alCanCalandra1": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "velPuxadorMpm": {
     "channel": "plc_process"
@@ -283,7 +306,8 @@
     "channel": "plc_process"
   },
   "alCanCalandra3": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "correnteBomba": {
     "channel": "plc_process"
@@ -298,7 +322,8 @@
     "channel": "plc_process"
   },
   "alCanPuxador": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "extMan0Aut1": {
     "channel": "plc_process"
@@ -358,16 +383,19 @@
     "channel": "plc_process"
   },
   "alCanCalandra2": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alertaTrocaTelaExt": {
     "channel": "plc_process"
   },
   "alarmesWord11": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord12": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "velBobinador1RpmAtual": {
     "channel": "plc_process"
@@ -400,10 +428,12 @@
     "channel": "plc_process"
   },
   "di1": {
-    "channel": "plc_process"
+    "channel": "plc_process",
+    "enabled": true
   },
   "di2": {
-    "channel": "plc_process"
+    "channel": "plc_process",
+    "enabled": true
   },
   "di3": {
     "channel": "plc_process"
@@ -695,5 +725,842 @@
   },
   "ao202": {
     "channel": "plc_process"
+  },
+  "tempZona1": {
+    "enabled": true
+  },
+  "setpointZona1": {
+    "enabled": true
+  },
+  "tempZona2": {
+    "enabled": true
+  },
+  "setpointZona2": {
+    "enabled": true
+  },
+  "tempZona3": {
+    "enabled": true
+  },
+  "setpointZona3": {
+    "enabled": true
+  },
+  "tempZona4": {
+    "enabled": true
+  },
+  "setpointZona4": {
+    "enabled": true
+  },
+  "tempZona5": {
+    "enabled": true
+  },
+  "setpointZona5": {
+    "enabled": true
+  },
+  "tempZona6": {
+    "enabled": true
+  },
+  "setpointZona6": {
+    "enabled": true
+  },
+  "tempZona7": {
+    "enabled": true
+  },
+  "setpointZona7": {
+    "enabled": true
+  },
+  "tempZona8": {
+    "enabled": true
+  },
+  "setpointZona8": {
+    "enabled": true
+  },
+  "tempZona9": {
+    "enabled": true
+  },
+  "setpointZona9": {
+    "enabled": true
+  },
+  "tempZona10": {
+    "enabled": true
+  },
+  "setpointZona10": {
+    "enabled": true
+  },
+  "tempZona11": {
+    "enabled": true
+  },
+  "setpointZona11": {
+    "enabled": true
+  },
+  "tempZona12": {
+    "enabled": true
+  },
+  "setpointZona12": {
+    "enabled": true
+  },
+  "tempZona13": {
+    "enabled": true
+  },
+  "setpointZona13": {
+    "enabled": true
+  },
+  "tempZona14": {
+    "enabled": true
+  },
+  "setpointZona14": {
+    "enabled": true
+  },
+  "tempZona15": {
+    "enabled": true
+  },
+  "setpointZona15": {
+    "enabled": true
+  },
+  "tempZona16": {
+    "enabled": true
+  },
+  "setpointZona16": {
+    "enabled": true
+  },
+  "tempZona17": {
+    "enabled": true
+  },
+  "setpointZona17": {
+    "enabled": true
+  },
+  "tempZona18": {
+    "enabled": true
+  },
+  "setpointZona18": {
+    "enabled": true
+  },
+  "tempZona19": {
+    "enabled": true
+  },
+  "setpointZona19": {
+    "enabled": true
+  },
+  "tempZona20": {
+    "enabled": true
+  },
+  "setpointZona20": {
+    "enabled": true
+  },
+  "tempZona21": {
+    "enabled": true
+  },
+  "setpointZona21": {
+    "enabled": true
+  },
+  "tempZona22": {
+    "enabled": true
+  },
+  "setpointZona22": {
+    "enabled": true
+  },
+  "tempZona23": {
+    "enabled": true
+  },
+  "setpointZona23": {
+    "enabled": true
+  },
+  "tempZona24": {
+    "enabled": true
+  },
+  "setpointZona24": {
+    "enabled": true
+  },
+  "correnteZona1": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona1": {
+    "enabled": true
+  },
+  "correnteZona2": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona2": {
+    "enabled": true
+  },
+  "correnteZona3": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona3": {
+    "enabled": true
+  },
+  "correnteZona4": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona4": {
+    "enabled": true
+  },
+  "correnteZona5": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona5": {
+    "enabled": true
+  },
+  "correnteZona6": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona6": {
+    "enabled": true
+  },
+  "correnteZona7": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona7": {
+    "enabled": true
+  },
+  "correnteZona8": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona8": {
+    "enabled": true
+  },
+  "correnteZona9": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona9": {
+    "enabled": true
+  },
+  "correnteZona10": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona10": {
+    "enabled": true
+  },
+  "correnteZona11": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona11": {
+    "enabled": true
+  },
+  "correnteZona12": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona12": {
+    "enabled": true
+  },
+  "correnteZona13": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona13": {
+    "enabled": true
+  },
+  "correnteZona14": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona14": {
+    "enabled": true
+  },
+  "correnteZona15": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona15": {
+    "enabled": true
+  },
+  "correnteZona16": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona16": {
+    "enabled": true
+  },
+  "correnteZona17": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona17": {
+    "enabled": true
+  },
+  "correnteZona18": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona18": {
+    "enabled": true
+  },
+  "correnteZona19": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona19": {
+    "enabled": true
+  },
+  "correnteZona20": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona20": {
+    "enabled": true
+  },
+  "correnteZona21": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona21": {
+    "enabled": true
+  },
+  "correnteZona22": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona22": {
+    "enabled": true
+  },
+  "correnteZona23": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona23": {
+    "enabled": true
+  },
+  "correnteZona24": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona24": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona1": {
+    "enabled": true
+  },
+  "ligaDesligaZona1": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona2": {
+    "enabled": true
+  },
+  "ligaDesligaZona2": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona3": {
+    "enabled": true
+  },
+  "ligaDesligaZona3": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona4": {
+    "enabled": true
+  },
+  "ligaDesligaZona4": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona5": {
+    "enabled": true
+  },
+  "ligaDesligaZona5": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona6": {
+    "enabled": true
+  },
+  "ligaDesligaZona6": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona7": {
+    "enabled": true
+  },
+  "ligaDesligaZona7": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona8": {
+    "enabled": true
+  },
+  "ligaDesligaZona8": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona9": {
+    "enabled": true
+  },
+  "ligaDesligaZona9": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona10": {
+    "enabled": true
+  },
+  "ligaDesligaZona10": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona11": {
+    "enabled": true
+  },
+  "ligaDesligaZona11": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona12": {
+    "enabled": true
+  },
+  "ligaDesligaZona12": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona13": {
+    "enabled": true
+  },
+  "ligaDesligaZona13": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona14": {
+    "enabled": true
+  },
+  "ligaDesligaZona14": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona15": {
+    "enabled": true
+  },
+  "ligaDesligaZona15": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona16": {
+    "enabled": true
+  },
+  "ligaDesligaZona16": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona17": {
+    "enabled": true
+  },
+  "ligaDesligaZona17": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona18": {
+    "enabled": true
+  },
+  "ligaDesligaZona18": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona19": {
+    "enabled": true
+  },
+  "ligaDesligaZona19": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona20": {
+    "enabled": true
+  },
+  "ligaDesligaZona20": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona21": {
+    "enabled": true
+  },
+  "ligaDesligaZona21": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona22": {
+    "enabled": true
+  },
+  "ligaDesligaZona22": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona23": {
+    "enabled": true
+  },
+  "ligaDesligaZona23": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona24": {
+    "enabled": true
+  },
+  "ligaDesligaZona24": {
+    "enabled": true
+  },
+  "tempBaixaZona1": {
+    "enabled": true
+  },
+  "tempBaixaZona2": {
+    "enabled": true
+  },
+  "tempBaixaZona3": {
+    "enabled": true
+  },
+  "tempBaixaZona4": {
+    "enabled": true
+  },
+  "tempBaixaZona5": {
+    "enabled": true
+  },
+  "tempBaixaZona6": {
+    "enabled": true
+  },
+  "tempBaixaZona7": {
+    "enabled": true
+  },
+  "tempBaixaZona8": {
+    "enabled": true
+  },
+  "tempBaixaZona9": {
+    "enabled": true
+  },
+  "tempBaixaZona10": {
+    "enabled": true
+  },
+  "tempBaixaZona11": {
+    "enabled": true
+  },
+  "tempBaixaZona12": {
+    "enabled": true
+  },
+  "tempBaixaZona13": {
+    "enabled": true
+  },
+  "tempBaixaZona14": {
+    "enabled": true
+  },
+  "tempBaixaZona15": {
+    "enabled": true
+  },
+  "tempBaixaZona16": {
+    "enabled": true
+  },
+  "tempBaixaZona17": {
+    "enabled": true
+  },
+  "tempBaixaZona18": {
+    "enabled": true
+  },
+  "tempBaixaZona19": {
+    "enabled": true
+  },
+  "tempBaixaZona20": {
+    "enabled": true
+  },
+  "tempBaixaZona21": {
+    "enabled": true
+  },
+  "tempBaixaZona22": {
+    "enabled": true
+  },
+  "tempBaixaZona23": {
+    "enabled": true
+  },
+  "tempBaixaZona24": {
+    "enabled": true
+  },
+  "correnteBaixaZona1": {
+    "enabled": true
+  },
+  "correnteBaixaZona2": {
+    "enabled": true
+  },
+  "correnteBaixaZona3": {
+    "enabled": true
+  },
+  "correnteBaixaZona4": {
+    "enabled": true
+  },
+  "correnteBaixaZona5": {
+    "enabled": true
+  },
+  "correnteBaixaZona6": {
+    "enabled": true
+  },
+  "correnteBaixaZona7": {
+    "enabled": true
+  },
+  "correnteBaixaZona8": {
+    "enabled": true
+  },
+  "correnteBaixaZona9": {
+    "enabled": true
+  },
+  "correnteBaixaZona10": {
+    "enabled": true
+  },
+  "correnteBaixaZona11": {
+    "enabled": true
+  },
+  "correnteBaixaZona12": {
+    "enabled": true
+  },
+  "correnteBaixaZona13": {
+    "enabled": true
+  },
+  "correnteBaixaZona14": {
+    "enabled": true
+  },
+  "correnteBaixaZona15": {
+    "enabled": true
+  },
+  "correnteBaixaZona16": {
+    "enabled": true
+  },
+  "correnteBaixaZona17": {
+    "enabled": true
+  },
+  "correnteBaixaZona18": {
+    "enabled": true
+  },
+  "correnteBaixaZona19": {
+    "enabled": true
+  },
+  "correnteBaixaZona20": {
+    "enabled": true
+  },
+  "correnteBaixaZona21": {
+    "enabled": true
+  },
+  "correnteBaixaZona22": {
+    "enabled": true
+  },
+  "correnteBaixaZona23": {
+    "enabled": true
+  },
+  "correnteBaixaZona24": {
+    "enabled": true
+  },
+  "intensidadeAquecZona1": {
+    "enabled": true
+  },
+  "intensidadeAquecZona2": {
+    "enabled": true
+  },
+  "intensidadeAquecZona3": {
+    "enabled": true
+  },
+  "intensidadeAquecZona4": {
+    "enabled": true
+  },
+  "intensidadeAquecZona5": {
+    "enabled": true
+  },
+  "intensidadeAquecZona6": {
+    "enabled": true
+  },
+  "intensidadeAquecZona7": {
+    "enabled": true
+  },
+  "intensidadeAquecZona8": {
+    "enabled": true
+  },
+  "intensidadeAquecZona9": {
+    "enabled": true
+  },
+  "intensidadeAquecZona10": {
+    "enabled": true
+  },
+  "intensidadeAquecZona11": {
+    "enabled": true
+  },
+  "intensidadeAquecZona12": {
+    "enabled": true
+  },
+  "intensidadeAquecZona13": {
+    "enabled": true
+  },
+  "intensidadeAquecZona14": {
+    "enabled": true
+  },
+  "intensidadeAquecZona15": {
+    "enabled": true
+  },
+  "intensidadeAquecZona16": {
+    "enabled": true
+  },
+  "intensidadeAquecZona17": {
+    "enabled": true
+  },
+  "intensidadeAquecZona18": {
+    "enabled": true
+  },
+  "intensidadeAquecZona19": {
+    "enabled": true
+  },
+  "intensidadeAquecZona20": {
+    "enabled": true
+  },
+  "intensidadeAquecZona21": {
+    "enabled": true
+  },
+  "intensidadeAquecZona22": {
+    "enabled": true
+  },
+  "intensidadeAquecZona23": {
+    "enabled": true
+  },
+  "intensidadeAquecZona24": {
+    "enabled": true
+  },
+  "tempZona25": {
+    "enabled": true
+  },
+  "setpointZona25": {
+    "enabled": true
+  },
+  "tempZona26": {
+    "enabled": true
+  },
+  "setpointZona26": {
+    "enabled": true
+  },
+  "tempZona27": {
+    "enabled": true
+  },
+  "setpointZona27": {
+    "enabled": true
+  },
+  "tempZona28": {
+    "enabled": true
+  },
+  "setpointZona28": {
+    "enabled": true
+  },
+  "pressaoSensor1": {
+    "enabled": true
+  },
+  "pressaoSensor2": {
+    "enabled": true
+  },
+  "pressaoSensor3": {
+    "enabled": true
+  },
+  "correnteZona25": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona25": {
+    "enabled": true
+  },
+  "correnteZona26": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona26": {
+    "enabled": true
+  },
+  "correnteZona27": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona27": {
+    "enabled": true
+  },
+  "correnteZona28": {
+    "enabled": true
+  },
+  "correnteBaixaSetZona28": {
+    "enabled": true
+  },
+  "correnteZonaPressao1": {
+    "enabled": true
+  },
+  "correnteZonaPressao2": {
+    "enabled": true
+  },
+  "correnteZonaPressao3": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona25": {
+    "enabled": true
+  },
+  "ligaDesligaZona25": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona26": {
+    "enabled": true
+  },
+  "ligaDesligaZona26": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona27": {
+    "enabled": true
+  },
+  "ligaDesligaZona27": {
+    "enabled": true
+  },
+  "tempNaoAtingidaZona28": {
+    "enabled": true
+  },
+  "ligaDesligaZona28": {
+    "enabled": true
+  },
+  "alarmeAltoPressao1": {
+    "enabled": true
+  },
+  "ligaDesligaSensor1": {
+    "enabled": true
+  },
+  "alarmeAltoPressao2": {
+    "enabled": true
+  },
+  "ligaDesligaSensor2": {
+    "enabled": true
+  },
+  "alarmeAltoPressao3": {
+    "enabled": true
+  },
+  "ligaDesligaSensor3": {
+    "enabled": true
+  },
+  "tempBaixaZona25": {
+    "enabled": true
+  },
+  "alarmeAltoSensor1": {
+    "enabled": true
+  },
+  "tempBaixaZona26": {
+    "enabled": true
+  },
+  "alarmeAltoAltoSensor1": {
+    "enabled": true
+  },
+  "tempBaixaZona27": {
+    "enabled": true
+  },
+  "alarmeAltoSensor2": {
+    "enabled": true
+  },
+  "tempBaixaZona28": {
+    "enabled": true
+  },
+  "alarmeAltoAltoSensor2": {
+    "enabled": true
+  },
+  "alarmeAltoAltoPressao1": {
+    "enabled": true
+  },
+  "alarmeAltoSensor3": {
+    "enabled": true
+  },
+  "alarmeAltoAltoPressao2": {
+    "enabled": true
+  },
+  "alarmeAltoAltoSensor3": {
+    "enabled": true
+  },
+  "alarmeAltoAltoPressao3": {
+    "enabled": true
+  },
+  "correnteBaixaZona25": {
+    "enabled": true
+  },
+  "correnteBaixaZona26": {
+    "enabled": true
+  },
+  "correnteBaixaZona27": {
+    "enabled": true
+  },
+  "correnteBaixaZona28": {
+    "enabled": true
+  },
+  "correnteBaixaPressao1": {
+    "enabled": true
+  },
+  "correnteBaixaPressao2": {
+    "enabled": true
+  },
+  "correnteBaixaPressao3": {
+    "enabled": true
+  },
+  "intensidadeAquecZona25": {
+    "enabled": true
+  },
+  "intensidadeAquecZona26": {
+    "enabled": true
+  },
+  "intensidadeAquecZona27": {
+    "enabled": true
+  },
+  "intensidadeAquecZona28": {
+    "enabled": true
+  },
+  "intensidadeAquecPressao1": {
+    "enabled": true
+  },
+  "intensidadeAquecPressao2": {
+    "enabled": true
+  },
+  "intensidadeAquecPressao3": {
+    "enabled": true
   }
 }

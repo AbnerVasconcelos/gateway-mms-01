@@ -1,6 +1,6 @@
 {
   "WEST": {
-    "label": "Controlador de temperatura",
+    "label": "WEST",
     "protocol": "tcp",
     "port": 5021,
     "unit_id": 1,

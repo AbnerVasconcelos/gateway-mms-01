@@ -28,8 +28,10 @@ from table_filter import extract_parameters_by_group          # noqa: E402
 from shared.redis_config_functions import publish_to_channel  # noqa: E402
 
 TABLES_DIR         = os.path.join(GATEWAY_DIR, 'tables')
-OPERACAO_CSV       = os.path.join(TABLES_DIR, 'operacao.csv')
-CONFIGURACAO_CSV   = os.path.join(TABLES_DIR, 'configuracao.csv')
+MAPEAMENTO_CLP_CSV = os.path.join(TABLES_DIR, 'mapeamento_clp.csv')
+GLOBAIS_CSV        = os.path.join(TABLES_DIR, 'globais.csv')
+RETENTIVAS_CSV     = os.path.join(TABLES_DIR, 'retentivas.csv')
+IO_FISICAS_CSV     = os.path.join(TABLES_DIR, 'io_fisicas.csv')
 GROUP_CONFIG_PATH  = os.path.join(TABLES_DIR, 'group_config.json')
 OVERRIDES_PATH     = os.path.join(TABLES_DIR, 'variable_overrides.json')
 
@@ -52,46 +54,48 @@ def _redis_mock():
 # ---------------------------------------------------------------------------
 
 class TestExtractByGroup(unittest.TestCase):
-    """Valida a função extract_parameters_by_group para ambos os CSVs."""
+    """Valida a função extract_parameters_by_group para os CSVs ativos."""
 
     @classmethod
     def setUpClass(cls):
-        cls.operacao      = extract_parameters_by_group(OPERACAO_CSV)
-        cls.configuracao  = extract_parameters_by_group(CONFIGURACAO_CSV)
+        cls.mapeamento = extract_parameters_by_group(MAPEAMENTO_CLP_CSV)
+        cls.globais    = extract_parameters_by_group(GLOBAIS_CSV)
+        cls.retentivas = extract_parameters_by_group(RETENTIVAS_CSV)
 
     # ── Tipo de retorno ──────────────────────────────────────────────────────
 
     def test_01_returns_dict(self):
-        self.assertIsInstance(self.operacao,     dict)
-        self.assertIsInstance(self.configuracao, dict)
+        self.assertIsInstance(self.mapeamento, dict)
+        self.assertIsInstance(self.globais,    dict)
+        self.assertIsInstance(self.retentivas, dict)
 
     def test_02_not_empty(self):
-        self.assertGreater(len(self.operacao),     0, "operacao.csv não gerou grupos")
-        self.assertGreater(len(self.configuracao), 0, "configuracao.csv não gerou grupos")
+        self.assertGreater(len(self.mapeamento), 0, "mapeamento_clp.csv não gerou grupos")
+        self.assertGreater(len(self.globais),    0, "globais.csv não gerou grupos")
 
     # ── Grupos esperados ─────────────────────────────────────────────────────
 
-    def test_03_operacao_expected_groups(self):
+    def test_03_mapeamento_expected_groups(self):
         expected = {
-            'Extrusora', 'Puxador', 'producao', 'threeJs',
-            'dosador', 'alimentador', 'totalizadores', 'saidasDigitais', 'alarmes',
+            'alarmes', 'controle_extrusora', 'producao',
+            'corte', 'ajuste', 'comandos',
         }
-        missing = expected - set(self.operacao.keys())
-        self.assertFalse(missing, f"Grupos ausentes em operacao.csv: {missing}")
+        missing = expected - set(self.mapeamento.keys())
+        self.assertFalse(missing, f"Grupos ausentes em mapeamento_clp.csv: {missing}")
 
-    def test_04_configuracao_expected_groups(self):
+    def test_04_globais_expected_groups(self):
         expected = {
-            'balancaInferior', 'balancaSuperior',
-            'configExtrusora', 'configFunis', 'configPuxador', 'configReceita',
+            'alarmes', 'controle_extrusora', 'producao',
+            'setpoint', 'velocidade', 'corrente',
         }
-        missing = expected - set(self.configuracao.keys())
-        self.assertFalse(missing, f"Grupos ausentes em configuracao.csv: {missing}")
+        missing = expected - set(self.globais.keys())
+        self.assertFalse(missing, f"Grupos ausentes em globais.csv: {missing}")
 
     # ── Estrutura de cada grupo ──────────────────────────────────────────────
 
     def test_05_group_structural_keys(self):
         required = {'coil_groups', 'reg_groups', 'coil_tags', 'reg_tags', 'coil_keys', 'reg_keys'}
-        for name, data in {**self.operacao, **self.configuracao}.items():
+        for name, data in {**self.mapeamento, **self.globais}.items():
             with self.subTest(group=name):
                 self.assertEqual(required, set(data.keys()),
                                  f"Grupo '{name}' com chaves inesperadas")
@@ -100,7 +104,7 @@ class TestExtractByGroup(unittest.TestCase):
 
     def test_06_coil_groups_are_contiguous(self):
         """Endereços dentro de cada sub-grupo de coils devem ser consecutivos."""
-        for name, data in self.operacao.items():
+        for name, data in self.mapeamento.items():
             for i, sub in enumerate(data['coil_groups']):
                 with self.subTest(group=name, sub=i):
                     for j in range(1, len(sub)):
@@ -109,7 +113,7 @@ class TestExtractByGroup(unittest.TestCase):
 
     def test_07_reg_groups_are_contiguous(self):
         """Endereços dentro de cada sub-grupo de registers devem ser consecutivos."""
-        for name, data in self.operacao.items():
+        for name, data in self.mapeamento.items():
             for i, sub in enumerate(data['reg_groups']):
                 with self.subTest(group=name, sub=i):
                     for j in range(1, len(sub)):
@@ -120,44 +124,42 @@ class TestExtractByGroup(unittest.TestCase):
 
     def test_08_coil_tags_length_matches_group(self):
         """len(coil_tags[i]) == len(coil_groups[i]) para todo i."""
-        for name, data in {**self.operacao, **self.configuracao}.items():
+        for name, data in {**self.mapeamento, **self.globais}.items():
             for i, (sub, tags) in enumerate(zip(data['coil_groups'], data['coil_tags'])):
                 with self.subTest(group=name, sub=i):
                     self.assertEqual(len(sub), len(tags))
 
     def test_09_reg_tags_length_matches_group(self):
         """len(reg_tags[i]) == len(reg_groups[i]) para todo i."""
-        for name, data in {**self.operacao, **self.configuracao}.items():
+        for name, data in {**self.mapeamento, **self.globais}.items():
             for i, (sub, tags) in enumerate(zip(data['reg_groups'], data['reg_tags'])):
                 with self.subTest(group=name, sub=i):
                     self.assertEqual(len(sub), len(tags))
 
     # ── Grupos específicos ───────────────────────────────────────────────────
 
-    def test_10_extrusora_has_coils_and_registers(self):
-        ext = self.operacao['Extrusora']
-        self.assertGreater(len(ext['coil_groups']), 0, "Extrusora deve ter coils")
-        self.assertGreater(len(ext['reg_groups']),  0, "Extrusora deve ter registers")
+    def test_10_alarmes_has_coils_and_registers(self):
+        alarmes = self.mapeamento['alarmes']
+        self.assertGreater(len(alarmes['coil_groups']) + len(alarmes['reg_groups']), 0,
+                           "alarmes deve ter coils ou registers")
 
-    def test_11_dosador_only_coil(self):
-        dosador = self.operacao['dosador']
-        self.assertGreater(len(dosador['coil_groups']), 0)
-        self.assertEqual(dosador['reg_groups'], [], "dosador não deve ter registers")
+    def test_11_producao_has_registers(self):
+        producao = self.mapeamento['producao']
+        self.assertGreater(len(producao['reg_groups']), 0,
+                           "producao deve ter registers")
 
-    def test_12_alimentador_only_coil(self):
-        alimentador = self.operacao['alimentador']
-        self.assertGreater(len(alimentador['coil_groups']), 0)
-        self.assertEqual(alimentador['reg_groups'], [])
+    def test_12_retentivas_not_empty(self):
+        self.assertGreater(len(self.retentivas), 0, "retentivas.csv deve gerar grupos")
 
-    def test_13_groups_dont_share_addresses(self):
-        """Endereços de coil não devem se repetir entre grupos diferentes."""
+    def test_13_globais_dont_share_reg_addresses(self):
+        """Endereços de register não devem se repetir entre grupos em globais.csv."""
         seen = {}
-        for name, data in self.operacao.items():
-            for sub in data['coil_groups']:
+        for name, data in self.globais.items():
+            for sub in data['reg_groups']:
                 for addr in sub:
                     if addr in seen:
                         self.fail(
-                            f"Endereço {addr} aparece em '{name}' e '{seen[addr]}'"
+                            f"Endereço register {addr} aparece em '{name}' e '{seen[addr]}'"
                         )
                     seen[addr] = name
 
@@ -219,7 +221,7 @@ class TestGroupConfig(unittest.TestCase):
     def setUpClass(cls):
         with open(GROUP_CONFIG_PATH, 'r', encoding='utf-8') as f:
             cls.config = json.load(f)
-        cls.operacao_groups = set(extract_parameters_by_group(OPERACAO_CSV).keys())
+        cls.mapeamento_groups = set(extract_parameters_by_group(MAPEAMENTO_CLP_CSV).keys())
 
     def test_30_has_meta_section(self):
         self.assertIn('_meta', self.config)

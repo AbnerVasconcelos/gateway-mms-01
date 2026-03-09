@@ -17,7 +17,9 @@
       "parity": "N",
       "stopbits": 1,
       "csv_files": [
-        "mapeamento_clp.csv"
+        "mapeamento_clp.csv",
+        "temperatura_24z.csv",
+        "temperatura_28z.csv"
       ]
     },
     "west": {
@@ -30,7 +32,10 @@
       "baudrate": 9600,
       "parity": "N",
       "stopbits": 1,
-      "csv_files": [],
+      "csv_files": [
+        "temperatura_24z.csv",
+        "temperatura_28z.csv"
+      ],
       "enabled": true
     }
   },
@@ -48,7 +53,7 @@
       "history_size": 100
     },
     "plc_config": {
-      "delay_ms": 5000,
+      "delay_ms": 1000,
       "history_size": 100
     }
   }

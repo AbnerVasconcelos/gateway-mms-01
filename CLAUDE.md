@@ -55,13 +55,12 @@ gateway/
 │   ├── simulator_manager.py   # SimulatorManager — simuladores Modbus embarcados (LabTest)
 │   ├── templates/
 │   │   ├── index.html         # Painel web (sidebar + AG Grid + Bootstrap 5.3 + dark mode)
-│   │   └── labtest.html       # Painel LabTest — gerenciamento de simuladores Modbus
+│   │   ├── labtest.html       # Painel LabTest — gerenciamento de simuladores Modbus
+│   │   └── monitor.html       # Monitor — visualizador de dados Redis/Socket.IO em tempo real
 │   ├── .env                   # Credenciais locais (NÃO commitar)
 │   └── .env.example           # Template de variáveis
 │
 ├── tables/
-│   ├── operacao.csv           # Header-only (dados movidos para CSVs individuais)
-│   ├── configuracao.csv       # Header-only (dados movidos para CSVs individuais)
 │   ├── mapeamento_clp.csv     # Mapeamento principal do CLP (io_fisicas + retentivas + globais)
 │   ├── io_fisicas.csv         # I/O físicas: DI, DO, AI, AO
 │   ├── retentivas.csv         # Variáveis retentivas do CLP
@@ -147,6 +146,7 @@ gateway/
 | `GET` | `/api/variables` | Lista todos os tags; `channel=null` quando não atribuída |
 | `PATCH` | `/api/variables/{tag}` | Atualiza override de um tag (`enabled`, `channel`); `channel=""` remove atribuição |
 | `POST` | `/api/variables/bulk-assign` | Atribui/remove canal de múltiplas tags (`{tags, channel}`; `channel=""` remove) |
+| `POST` | `/api/variables/bulk-enable` | Habilita/desabilita múltiplas tags (`{tags, enabled}`) |
 | `GET` | `/api/channels` | Lista canais: `{channel: {delay_ms, history_size}}` |
 | `POST` | `/api/channels` | Cria canal com prefixo `plc_` |
 | `DELETE` | `/api/channels/{channel}` | Remove canal (bloqueia canais de sistema) |
@@ -170,6 +170,7 @@ gateway/
 | `POST` | `/api/processes/{proc_type}/stop` | Para o processo |
 | `GET` | `/api/processes/{proc_type}/logs` | Últimas linhas de log do processo |
 | `GET` | `/labtest` | Serve página LabTest (simuladores) |
+| `GET` | `/monitor` | Serve página Monitor — visualizador de dados Redis/Socket.IO em tempo real |
 | `GET` | `/api/simulators` | Lista simuladores com estado |
 | `POST` | `/api/simulators` | Cria novo simulador Modbus |
 | `DELETE` | `/api/simulators/{sim_id}` | Remove simulador (para se rodando) |
@@ -305,7 +306,7 @@ HUB_PORT=4567
 
 ### CSVs de mapeamento Modbus
 
-Os CSVs de mapeamento foram reorganizados em arquivos individuais por domínio. `operacao.csv` e `configuracao.csv` agora contêm apenas o header (dados migrados). O mapeamento ativo está nos CSVs individuais referenciados por cada device em `group_config.json`.
+Os CSVs de mapeamento foram reorganizados em arquivos individuais por domínio. O mapeamento ativo está nos CSVs individuais referenciados por cada device em `group_config.json`.
 
 **CSVs ativos:**
 - `mapeamento_clp.csv` — mapeamento consolidado do CLP principal (I/O, retentivas, globais)
@@ -319,16 +320,12 @@ Colunas relevantes (mesmo formato em todos):
 
 | Coluna | Descrição |
 |--------|-----------|
-| `key` | Namespace lógico (`Extrusora`, `Puxador`, `threeJs`, etc.) |
+| `key` | Namespace lógico (`alarmes`, `producao`, `controle_extrusora`, `corte`, etc.) |
 | `ObjecTag` | Nome da variável no JSON e na HMI |
 | `Tipo` | `M` = coil, `D` = register |
 | `Modbus` | Endereço Modbus inteiro |
 | `At` | `%MB` = coil, `%MW` = holding register |
 | `Classe` | (opcional) Classificação da variável — exibida na API `/api/variables` |
-
-### `operacao.csv` / `configuracao.csv` — headers legados
-
-Mantidos apenas com o header para compatibilidade de referência. Os dados foram migrados para os CSVs individuais acima.
 
 ### `group_config.json` — devices e canais
 
@@ -343,14 +340,13 @@ Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a ca
     "default_history_size": 100
   },
   "devices": {
-    "default": {
+    "simulador": {
       "label": "CLP Principal",
       "protocol": "tcp",
-      "host": "192.168.1.2",
-      "port": 502,
-      "unit_id": 2,
-      "enabled": true,
-      "csv_files": ["operacao.csv", "configuracao.csv"]
+      "host": "localhost",
+      "port": 5020,
+      "unit_id": 1,
+      "csv_files": ["mapeamento_clp.csv"]
     },
     "clp2": {
       "label": "CLP Secundário",
@@ -368,7 +364,7 @@ Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a ca
     "plc_alarmes": { "delay_ms": 200,  "history_size": 55  },
     "plc_process": { "delay_ms": 500,  "history_size": 100 },
     "plc_visual":  { "delay_ms": 1000, "history_size": 100 },
-    "plc_config":  { "delay_ms": 5000, "history_size": 100 }
+    "plc_config":  { "delay_ms": 1000, "history_size": 100 }
   }
 }
 ```
@@ -566,7 +562,7 @@ python -m pytest tests/test_hub.py tests/test_segmented_reading.py -v
 | `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping, simulators | 61 |
 | `tests/test_e2e_rtu.py` | Teste end-to-end RTU over TCP (simulador + Delfos + Atena) | — |
 
-**Total unit tests (sem deps externas):** 91 passando (`test_hub` + `test_segmented_reading`)
+**Total unit tests (sem deps externas):** 91 (`test_hub` + `test_segmented_reading`)
 
 Para apontar Delfos/Atena ao simulador localmente:
 ```bash

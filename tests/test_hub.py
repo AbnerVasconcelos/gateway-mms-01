@@ -35,7 +35,10 @@ logging.basicConfig(
 logger = logging.getLogger('test_hub')
 
 GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYTHON      = os.path.join(GATEWAY_DIR, '.venv', 'Scripts', 'python')
+if sys.platform == 'win32':
+    PYTHON = os.path.join(GATEWAY_DIR, '.venv', 'Scripts', 'python')
+else:
+    PYTHON = os.path.join(GATEWAY_DIR, '.venv', 'bin', 'python')
 REDIS_HOST  = os.environ.get('REDIS_HOST', 'localhost')
 REDIS_PORT  = int(os.environ.get('REDIS_PORT', 6379))
 HUB_PORT    = 8765   # porta exclusiva para testes — evita conflito com Hub em produção
@@ -569,7 +572,13 @@ class TestConfigStorePhase3(unittest.TestCase):
                 os.path.join(TABLES_DIR, fname),
                 os.path.join(self.temp_dir, fname),
             )
-        for fname in ('operacao.csv', 'configuracao.csv'):
+        # Copy CSV files referenced by devices in group_config.json
+        with open(os.path.join(TABLES_DIR, 'group_config.json'), 'r') as f:
+            gc = json.load(f)
+        csv_files = set()
+        for dev in gc.get('devices', {}).values():
+            csv_files.update(dev.get('csv_files', []))
+        for fname in csv_files:
             src = os.path.join(TABLES_DIR, fname)
             if os.path.exists(src):
                 shutil.copy(src, os.path.join(self.temp_dir, fname))
@@ -625,9 +634,10 @@ class TestConfigStorePhase3(unittest.TestCase):
     def test_54_all_variables_have_source_field(self):
         """Fase 5: group_cfg_key removido; verifica que 'source' continua presente."""
         result = config_store.load_all_variables()
+        self.assertTrue(all('source' in v for v in result),
+                        "Todas as variáveis devem ter campo 'source'")
         cfg_sources = {v['source'] for v in result}
-        self.assertIn('operacao', cfg_sources)
-        self.assertIn('configuracao', cfg_sources)
+        self.assertGreater(len(cfg_sources), 0, "Deve haver pelo menos uma source")
 
     # ── generate_export_xlsx ─────────────────────────────────────────────────
 
@@ -672,7 +682,7 @@ class TestConfigStorePhase3(unittest.TestCase):
     def test_59_apply_upload_creates_overrides(self):
         """apply_upload_config deve criar override de canal para cada variável."""
         variables = config_store.load_all_variables()
-        ext_vars  = [v for v in variables if v['group'] == 'Extrusora']
+        ext_vars  = [v for v in variables if v['group'] == 'alarmes']
         self.assertTrue(ext_vars)
 
         rows = [
@@ -689,7 +699,7 @@ class TestConfigStorePhase3(unittest.TestCase):
     def test_60_apply_upload_sets_per_tag_override(self):
         """Rows com canais diferentes criam overrides individuais por tag."""
         variables = config_store.load_all_variables()
-        ext_vars  = [v for v in variables if v['group'] == 'Extrusora']
+        ext_vars  = [v for v in variables if v['group'] == 'alarmes']
         self.assertTrue(len(ext_vars) >= 2)
 
         rows = []
@@ -883,7 +893,13 @@ class TestDeviceCRUD(unittest.TestCase):
             os.path.join(TABLES_DIR, 'variable_overrides.json'),
             os.path.join(self.temp_dir, 'variable_overrides.json'),
         )
-        for fname in ('operacao.csv', 'configuracao.csv'):
+        # Copy CSV files referenced by devices in group_config.json
+        with open(os.path.join(TABLES_DIR, 'group_config.json'), 'r') as f:
+            gc = json.load(f)
+        csv_files = set()
+        for dev in gc.get('devices', {}).values():
+            csv_files.update(dev.get('csv_files', []))
+        for fname in csv_files:
             src = os.path.join(TABLES_DIR, fname)
             if os.path.exists(src):
                 shutil.copy(src, os.path.join(self.temp_dir, fname))

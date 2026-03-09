@@ -155,6 +155,7 @@
   <div class="d-flex align-items-center gap-3">
     <span class="navbar-brand fw-bold mb-0" style="font-size:.95rem">Gateway Config Panel</span>
     <a href="/labtest" class="btn btn-sm btn-outline-light py-0">LabTest</a>
+    <a href="/monitor" class="btn btn-sm btn-outline-light py-0">Monitor</a>
   </div>
   <div class="d-flex align-items-center gap-2">
     <span id="ws-status" class="text-white small">
@@ -439,6 +440,10 @@
       <span class="fw-semibold small">Variáveis</span>
       <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.75rem" id="bulk-move-btn"
               disabled onclick="openBulkMoveModal()">Mover sel.</button>
+      <button class="btn btn-sm btn-outline-success py-0" style="font-size:.75rem"
+              onclick="bulkEnable(true)">Habilitar todas</button>
+      <button class="btn btn-sm btn-outline-danger py-0" style="font-size:.75rem"
+              onclick="bulkEnable(false)">Desabilitar todas</button>
       <select id="filter-group"   class="form-select form-select-sm" style="width:120px;font-size:.75rem"><option value="">Grupo</option></select>
       <select id="filter-type"    class="form-select form-select-sm" style="width:85px;font-size:.75rem">
         <option value="">Tipo</option>
@@ -655,9 +660,9 @@ async function loadChannels() {
         <input type="number" class="form-control form-control-sm delay-input" style="font-size:.75rem"
                value="${cfg.delay_ms}" min="1" max="100000"
                onclick="event.stopPropagation()" />
-        <button class="btn btn-sm btn-outline-secondary py-0 px-1" style="font-size:.65rem"
+        <button class="btn btn-sm btn-primary py-0 px-1" style="font-size:.65rem"
                 onclick="event.stopPropagation(); applyDelay('${ch}', this)"
-                title="Aplicar delay">ms</button>
+                title="Aplicar delay">ok</button>
       </div>
       <div class="d-flex align-items-center gap-1">
         <label class="text-muted mb-0" style="font-size:.7rem;white-space:nowrap">History:</label>
@@ -1213,6 +1218,24 @@ async function toggleEnabled(event, tag) {
   } catch (e) {
     showToast(String(e), 'danger');
     event.target.checked = !enabled;
+  }
+}
+
+async function bulkEnable(enabled) {
+  const rows = getFilteredRows();
+  if (!rows.length) { showToast('Nenhuma variavel visivel.', 'warning'); return; }
+  const label = enabled ? 'habilitar' : 'desabilitar';
+  if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} ${rows.length} variavel(is) filtrada(s)?`)) return;
+  try {
+    await apiFetch('/api/variables/bulk-enable', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tags: rows.map(r => r.tag), enabled}),
+    });
+    showToast(`${rows.length} variavel(is) ${enabled ? 'habilitadas' : 'desabilitadas'}.`);
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
   }
 }
 

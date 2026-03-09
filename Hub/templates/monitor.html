@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitor — Gateway IoT</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body { display: flex; flex-direction: column; }
+
+    .main-wrapper { flex: 1 1 0; display: flex; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px; min-width: 240px; flex-shrink: 0;
+      overflow-y: auto; border-right: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg); padding: .5rem;
+    }
+
+    .channel-item {
+      padding: .5rem .6rem; border: 1px solid var(--bs-border-color);
+      border-radius: .375rem; margin-bottom: .4rem; cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+    .channel-item:hover { box-shadow: 0 0 0 2px rgba(13,110,253,.3); }
+    .channel-item.selected { box-shadow: 0 0 0 2px #0d6efd; background: rgba(13,110,253,.06); }
+
+    .activity-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+      background: var(--bs-secondary-bg); transition: background 0.15s;
+    }
+    .activity-dot.flash { background: #28a745; }
+
+    .channel-stats { font-size: .7rem; color: var(--bs-secondary-color); }
+
+    /* Main area */
+    .main-area { flex: 1 1 0; overflow-y: auto; padding: 1rem; min-width: 0; }
+
+    .tree-header {
+      border-bottom: 1px solid var(--bs-border-color);
+      padding-bottom: .5rem; margin-bottom: .75rem;
+    }
+
+    /* JSON tree */
+    .tree-node { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: .82rem; line-height: 1.6; white-space: pre-wrap; }
+    .tree-key { color: var(--bs-body-color); }
+    .tree-toggle { cursor: pointer; user-select: none; display: inline-block; width: 1em; text-align: center; }
+    .tree-toggle:hover { color: #0d6efd; }
+    .tree-indent { display: inline-block; width: 1.2em; }
+
+    .tree-val-bool   { color: #d63384; }
+    .tree-val-number { color: #0d6efd; }
+    .tree-val-string { color: #198754; }
+    .tree-val-null   { color: #6c757d; font-style: italic; }
+
+    @keyframes flash-change {
+      0%   { background-color: rgba(255, 193, 7, 0.45); }
+      100% { background-color: transparent; }
+    }
+    .tree-val-changed { animation: flash-change 1s ease-out; }
+
+    .tree-count { color: var(--bs-secondary-color); font-size: .75em; }
+
+    .no-channel-selected {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; color: var(--bs-secondary-color); font-size: .9rem;
+    }
+
+    /* Status dots */
+    .status-dot {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 6px;
+    }
+    .dot-ok   { background: #28a745; }
+    .dot-warn { background: #ffc107; }
+    .dot-err  { background: #dc3545; }
+
+    /* Dark mode toggle */
+    .theme-toggle {
+      background: none; border: none; cursor: pointer;
+      font-size: 1.2rem; padding: 0 4px; line-height: 1;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark bg-dark px-3 py-1" style="flex-shrink:0">
+  <div class="d-flex align-items-center gap-3">
+    <a href="/" class="navbar-brand fw-bold mb-0 text-decoration-none" style="font-size:.95rem">Gateway Config Panel</a>
+    <a href="/labtest" class="btn btn-sm btn-outline-light py-0">LabTest</a>
+    <span class="badge bg-info">Monitor</span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span id="ws-status" class="text-white small">
+      <span class="status-dot dot-warn" id="ws-dot"></span>Conectando...
+    </span>
+    <button class="theme-toggle text-white" id="theme-toggle" title="Alternar tema">&#9790;</button>
+  </div>
+</nav>
+
+<!-- Main layout -->
+<div class="main-wrapper">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span class="fw-semibold small">Canais</span>
+      <span class="text-muted" style="font-size:.65rem" id="sidebar-update"></span>
+    </div>
+    <div id="channels-list"></div>
+  </div>
+
+  <!-- Main area -->
+  <div class="main-area" id="main-area">
+    <div class="no-channel-selected" id="no-selection-msg">
+      Selecione um canal na sidebar para visualizar os dados
+    </div>
+    <div id="tree-container" class="d-none">
+      <div class="tree-header">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <strong id="tree-channel-name" style="font-size:.95rem"></strong>
+            <span class="text-muted ms-2" style="font-size:.75rem" id="tree-timestamp"></span>
+          </div>
+          <div class="text-muted" style="font-size:.75rem">
+            <span id="tree-msg-count">0</span> msgs
+          </div>
+        </div>
+      </div>
+      <div id="tree-content" class="tree-node"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const channelData = {};       // {channel: {lastPayload, lastTimestamp, msgCount, timestamps[]}}
+const subscribedChannels = {}; // {channel: bool} — checkbox (show/hide in sidebar, filter)
+let selectedChannel = null;
+const previousValues = {};    // {channel: {dotPath: value}}
+const collapsedPaths = {};    // {channel: Set of paths}
+let channelConfigs = {};      // from GET /api/channels
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+const savedTheme = localStorage.getItem('gateway-theme');
+if (savedTheme === 'dark') setTheme('dark');
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-bs-theme', theme);
+  localStorage.setItem('gateway-theme', theme);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
+}
+
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-bs-theme');
+  setTheme(cur === 'dark' ? 'light' : 'dark');
+});
+
+// ── Socket.IO ──────────────────────────────────────────────────────────────
+const socket = io({ transports: ['websocket'], reconnectionDelay: 2000 });
+
+socket.on('connect', () => setWsStatus(true));
+socket.on('disconnect', () => setWsStatus(false));
+
+socket.on('connection_ack', ({ available_rooms }) => {
+  const rooms = available_rooms || [];
+  socket.emit('join', { rooms });
+});
+
+socket.on('plc:data', ({ channel, data }) => {
+  const now = Date.now();
+  if (!channelData[channel]) {
+    channelData[channel] = { lastPayload: null, lastTimestamp: null, msgCount: 0, timestamps: [] };
+    subscribedChannels[channel] = true;
+    renderSidebar();
+  }
+
+  const cd = channelData[channel];
+  cd.lastPayload = data;
+  cd.lastTimestamp = data.timestamp || new Date().toISOString();
+  cd.msgCount++;
+  cd.timestamps.push(now);
+  // Keep last 10s of timestamps for frequency calc
+  const cutoff = now - 10000;
+  cd.timestamps = cd.timestamps.filter(t => t > cutoff);
+
+  // Flash activity dot
+  flashDot(channel);
+
+  // Update sidebar stats
+  updateSidebarStats(channel);
+
+  // Update tree if this is the selected channel
+  if (channel === selectedChannel) {
+    renderTree();
+  }
+});
+
+function setWsStatus(ok) {
+  document.getElementById('ws-status').innerHTML =
+    `<span class="status-dot ${ok ? 'dot-ok' : 'dot-err'}" id="ws-dot"></span>${ok ? 'Conectado' : 'Desconectado'}`;
+}
+
+// ── Load channel configs ───────────────────────────────────────────────────
+async function loadChannelConfigs() {
+  try {
+    const res = await fetch('/api/channels');
+    channelConfigs = await res.json();
+
+    // Initialize channelData for configured channels
+    for (const ch of Object.keys(channelConfigs)) {
+      if (!channelData[ch]) {
+        channelData[ch] = { lastPayload: null, lastTimestamp: null, msgCount: 0, timestamps: [] };
+        subscribedChannels[ch] = true;
+      }
+    }
+    renderSidebar();
+  } catch (e) {
+    console.error('Erro ao carregar canais:', e);
+  }
+}
+
+// ── Sidebar rendering ──────────────────────────────────────────────────────
+function renderSidebar() {
+  const container = document.getElementById('channels-list');
+  container.innerHTML = '';
+
+  // Merge keys from channelConfigs and channelData
+  const allChannels = [...new Set([...Object.keys(channelConfigs), ...Object.keys(channelData)])].sort();
+
+  for (const ch of allChannels) {
+    const cd = channelData[ch] || { lastPayload: null, lastTimestamp: null, msgCount: 0, timestamps: [] };
+    const cfg = channelConfigs[ch] || {};
+    const isSelected = ch === selectedChannel;
+    const isSubscribed = subscribedChannels[ch] !== false;
+
+    const item = document.createElement('div');
+    item.className = 'channel-item' + (isSelected ? ' selected' : '');
+    item.id = 'ch-item-' + ch;
+
+    const freq = cd.timestamps.length > 1
+      ? (cd.timestamps.length / 10).toFixed(1)
+      : '0.0';
+
+    item.innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        <input type="checkbox" class="form-check-input" style="margin:0;flex-shrink:0"
+               ${isSubscribed ? 'checked' : ''}
+               onclick="event.stopPropagation(); toggleSubscription('${ch}', this.checked)" />
+        <span class="activity-dot" id="dot-${ch}"></span>
+        <span class="fw-semibold text-truncate flex-grow-1" style="font-size:.8rem">${ch}</span>
+        <span class="badge bg-secondary" style="font-size:.6rem" id="freq-${ch}">${freq}/s</span>
+      </div>
+      <div class="channel-stats mt-1 d-flex gap-2" id="stats-${ch}">
+        <span>${cd.msgCount} msgs</span>
+        ${cfg.delay_ms ? `<span>${cfg.delay_ms}ms</span>` : ''}
+      </div>`;
+
+    item.addEventListener('click', () => selectChannel(ch));
+    container.appendChild(item);
+  }
+
+  document.getElementById('sidebar-update').textContent =
+    new Date().toLocaleTimeString('pt-BR');
+}
+
+function updateSidebarStats(channel) {
+  const cd = channelData[channel];
+  if (!cd) return;
+
+  const freq = cd.timestamps.length > 1
+    ? (cd.timestamps.length / 10).toFixed(1)
+    : '0.0';
+
+  const freqEl = document.getElementById('freq-' + channel);
+  if (freqEl) freqEl.textContent = freq + '/s';
+
+  const statsEl = document.getElementById('stats-' + channel);
+  if (statsEl) {
+    const cfg = channelConfigs[channel] || {};
+    statsEl.innerHTML = `<span>${cd.msgCount} msgs</span>${cfg.delay_ms ? `<span>${cfg.delay_ms}ms</span>` : ''}`;
+  }
+}
+
+function flashDot(channel) {
+  const dot = document.getElementById('dot-' + channel);
+  if (!dot) return;
+  dot.classList.add('flash');
+  clearTimeout(dot._timer);
+  dot._timer = setTimeout(() => dot.classList.remove('flash'), 400);
+}
+
+function toggleSubscription(channel, checked) {
+  subscribedChannels[channel] = checked;
+}
+
+function selectChannel(channel) {
+  selectedChannel = channel;
+  // Update sidebar selection visual
+  document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('selected'));
+  const item = document.getElementById('ch-item-' + channel);
+  if (item) item.classList.add('selected');
+
+  // Show tree area
+  document.getElementById('no-selection-msg').classList.add('d-none');
+  document.getElementById('tree-container').classList.remove('d-none');
+
+  renderTree();
+}
+
+// ── Tree rendering ─────────────────────────────────────────────────────────
+function renderTree() {
+  const cd = channelData[selectedChannel];
+  if (!cd || !cd.lastPayload) {
+    document.getElementById('tree-content').innerHTML =
+      '<span class="text-muted">Aguardando dados...</span>';
+    document.getElementById('tree-channel-name').textContent = selectedChannel;
+    document.getElementById('tree-timestamp').textContent = '';
+    document.getElementById('tree-msg-count').textContent = '0';
+    return;
+  }
+
+  document.getElementById('tree-channel-name').textContent = selectedChannel;
+  document.getElementById('tree-timestamp').textContent = cd.lastTimestamp || '';
+  document.getElementById('tree-msg-count').textContent = cd.msgCount;
+
+  // Detect changes
+  const oldValues = previousValues[selectedChannel] || {};
+  const newValues = {};
+  flattenValues(cd.lastPayload, '', newValues);
+  const changedPaths = new Set();
+  for (const [path, val] of Object.entries(newValues)) {
+    if (path in oldValues && oldValues[path] !== val) {
+      changedPaths.add(path);
+    }
+  }
+  previousValues[selectedChannel] = newValues;
+
+  // Initialize collapsed paths for this channel on first data
+  if (!collapsedPaths[selectedChannel]) {
+    collapsedPaths[selectedChannel] = new Set();
+    initCollapseState(cd.lastPayload, '', 0);
+  }
+
+  const html = buildTreeHtml(cd.lastPayload, '', 0, changedPaths);
+  document.getElementById('tree-content').innerHTML = html;
+}
+
+function flattenValues(obj, prefix, result) {
+  if (obj === null || obj === undefined) {
+    result[prefix] = String(obj);
+    return;
+  }
+  if (typeof obj !== 'object') {
+    result[prefix] = JSON.stringify(obj);
+    return;
+  }
+  for (const [key, val] of Object.entries(obj)) {
+    const path = prefix ? prefix + '.' + key : key;
+    flattenValues(val, path, result);
+  }
+}
+
+function buildTreeHtml(obj, path, depth, changedPaths) {
+  if (obj === null || obj === undefined) {
+    return `<span class="tree-val-null">null</span>`;
+  }
+
+  if (typeof obj !== 'object') {
+    return renderLeafValue(obj, path, changedPaths);
+  }
+
+  const entries = Object.entries(obj);
+  const lines = [];
+  const collapsed = collapsedPaths[selectedChannel];
+
+  for (const [key, val] of entries) {
+    const childPath = path ? path + '.' + key : key;
+    const indent = '  '.repeat(depth + 1);
+    const indentHtml = `<span class="tree-indent">${indent}</span>`;
+
+    if (val !== null && typeof val === 'object') {
+      const childEntries = Object.entries(val);
+      const count = childEntries.length;
+      const shouldCollapse = collapsed && collapsed.has(childPath);
+
+      const toggleChar = shouldCollapse ? '\u25b6' : '\u25bc'; // right / down triangle
+      const bracket = Array.isArray(val) ? '[' : '{';
+      const closeBracket = Array.isArray(val) ? ']' : '}';
+
+      if (shouldCollapse) {
+        lines.push(
+          `${indentHtml}<span class="tree-toggle" onclick="toggleNode('${escapeAttr(childPath)}')">${toggleChar}</span> ` +
+          `<span class="tree-key">${escapeHtml(key)}</span>: ${bracket} <span class="tree-count">${count} items</span> ${closeBracket}`
+        );
+      } else {
+        const childHtml = buildTreeHtml(val, childPath, depth + 1, changedPaths);
+        lines.push(
+          `${indentHtml}<span class="tree-toggle" onclick="toggleNode('${escapeAttr(childPath)}')">${toggleChar}</span> ` +
+          `<span class="tree-key">${escapeHtml(key)}</span>: ${bracket} <span class="tree-count">(${count})</span>`
+        );
+        lines.push(childHtml);
+        lines.push(`${indentHtml}  ${closeBracket}`);
+      }
+    } else {
+      const valHtml = renderLeafValue(val, childPath, changedPaths);
+      lines.push(`${indentHtml}  <span class="tree-key">${escapeHtml(key)}</span>: ${valHtml}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function renderLeafValue(val, path, changedPaths) {
+  let cls, display;
+  if (val === null || val === undefined) {
+    cls = 'tree-val-null';
+    display = 'null';
+  } else if (typeof val === 'boolean') {
+    cls = 'tree-val-bool';
+    display = String(val);
+  } else if (typeof val === 'number') {
+    cls = 'tree-val-number';
+    display = String(val);
+  } else {
+    cls = 'tree-val-string';
+    display = JSON.stringify(val);
+  }
+
+  const changed = changedPaths.has(path) ? ' tree-val-changed' : '';
+  return `<span class="${cls}${changed}">${escapeHtml(display)}</span>`;
+}
+
+function toggleNode(path) {
+  if (!selectedChannel) return;
+  if (!collapsedPaths[selectedChannel]) {
+    collapsedPaths[selectedChannel] = new Set();
+  }
+  const set = collapsedPaths[selectedChannel];
+  if (set.has(path)) {
+    set.delete(path);
+  } else {
+    set.add(path);
+  }
+  renderTree();
+}
+
+function initCollapseState(obj, path, depth) {
+  if (!obj || typeof obj !== 'object') return;
+  for (const [key, val] of Object.entries(obj)) {
+    const childPath = path ? path + '.' + key : key;
+    if (val && typeof val === 'object') {
+      if (depth >= 2) {
+        collapsedPaths[selectedChannel].add(childPath);
+      }
+      initCollapseState(val, childPath, depth + 1);
+    }
+  }
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+// ── Frequency updater ──────────────────────────────────────────────────────
+setInterval(() => {
+  const now = Date.now();
+  const cutoff = now - 10000;
+  for (const [ch, cd] of Object.entries(channelData)) {
+    cd.timestamps = cd.timestamps.filter(t => t > cutoff);
+    const freqEl = document.getElementById('freq-' + ch);
+    if (freqEl) {
+      const freq = cd.timestamps.length > 1
+        ? (cd.timestamps.length / 10).toFixed(1)
+        : '0.0';
+      freqEl.textContent = freq + '/s';
+    }
+  }
+}, 2000);
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadChannelConfigs);
+</script>
+</body>
+</html>
