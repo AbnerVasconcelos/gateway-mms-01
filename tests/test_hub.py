@@ -746,21 +746,29 @@ class TestHubSocketIO(unittest.TestCase):
         for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
             self.assertIn(ch, sizes)
 
+    def _get_device_for_channel(self, channel):
+        """Helper: query /api/channels to find the device_id for a channel."""
+        import urllib.request
+        with urllib.request.urlopen(f'http://127.0.0.1:{HUB_PORT}/api/channels', timeout=3) as r:
+            channels = json.loads(r.read().decode())
+        info = channels.get(channel, {})
+        return info.get('device_id', 'unknown')
+
     def test_45_rooms_isolation(self):
         """
-        Cliente no room 'alarmes' não deve receber mensagens do room 'process'.
-        Publica em plc_process e verifica que cliente em 'alarmes' não recebe.
+        Cliente no room de um device nao deve receber mensagens de outro device.
+        Publica em plc_process e verifica que cliente em room diferente nao recebe.
         """
         received_process = []
 
         sio = self.sio_lib.Client(logger=False, engineio_logger=False)
 
-        @sio.on('plc:data')
+        @sio.on('device:data')
         def on_data(data):
             received_process.append(data)
 
         sio.connect(f'http://127.0.0.1:{HUB_PORT}')
-        sio.emit('join', {'rooms': ['alarmes']})   # entra só em 'alarmes'
+        sio.emit('join', {'rooms': ['nonexistent_device_room']})
         time.sleep(0.3)
 
         # Publica diretamente em plc_process — NÃO deve chegar ao cliente
@@ -773,23 +781,27 @@ class TestHubSocketIO(unittest.TestCase):
 
         self.assertEqual(
             len(received_process), 0,
-            f"Cliente no room 'alarmes' recebeu mensagem de 'process': {received_process}"
+            f"Cliente no room errado recebeu mensagem: {received_process}"
         )
 
-    def test_46_bridge_delivers_plc_data_to_correct_room(self):
+    def test_46_bridge_delivers_device_data_to_correct_room(self):
         """
-        Mensagem publicada em plc_alarmes deve chegar ao cliente no room 'alarmes'.
+        Mensagem publicada em plc_alarmes deve chegar ao cliente no room do device.
+        Bridge emite device:data para room=device_id.
         """
+        # Discover which device owns plc_alarmes
+        dev_alarmes = self._get_device_for_channel('plc_alarmes')
+
         received = []
 
         sio = self.sio_lib.Client(logger=False, engineio_logger=False)
 
-        @sio.on('plc:data')
+        @sio.on('device:data')
         def on_data(data):
             received.append(data)
 
         sio.connect(f'http://127.0.0.1:{HUB_PORT}')
-        sio.emit('join', {'rooms': ['alarmes']})
+        sio.emit('join', {'rooms': [dev_alarmes]})
         time.sleep(0.8)   # aguarda o join ser processado no servidor
 
         test_payload = {
@@ -797,20 +809,21 @@ class TestHubSocketIO(unittest.TestCase):
             'registers': {},
             'timestamp': '2026-01-01T00:00:00',
         }
-        # Publica múltiplas vezes para compensar possível latência de polling
+        # Publica multiplas vezes para compensar possivel latencia de polling
         for _ in range(3):
             _redis_conn.publish('plc_alarmes', json.dumps(test_payload))
             time.sleep(0.5)
 
-        # Aguarda entrega assíncrona bridge→Socket.IO antes de desconectar
+        # Aguarda entrega assincrona bridge -> Socket.IO antes de desconectar
         deadline = time.time() + 3.0
         while not received and time.time() < deadline:
             time.sleep(0.1)
 
         sio.disconnect()
 
-        self.assertTrue(received, "Nenhuma mensagem plc:data recebida em room 'alarmes'")
+        self.assertTrue(received, "Nenhuma mensagem device:data recebida em room '%s'" % dev_alarmes)
         self.assertEqual(received[0]['channel'], 'plc_alarmes')
+        self.assertEqual(received[0]['device_id'], dev_alarmes)
 
     def test_47_config_save_broadcasts_to_all_clients(self):
         """
@@ -1306,6 +1319,183 @@ class TestDeviceCRUD(unittest.TestCase):
         mock_client.read_holding_registers.assert_called_once_with(0, 1, slave=1)
         self.assertIsInstance(result, dict)
         self.assertIn('ok', result)
+
+
+# ---------------------------------------------------------------------------
+# Suite 8 — TestProcessManagerPerDevice (unitario, sem deps externas)
+# ---------------------------------------------------------------------------
+
+class TestProcessManagerPerDevice(unittest.TestCase):
+    """
+    Testa ProcessInstance e ProcessManager com per-device isolation.
+    Nao lanca subprocessos reais — foca na logica de init, state e env vars.
+    """
+
+    def test_91_process_instance_stores_device_id(self):
+        """ProcessInstance.__init__ deve armazenar device_id."""
+        from process_manager import ProcessInstance
+        proc = ProcessInstance('delfos:sim1', 'delfos', {'modbus_host': '127.0.0.1'}, device_id='sim1')
+        self.assertEqual(proc.device_id, 'sim1')
+        self.assertEqual(proc.proc_id, 'delfos:sim1')
+        self.assertEqual(proc.proc_type, 'delfos')
+
+    def test_92_process_instance_default_device_id_empty(self):
+        """ProcessInstance sem device_id deve ter device_id=''."""
+        from process_manager import ProcessInstance
+        proc = ProcessInstance('delfos', 'delfos', {})
+        self.assertEqual(proc.device_id, '')
+
+    def test_93_to_state_dict_includes_device_id(self):
+        """to_state_dict() deve incluir 'device_id' no dict retornado."""
+        from process_manager import ProcessInstance
+        proc = ProcessInstance('atena:clp2', 'atena', {}, device_id='clp2')
+        state = proc.to_state_dict()
+        self.assertIn('device_id', state)
+        self.assertEqual(state['device_id'], 'clp2')
+        self.assertEqual(state['proc_id'], 'atena:clp2')
+        self.assertEqual(state['proc_type'], 'atena')
+
+    def test_94_start_sets_device_env_vars(self):
+        """ProcessInstance.start() deve definir DEVICE_ID, COMMAND_CHANNEL e CONFIG_RELOAD_CHANNEL no env."""
+        import asyncio
+        from unittest.mock import AsyncMock, patch, MagicMock
+        from process_manager import ProcessInstance
+
+        proc = ProcessInstance('delfos:sim1', 'delfos', {
+            'modbus_host': '127.0.0.1',
+            'modbus_port': 502,
+            'modbus_unit_id': 1,
+            'modbus_protocol': 'tcp',
+            'redis_host': 'localhost',
+            'redis_port': 6379,
+        }, device_id='sim1')
+
+        captured_env = {}
+
+        async def fake_create_subprocess_exec(*args, **kwargs):
+            captured_env.update(kwargs.get('env', {}))
+            mock_proc = MagicMock()
+            mock_proc.pid = 12345
+            mock_proc.stdout = AsyncMock()
+            mock_proc.stdout.readline = AsyncMock(return_value=b'')
+            mock_proc.wait = AsyncMock(return_value=0)
+            mock_proc.returncode = 0
+            return mock_proc
+
+        gateway_dir = GATEWAY_DIR
+        python_path = PYTHON
+
+        with patch('asyncio.create_subprocess_exec', side_effect=fake_create_subprocess_exec):
+            asyncio.get_event_loop().run_until_complete(proc.start(python_path, gateway_dir))
+
+        self.assertEqual(captured_env.get('DEVICE_ID'), 'sim1')
+        self.assertEqual(captured_env.get('COMMAND_CHANNEL'), 'sim1_commands')
+        self.assertEqual(captured_env.get('CONFIG_RELOAD_CHANNEL'), 'config_reload_sim1')
+
+    def test_95_start_uses_custom_command_channel(self):
+        """Se config contiver command_channel, deve usar esse valor em vez do default."""
+        import asyncio
+        from unittest.mock import AsyncMock, patch, MagicMock
+        from process_manager import ProcessInstance
+
+        proc = ProcessInstance('delfos:sim1', 'delfos', {
+            'command_channel': 'custom_cmd_chan',
+            'config_reload_channel': 'custom_reload_chan',
+        }, device_id='sim1')
+
+        captured_env = {}
+
+        async def fake_create_subprocess_exec(*args, **kwargs):
+            captured_env.update(kwargs.get('env', {}))
+            mock_proc = MagicMock()
+            mock_proc.pid = 99999
+            mock_proc.stdout = AsyncMock()
+            mock_proc.stdout.readline = AsyncMock(return_value=b'')
+            mock_proc.wait = AsyncMock(return_value=0)
+            mock_proc.returncode = 0
+            return mock_proc
+
+        with patch('asyncio.create_subprocess_exec', side_effect=fake_create_subprocess_exec):
+            asyncio.get_event_loop().run_until_complete(proc.start(PYTHON, GATEWAY_DIR))
+
+        self.assertEqual(captured_env.get('COMMAND_CHANNEL'), 'custom_cmd_chan')
+        self.assertEqual(captured_env.get('CONFIG_RELOAD_CHANNEL'), 'custom_reload_chan')
+
+    def test_96_process_manager_start_derives_proc_id(self):
+        """ProcessManager.start_process deve derivar proc_id como 'proc_type:device_id'."""
+        import asyncio
+        from unittest.mock import AsyncMock, patch, MagicMock
+        from process_manager import ProcessManager
+
+        pm = ProcessManager(GATEWAY_DIR)
+
+        async def fake_create_subprocess_exec(*args, **kwargs):
+            mock_proc = MagicMock()
+            mock_proc.pid = 11111
+            mock_proc.stdout = AsyncMock()
+            mock_proc.stdout.readline = AsyncMock(return_value=b'')
+            mock_proc.wait = AsyncMock(return_value=0)
+            mock_proc.returncode = 0
+            return mock_proc
+
+        with patch('asyncio.create_subprocess_exec', side_effect=fake_create_subprocess_exec):
+            proc = asyncio.get_event_loop().run_until_complete(
+                pm.start_process('delfos', 'sim1', {'modbus_host': '127.0.0.1'})
+            )
+
+        self.assertEqual(proc.proc_id, 'delfos:sim1')
+        self.assertEqual(proc.device_id, 'sim1')
+        self.assertEqual(proc.proc_type, 'delfos')
+        self.assertIn('delfos:sim1', pm.list_processes())
+
+    def test_97_process_manager_multiple_devices(self):
+        """ProcessManager deve suportar multiplos processos do mesmo tipo para devices diferentes."""
+        import asyncio
+        from unittest.mock import AsyncMock, patch, MagicMock
+        from process_manager import ProcessManager
+
+        pm = ProcessManager(GATEWAY_DIR)
+
+        async def fake_create_subprocess_exec(*args, **kwargs):
+            mock_proc = MagicMock()
+            mock_proc.pid = 22222
+            mock_proc.stdout = AsyncMock()
+            mock_proc.stdout.readline = AsyncMock(return_value=b'')
+            mock_proc.wait = AsyncMock(return_value=0)
+            mock_proc.returncode = 0
+            return mock_proc
+
+        with patch('asyncio.create_subprocess_exec', side_effect=fake_create_subprocess_exec):
+            p1 = asyncio.get_event_loop().run_until_complete(
+                pm.start_process('delfos', 'sim1', {'modbus_host': '127.0.0.1'})
+            )
+            p2 = asyncio.get_event_loop().run_until_complete(
+                pm.start_process('delfos', 'sim2', {'modbus_host': '127.0.0.2'})
+            )
+
+        processes = pm.list_processes()
+        self.assertIn('delfos:sim1', processes)
+        self.assertIn('delfos:sim2', processes)
+        self.assertEqual(processes['delfos:sim1']['device_id'], 'sim1')
+        self.assertEqual(processes['delfos:sim2']['device_id'], 'sim2')
+
+    def test_98_process_manager_duplicate_raises_runtime_error(self):
+        """Iniciar processo para mesmo proc_type:device_id deve lancar RuntimeError se ainda rodando."""
+        from process_manager import ProcessManager, ProcessInstance
+
+        pm = ProcessManager(GATEWAY_DIR)
+
+        # Directly inject a running process into ProcessManager state
+        existing = ProcessInstance('delfos:sim1', 'delfos', {'modbus_host': '127.0.0.1'}, device_id='sim1')
+        existing.running = True
+        pm._processes['delfos:sim1'] = existing
+
+        # Should raise because delfos:sim1 is already "running"
+        import asyncio
+        with self.assertRaises(RuntimeError):
+            asyncio.get_event_loop().run_until_complete(
+                pm.start_process('delfos', 'sim1', {'modbus_host': '127.0.0.1'})
+            )
 
 
 if __name__ == '__main__':

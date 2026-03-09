@@ -21,10 +21,11 @@ MAX_LOG_LINES = 200
 class ProcessInstance:
     """Encapsula um subprocess OS (Delfos ou Atena) com log capture."""
 
-    def __init__(self, proc_id: str, proc_type: str, config: dict):
+    def __init__(self, proc_id: str, proc_type: str, config: dict, device_id: str = ''):
         self.proc_id = proc_id
         self.proc_type = proc_type          # "delfos" ou "atena"
         self.config = dict(config)           # modbus_host, port, unit_id, redis_*, tables_dir
+        self.device_id = device_id           # ID do device associado a este processo
         self.process: asyncio.subprocess.Process | None = None
         self.running = False
         self.exit_code: int | None = None
@@ -48,6 +49,11 @@ class ProcessInstance:
         env['REDIS_HOST'] = str(self.config.get('redis_host', 'localhost'))
         env['REDIS_PORT'] = str(self.config.get('redis_port', 6379))
         env['TABLES_DIR'] = str(self.config.get('tables_dir', os.path.join(gateway_dir, 'tables')))
+
+        # Per-device isolation env vars
+        env['DEVICE_ID'] = str(self.device_id)
+        env['COMMAND_CHANNEL'] = str(self.config.get('command_channel', f'{self.device_id}_commands'))
+        env['CONFIG_RELOAD_CHANNEL'] = str(self.config.get('config_reload_channel', f'config_reload_{self.device_id}'))
 
         # Script e cwd
         if self.proc_type == 'delfos':
@@ -146,6 +152,7 @@ class ProcessInstance:
         return {
             'proc_id': self.proc_id,
             'proc_type': self.proc_type,
+            'device_id': self.device_id,
             'running': self.running,
             'exit_code': self.exit_code,
             'started_at': self.started_at,
@@ -187,12 +194,13 @@ class ProcessManager:
             except Exception as exc:
                 logger.error("Erro no status_callback: %s", exc)
 
-    async def start_process(self, proc_id: str, proc_type: str, config: dict) -> ProcessInstance:
-        """Inicia um novo processo. proc_id serve como chave unica."""
+    async def start_process(self, proc_type: str, device_id: str, config: dict) -> ProcessInstance:
+        """Inicia um novo processo. proc_id e derivado como '{proc_type}:{device_id}'."""
+        proc_id = f"{proc_type}:{device_id}"
         if proc_id in self._processes and self._processes[proc_id].running:
             raise RuntimeError(f"Processo '{proc_id}' ja esta rodando.")
 
-        proc = ProcessInstance(proc_id, proc_type, config)
+        proc = ProcessInstance(proc_id, proc_type, config, device_id=device_id)
         await proc.start(self._python, self._gateway_dir)
         self._processes[proc_id] = proc
 

@@ -59,10 +59,20 @@ sim_manager: SimulatorManager | None = None
 proc_manager: ProcessManager | None = None
 
 def _derive_rooms() -> list[str]:
-    """Deriva rooms Socket.IO a partir dos canais configurados."""
-    rooms = []
-    for ch in config_store.get_channel_history_sizes():
-        room = ch.removeprefix('plc_') if ch.startswith('plc_') else ch
+    """Deriva rooms Socket.IO a partir dos canais configurados.
+
+    Retorna rooms no formato device_id e device_id:channel.
+    Ex.: ['sim', 'sim:plc_alarmes', 'sim:plc_process', 'west', 'west:west_data']
+    """
+    rooms: list[str] = []
+    channels = config_store.get_channels()
+    device_ids: set[str] = set()
+    for ch, info in channels.items():
+        dev_id = info.get('device_id', 'unknown')
+        if dev_id not in device_ids:
+            device_ids.add(dev_id)
+            rooms.append(dev_id)
+        room = f'{dev_id}:{ch}'
         if room not in rooms:
             rooms.append(room)
     return rooms
@@ -92,7 +102,13 @@ async def on_startup():
     global redis_pub, sim_manager, proc_manager
     redis_pub = aioredis.Redis(host=_REDIS_HOST, port=_REDIS_PORT, db=0)
     logger.info('Hub: Redis publisher pronto em %s:%s', _REDIS_HOST, _REDIS_PORT)
-    asyncio.create_task(start_bridge(sio, _REDIS_HOST, _REDIS_PORT))
+    def _get_channel_map():
+        """Build {channel_name: device_id} from config_store.get_channels()."""
+        channels = config_store.get_channels()
+        return {ch: info.get('device_id', 'unknown') for ch, info in channels.items()}
+
+    asyncio.create_task(start_bridge(sio, _REDIS_HOST, _REDIS_PORT,
+                                     get_channel_map=_get_channel_map))
 
     # Inicializa SimulatorManager
     sim_manager = SimulatorManager(config_store._TABLES_DIR)
@@ -181,7 +197,7 @@ async def start_process(proc_type: str, body: ProcessStartBody):
     }
 
     try:
-        proc = await proc_manager.start_process(proc_type, proc_type, config)
+        proc = await proc_manager.start_process(proc_type, body.device_id, config)
     except RuntimeError as e:
         raise HTTPException(status_code=409, detail=str(e))
     except FileNotFoundError as e:
@@ -191,27 +207,29 @@ async def start_process(proc_type: str, body: ProcessStartBody):
 
 
 @app.post('/api/processes/{proc_type}/stop')
-async def stop_process(proc_type: str):
-    """Para o processo Delfos ou Atena."""
+async def stop_process(proc_type: str, body: ProcessStartBody):
+    """Para o processo Delfos ou Atena de um device especifico."""
     if proc_type not in ('delfos', 'atena'):
         raise HTTPException(status_code=422, detail="proc_type deve ser 'delfos' ou 'atena'.")
     if not proc_manager:
         raise HTTPException(status_code=503, detail='ProcessManager nao inicializado.')
+    proc_id = f"{proc_type}:{body.device_id}"
     try:
-        proc = await proc_manager.stop_process(proc_type)
+        proc = await proc_manager.stop_process(proc_id)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return proc.to_state_dict()
 
 
 @app.get('/api/processes/{proc_type}/logs')
-async def get_process_logs(proc_type: str, last_n: int = 100):
+async def get_process_logs(proc_type: str, device_id: str = '', last_n: int = 100):
     """Retorna as ultimas linhas de log do processo."""
     if proc_type not in ('delfos', 'atena'):
         raise HTTPException(status_code=422, detail="proc_type deve ser 'delfos' ou 'atena'.")
     if not proc_manager:
         return {'lines': []}
-    proc = proc_manager.get_process(proc_type)
+    proc_id = f"{proc_type}:{device_id}" if device_id else proc_type
+    proc = proc_manager.get_process(proc_id)
     if not proc:
         return {'lines': []}
     return {'lines': proc.get_logs(last_n)}
