@@ -1,7 +1,5 @@
 {
   "_meta": {
-    "aggregate_channel": "plc_data",
-    "backward_compatible": true,
     "default_delay_ms": 1000,
     "default_history_size": 100
   },
@@ -20,7 +18,26 @@
         "mapeamento_clp.csv",
         "temperatura_24z.csv",
         "temperatura_28z.csv"
-      ]
+      ],
+      "channels": {
+        "plc_alarmes": {
+          "delay_ms": 200,
+          "history_size": 55
+        },
+        "plc_process": {
+          "delay_ms": 500,
+          "history_size": 100
+        },
+        "plc_visual": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_config": {
+          "delay_ms": 1000,
+          "history_size": 100
+        }
+      },
+      "command_channel": "simulador_commands"
     },
     "west": {
       "label": "West",
@@ -36,25 +53,26 @@
         "temperatura_24z.csv",
         "temperatura_28z.csv"
       ],
-      "enabled": true
-    }
-  },
-  "channels": {
-    "plc_alarmes": {
-      "delay_ms": 200,
-      "history_size": 55
-    },
-    "plc_process": {
-      "delay_ms": 500,
-      "history_size": 100
-    },
-    "plc_visual": {
-      "delay_ms": 1000,
-      "history_size": 100
-    },
-    "plc_config": {
-      "delay_ms": 1000,
-      "history_size": 100
+      "enabled": true,
+      "channels": {
+        "plc_alarmes": {
+          "delay_ms": 200,
+          "history_size": 55
+        },
+        "plc_process": {
+          "delay_ms": 500,
+          "history_size": 100
+        },
+        "plc_visual": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_config": {
+          "delay_ms": 1000,
+          "history_size": 100
+        }
+      },
+      "command_channel": "west_commands"
     }
   }
 }
