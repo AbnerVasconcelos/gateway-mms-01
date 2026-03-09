@@ -368,6 +368,7 @@ class ChannelCreate(BaseModel):
     channel: str
     delay_ms: int = 1000
     history_size: int = 100
+    device_id: Optional[str] = None
 
 
 @app.post('/api/channels', status_code=201)
@@ -377,23 +378,26 @@ async def create_channel(body: ChannelCreate):
         raise HTTPException(status_code=422, detail="Canal deve ter prefixo 'plc_' seguido de um nome.")
     if body.delay_ms < 1 or body.history_size < 1:
         raise HTTPException(status_code=422, detail='delay_ms e history_size devem ser >= 1.')
-    config_store.create_channel(body.channel, body.delay_ms, body.history_size)
+    config_store.create_channel(body.channel, body.delay_ms, body.history_size, device_id=body.device_id)
     if redis_pub:
         await redis_pub.publish('config_reload', json.dumps({'reload': True}))
-    return {'channel': body.channel, 'delay_ms': body.delay_ms, 'history_size': body.history_size}
+        await redis_pub.publish('_bridge_reload', '1')
+    return {'channel': body.channel, 'delay_ms': body.delay_ms, 'history_size': body.history_size,
+            'device_id': body.device_id}
 
 
 @app.delete('/api/channels/{channel}')
-async def delete_channel(channel: str):
+async def delete_channel(channel: str, device_id: Optional[str] = None):
     """Remove um canal criado explicitamente. Não afeta grupos já mapeados."""
     try:
-        config_store.delete_channel(channel)
+        config_store.delete_channel(channel, device_id=device_id)
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     if redis_pub:
         await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+        await redis_pub.publish('_bridge_reload', '1')
     return {'deleted': channel}
 
 
@@ -408,11 +412,11 @@ class DelayPatch(BaseModel):
 
 
 @app.patch('/api/channels/{channel}/delay')
-async def set_channel_delay(channel: str, body: DelayPatch):
+async def set_channel_delay(channel: str, body: DelayPatch, device_id: Optional[str] = None):
     """Atualiza delay_ms do canal e publica config_reload."""
     if body.delay_ms < 1:
         raise HTTPException(status_code=422, detail='delay_ms deve ser >= 1')
-    config_store.update_channel_delay(channel, body.delay_ms)
+    config_store.update_channel_delay(channel, body.delay_ms, device_id=device_id)
     if redis_pub:
         await redis_pub.publish('config_reload', json.dumps({'reload': True}))
     return {'channel': channel, 'delay_ms': body.delay_ms}
@@ -423,7 +427,7 @@ class HistoryPatch(BaseModel):
 
 
 @app.patch('/api/channels/{channel}/history')
-async def set_channel_history(channel: str, body: HistoryPatch):
+async def set_channel_history(channel: str, body: HistoryPatch, device_id: Optional[str] = None):
     """
     Atualiza history_size do canal e aplica ltrim imediato nas listas Redis.
     Publica config_reload para que o Delfos recarregue sem reiniciar.
@@ -431,7 +435,7 @@ async def set_channel_history(channel: str, body: HistoryPatch):
     if body.history_size < 1:
         raise HTTPException(status_code=422, detail='history_size deve ser >= 1')
 
-    config_store.update_channel_history_size(channel, body.history_size)
+    config_store.update_channel_history_size(channel, body.history_size, device_id=device_id)
 
     if redis_pub:
         # Trunca imediatamente o histórico existente no Redis

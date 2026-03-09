@@ -364,46 +364,11 @@
   <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
   <div class="sidebar">
 
-    <!-- Processos -->
+    <!-- Processos (per-device) -->
     <div class="sidebar-section-label">Processos</div>
     <div class="card">
-      <div class="card-body">
-        <div class="d-flex gap-2 mb-2">
-          <!-- Delfos -->
-          <div class="proc-card flex-fill">
-            <div class="d-flex align-items-center mb-1">
-              <span class="status-dot dot-grey" id="proc-dot-delfos"></span>
-              <strong class="small">Delfos</strong>
-              <span class="badge bg-secondary ms-auto" style="font-size:.65em" id="proc-badge-delfos">Parado</span>
-            </div>
-            <select class="form-select form-select-sm mb-1" style="font-size:.75rem" id="proc-device-delfos"></select>
-            <div class="d-flex gap-1">
-              <button class="btn btn-success py-0 px-2" style="font-size:.7rem" id="proc-start-delfos"
-                      onclick="startProcess('delfos')">Iniciar</button>
-              <button class="btn btn-danger py-0 px-2 d-none" style="font-size:.7rem" id="proc-stop-delfos"
-                      onclick="stopProcess('delfos')">Parar</button>
-              <button class="btn btn-outline-secondary py-0 px-2" style="font-size:.7rem"
-                      onclick="showProcessLogs('delfos')">Logs</button>
-            </div>
-          </div>
-          <!-- Atena -->
-          <div class="proc-card flex-fill">
-            <div class="d-flex align-items-center mb-1">
-              <span class="status-dot dot-grey" id="proc-dot-atena"></span>
-              <strong class="small">Atena</strong>
-              <span class="badge bg-secondary ms-auto" style="font-size:.65em" id="proc-badge-atena">Parado</span>
-            </div>
-            <select class="form-select form-select-sm mb-1" style="font-size:.75rem" id="proc-device-atena"></select>
-            <div class="d-flex gap-1">
-              <button class="btn btn-success py-0 px-2" style="font-size:.7rem" id="proc-start-atena"
-                      onclick="startProcess('atena')">Iniciar</button>
-              <button class="btn btn-danger py-0 px-2 d-none" style="font-size:.7rem" id="proc-stop-atena"
-                      onclick="stopProcess('atena')">Parar</button>
-              <button class="btn btn-outline-secondary py-0 px-2" style="font-size:.7rem"
-                      onclick="showProcessLogs('atena')">Logs</button>
-            </div>
-          </div>
-        </div>
+      <div class="card-body" id="processes-container">
+        <span class="text-muted small">Carregando...</span>
       </div>
     </div>
 
@@ -486,6 +451,7 @@ let uploadPreview = [];
 let varGrid       = null;
 let previewGrid   = null;
 let knownRooms    = [];
+let joinedRooms   = [];   // Rooms atualmente joined no Socket.IO
 
 // Canal -> indice de cor (0-5), populado ao carregar canais
 const CHANNEL_COLORS = {};
@@ -496,6 +462,9 @@ let   SYSTEM_CHANNELS = new Set();
 let   activeDevice  = '';          // '' = Todos
 const deviceStats   = {};          // {device_id: {ok, err, lastLatency, lastOk}}
 let   DEVICES_LIST  = {};          // {device_id: cfg}
+
+// Per-device process state: {proc_id: state}  e.g. {'delfos:simulador': {...}}
+const processStates = {};
 
 // ── Dark mode ─────────────────────────────────────────────────────────────────
 function initTheme() {
@@ -566,16 +535,48 @@ const socket = io({transports: ['websocket'], reconnectionDelay: 2000});
 
 socket.on('connect', () => {
   setWsStatus(true);
-  if (knownRooms.length) socket.emit('join', {rooms: knownRooms});
+  if (knownRooms.length) {
+    joinDeviceRooms(knownRooms);
+  }
 });
 
 socket.on('connection_ack', ({available_rooms}) => {
   knownRooms = available_rooms || [];
-  socket.emit('join', {rooms: knownRooms});
+  // On initial connect, join all available rooms
+  joinDeviceRooms(knownRooms);
 });
 socket.on('disconnect', () => setWsStatus(false));
 
-socket.on('plc:data', ({channel, data}) => {
+/**
+ * Join rooms on the server. Tracks which rooms are currently joined
+ * so we can leave old ones when switching device context.
+ */
+function joinDeviceRooms(rooms) {
+  if (!rooms.length) return;
+  socket.emit('join', {rooms});
+  // Track joined rooms (additive)
+  rooms.forEach(r => { if (!joinedRooms.includes(r)) joinedRooms.push(r); });
+}
+
+/**
+ * Compute rooms to join based on active device filter.
+ * If activeDevice is set, join only that device's rooms.
+ * If '' (Todos), join all known rooms.
+ */
+function switchDeviceRooms() {
+  let roomsToJoin;
+  if (activeDevice) {
+    // Filter knownRooms to only this device's rooms
+    roomsToJoin = knownRooms.filter(r => r === activeDevice || r.startsWith(activeDevice + ':'));
+  } else {
+    roomsToJoin = [...knownRooms];
+  }
+  // Always join all rooms (server-side join is idempotent)
+  joinDeviceRooms(roomsToJoin);
+}
+
+// New per-device data event
+socket.on('device:data', ({device_id, channel, data}) => {
   const ts = data.timestamp || new Date().toISOString();
   // Merge coils + registers por grupo sem sobrescrever (deep merge)
   const all = {};
@@ -592,8 +593,9 @@ socket.on('plc:data', ({channel, data}) => {
   });
   if (varGrid) varGrid.refreshCells({columns: ['last_value'], force: true});
 
-  // Acende dot de atividade do canal
-  const dot = document.getElementById('act-' + channel);
+  // Acende dot de atividade do canal (using device:channel id)
+  const dotId = 'act-' + device_id + '-' + channel;
+  const dot = document.getElementById(dotId);
   if (dot) {
     dot.classList.add('active');
     clearTimeout(dot._timer);
@@ -601,7 +603,7 @@ socket.on('plc:data', ({channel, data}) => {
   }
 });
 
-socket.on('config:updated', () => { loadVariables(); loadDevices(); });
+socket.on('config:updated', () => { loadVariables(); loadDevices(); loadChannels(); });
 
 function setWsStatus(ok) {
   document.getElementById('ws-status').innerHTML =
@@ -609,14 +611,17 @@ function setWsStatus(ok) {
 }
 
 // ── Canais ────────────────────────────────────────────────────────────────────
+
+// Store all channels data (from /api/channels) with device_id info
+let ALL_CHANNELS_DATA = {};  // {channel: {delay_ms, history_size, device_id}}
+
 async function loadChannels() {
   const data = await apiFetch('/api/channels');
+  ALL_CHANNELS_DATA = data;
   try {
     const sys = await apiFetch('/api/channels/system');
     SYSTEM_CHANNELS = new Set(sys.channels || []);
   } catch { /* endpoint may not exist in older versions */ }
-  const container = document.getElementById('channels-container');
-  container.innerHTML = '';
 
   // Reconstroi CHANNELS_LIST e CHANNEL_COLORS preservando ordem estavel
   const sorted = Object.keys(data).sort();
@@ -636,24 +641,46 @@ async function loadChannels() {
   // Reconstroi cores de linha
   if (varGrid) varGrid.redrawRows();
 
+  renderChannelCards();
+}
+
+function renderChannelCards() {
+  const container = document.getElementById('channels-container');
+  container.innerHTML = '';
+
+  // Filter channels: if activeDevice is set, show only that device's channels
+  const filtered = {};
+  Object.entries(ALL_CHANNELS_DATA).forEach(([ch, cfg]) => {
+    if (!activeDevice || cfg.device_id === activeDevice) {
+      filtered[ch] = cfg;
+    }
+  });
+
   // Obtem canal filtrado atualmente para restaurar active-filter
   const activeFilter = document.getElementById('filter-channel').value;
 
-  Object.entries(data).forEach(([ch, cfg]) => {
+  if (!Object.keys(filtered).length) {
+    container.innerHTML = '<span class="text-muted small">Nenhum canal para este device.</span>';
+  }
+
+  Object.entries(filtered).forEach(([ch, cfg]) => {
     const isSys = SYSTEM_CHANNELS.has(ch);
+    const devId = cfg.device_id || '';
+    const dotId = 'act-' + devId + '-' + ch;
     const card = document.createElement('div');
     card.id        = 'card-' + ch;
     card.className = 'channel-card' + (activeFilter === ch ? ' active-filter' : '') + (isSys ? ' system-channel' : '');
     card.onclick   = () => filterByChannel(ch, card);
     card.innerHTML = `
       <div class="d-flex align-items-center mb-1">
-        <span class="activity-dot me-2" id="act-${ch}"></span>
-        <div class="fw-semibold text-truncate flex-grow-1" style="font-size:.8rem" title="${ch}">${ch}${
-          isSys ? ' <span class="badge bg-warning text-dark badge-system" title="Canal de sistema — não pode ser removido">SISTEMA</span>' : ''
+        <span class="activity-dot me-2" id="${dotId}"></span>
+        <div class="fw-semibold text-truncate flex-grow-1" style="font-size:.8rem" title="${ch}">
+          ${ch}${devId && !activeDevice ? ` <span class="badge bg-info" style="font-size:.55rem;vertical-align:middle">${devId}</span>` : ''}${
+          isSys ? ' <span class="badge bg-warning text-dark badge-system" title="Canal de sistema">SISTEMA</span>' : ''
         }</div>
         ${isSys ? '' : `<button class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" style="font-size:.6rem"
-                onclick="event.stopPropagation(); removeChannel('${ch}', this)"
-                title="Remover canal">✕</button>`}
+                onclick="event.stopPropagation(); removeChannel('${ch}', '${devId}', this)"
+                title="Remover canal">&#10005;</button>`}
       </div>
       <div class="d-flex align-items-center gap-1 mb-1">
         <label class="text-muted mb-0" style="font-size:.7rem;white-space:nowrap">Delay:</label>
@@ -661,7 +688,7 @@ async function loadChannels() {
                value="${cfg.delay_ms}" min="1" max="100000"
                onclick="event.stopPropagation()" />
         <button class="btn btn-sm btn-primary py-0 px-1" style="font-size:.65rem"
-                onclick="event.stopPropagation(); applyDelay('${ch}', this)"
+                onclick="event.stopPropagation(); applyDelay('${ch}', '${devId}', this)"
                 title="Aplicar delay">ok</button>
       </div>
       <div class="d-flex align-items-center gap-1">
@@ -670,7 +697,7 @@ async function loadChannels() {
                value="${cfg.history_size}" min="1" max="10000"
                onclick="event.stopPropagation()" />
         <button class="btn btn-sm btn-primary py-0 px-1" style="font-size:.65rem"
-                onclick="event.stopPropagation(); applyHistory('${ch}', this)"
+                onclick="event.stopPropagation(); applyHistory('${ch}', '${devId}', this)"
                 title="Aplicar history">ok</button>
       </div>`;
     container.appendChild(card);
@@ -693,14 +720,15 @@ function filterByChannel(ch, cardEl) {
   applyFilters();
 }
 
-async function removeChannel(channel, btn) {
+async function removeChannel(channel, deviceId, btn) {
   if (SYSTEM_CHANNELS.has(channel)) {
-    showToast(`Canal "${channel}" é de sistema e não pode ser removido.`, 'warning');
+    showToast(`Canal "${channel}" e de sistema e nao pode ser removido.`, 'warning');
     return;
   }
-  if (!confirm(`Remover o canal "${channel}"?\n\nGrupos já mapeados não serão alterados.`)) return;
+  if (!confirm(`Remover o canal "${channel}"?\n\nGrupos ja mapeados nao serao alterados.`)) return;
   try {
-    await apiFetch(`/api/channels/${encodeURIComponent(channel)}`, {method: 'DELETE'});
+    const qs = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
+    await apiFetch(`/api/channels/${encodeURIComponent(channel)}${qs}`, {method: 'DELETE'});
     showToast(`Canal ${channel} removido.`);
     loadChannels();
   } catch (e) {
@@ -708,33 +736,35 @@ async function removeChannel(channel, btn) {
   }
 }
 
-async function applyDelay(channel, btn) {
+async function applyDelay(channel, deviceId, btn) {
   const input = btn.closest('.channel-card').querySelector('.delay-input');
   const delay = parseInt(input.value, 10);
-  if (!delay || delay < 1) { showToast('Valor inválido.', 'danger'); return; }
+  if (!delay || delay < 1) { showToast('Valor invalido.', 'danger'); return; }
   try {
-    await apiFetch(`/api/channels/${encodeURIComponent(channel)}/delay`, {
+    const qs = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
+    await apiFetch(`/api/channels/${encodeURIComponent(channel)}/delay${qs}`, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({delay_ms: delay}),
     });
-    showToast(`delay_ms de ${channel} → ${delay}ms`);
+    showToast(`delay_ms de ${channel} -> ${delay}ms`);
   } catch (e) {
     showToast(String(e), 'danger');
   }
 }
 
-async function applyHistory(channel, btn) {
+async function applyHistory(channel, deviceId, btn) {
   const input = btn.closest('.channel-card').querySelector('.history-input');
   const size  = parseInt(input.value, 10);
-  if (!size || size < 1) { showToast('Valor inválido.', 'danger'); return; }
+  if (!size || size < 1) { showToast('Valor invalido.', 'danger'); return; }
   try {
-    await apiFetch(`/api/channels/${encodeURIComponent(channel)}/history`, {
+    const qs = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
+    await apiFetch(`/api/channels/${encodeURIComponent(channel)}/history${qs}`, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({history_size: size}),
     });
-    showToast(`history_size de ${channel} → ${size}`);
+    showToast(`history_size de ${channel} -> ${size}`);
     loadChannels();
   } catch (e) {
     showToast(String(e), 'danger');
@@ -751,13 +781,19 @@ function setActiveDevice(id, el) {
   const sel = document.getElementById('filter-device');
   if (sel) sel.value = id;
   applyFilters();
+  // Re-render sidebar sections for the active device
+  renderChannelCards();
+  renderProcessCards();
+  renderDeviceCards();
+  // Switch Socket.IO rooms
+  switchDeviceRooms();
 }
 
 async function loadDevices() {
   DEVICES_LIST = await apiFetch('/api/devices');
   renderDeviceTabs();
   renderDeviceCards();
-  updateProcessDeviceSelects();
+  renderProcessCards();
 }
 
 function renderDeviceTabs() {
@@ -774,12 +810,27 @@ function renderDeviceTabs() {
     a.href        = '#';
     a.dataset.device = id;
     a.onclick     = (e) => { e.preventDefault(); setActiveDevice(id, a); };
+
+    // Determine dot color: check ping stats, then process status
     const stats     = deviceStats[id] || {};
-    const dotCls    = stats.hasOwnProperty('ok')
-      ? (stats.ok ? 'dot-ok' : 'dot-err') : 'dot-grey';
+    const delfosProc = processStates[`delfos:${id}`];
+    const atenaProc  = processStates[`atena:${id}`];
+    const anyRunning = (delfosProc && delfosProc.running) || (atenaProc && atenaProc.running);
+    let dotCls;
+    if (stats.hasOwnProperty('ok')) {
+      dotCls = stats.ok ? 'dot-ok' : 'dot-err';
+    } else if (anyRunning) {
+      dotCls = 'dot-ok';
+    } else {
+      dotCls = 'dot-grey';
+    }
+
     const isEnabled = cfg.enabled !== false;
-    a.innerHTML   = `<span class="status-dot ${dotCls}" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px"></span>${cfg.label || id}` +
-                    (!isEnabled ? ' <span class="badge bg-secondary" style="font-size:.65em">pausado</span>' : '');
+    let badges = '';
+    if (!isEnabled) badges += ' <span class="badge bg-secondary" style="font-size:.65em">pausado</span>';
+    if (anyRunning) badges += ' <span class="badge bg-success" style="font-size:.55em">proc</span>';
+
+    a.innerHTML   = `<span class="status-dot ${dotCls}" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px"></span>${cfg.label || id}${badges}`;
     li.appendChild(a);
     ul.appendChild(li);
   });
@@ -789,12 +840,17 @@ function renderDeviceCards() {
   const container = document.getElementById('devices-container');
   container.innerHTML = '';
 
-  if (!Object.keys(DEVICES_LIST).length) {
+  // Filter devices by activeDevice tab if set
+  const devicesToRender = activeDevice
+    ? (DEVICES_LIST[activeDevice] ? {[activeDevice]: DEVICES_LIST[activeDevice]} : {})
+    : DEVICES_LIST;
+
+  if (!Object.keys(devicesToRender).length) {
     container.innerHTML = '<span class="text-muted small">Nenhum device configurado.</span>';
     return;
   }
 
-  Object.entries(DEVICES_LIST).forEach(([id, cfg]) => {
+  Object.entries(devicesToRender).forEach(([id, cfg]) => {
     const stats     = deviceStats[id] || {};
     const dotCls    = stats.hasOwnProperty('ok')
       ? (stats.ok ? 'dot-ok' : 'dot-err') : 'dot-grey';
@@ -1328,16 +1384,21 @@ document.getElementById('confirm-new-channel-btn').addEventListener('click', asy
   const history = parseInt(document.getElementById('new-ch-history').value, 10);
   if (!suffix) { showToast('Informe o nome do canal.', 'danger'); return; }
   const channel = 'plc_' + suffix;
+  // Use activeDevice if set, so the channel is created inside that device
+  const payload = {channel, delay_ms: delay, history_size: history};
+  if (activeDevice) payload.device_id = activeDevice;
   try {
     await apiFetch('/api/channels', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({channel, delay_ms: delay, history_size: history}),
+      body: JSON.stringify(payload),
     });
     bootstrap.Modal.getInstance(document.getElementById('newChannelModal')).hide();
     document.getElementById('new-ch-name').value = '';
     showToast(`Canal ${channel} criado.`);
-    const newRoom = suffix;
+    // Build the new room name (device_id:channel format)
+    const devId = activeDevice || '';
+    const newRoom = devId ? `${devId}:${channel}` : channel;
     if (!knownRooms.includes(newRoom)) {
       knownRooms.push(newRoom);
       socket.emit('join', {rooms: [newRoom]});
@@ -1358,105 +1419,139 @@ document.getElementById('export-btn').addEventListener('click', () => {
   document.getElementById(id).addEventListener('change', applyFilters));
 document.getElementById('filter-text').addEventListener('input', applyFilters);
 
-// ── Processos (Delfos / Atena) ──────────────────────────────────────────────
-const processState = {delfos: null, atena: null};
+// ── Processos (per-device Delfos / Atena) ────────────────────────────────────
 
 socket.on('proc:status', (state) => {
-  processState[state.proc_type] = state;
-  renderProcessCard(state.proc_type);
+  // state has proc_id like 'delfos:simulador', proc_type, device_id, running, exit_code
+  if (state.proc_id) {
+    processStates[state.proc_id] = state;
+  }
+  renderProcessCards();
 });
 
 async function loadProcesses() {
   try {
     const data = await apiFetch('/api/processes');
-    Object.values(data).forEach(s => {
-      processState[s.proc_type] = s;
-      renderProcessCard(s.proc_type);
+    // data is {proc_id: state_dict}
+    Object.entries(data).forEach(([pid, s]) => {
+      processStates[pid] = s;
     });
   } catch {}
-  // Garante render inicial mesmo se nenhum processo existir
-  ['delfos', 'atena'].forEach(t => renderProcessCard(t));
+  renderProcessCards();
 }
 
-function renderProcessCard(procType) {
-  const st = processState[procType];
-  const running = st && st.running;
-  const crashed = st && !st.running && st.exit_code != null && st.exit_code !== 0;
+/**
+ * Render process cards in the sidebar.
+ * Shows one row per device (filtered by activeDevice if set).
+ * Each row has Delfos and Atena start/stop/logs controls.
+ */
+function renderProcessCards() {
+  const container = document.getElementById('processes-container');
+  if (!container) return;
+  container.innerHTML = '';
 
-  const dot   = document.getElementById('proc-dot-'    + procType);
-  const badge = document.getElementById('proc-badge-'  + procType);
-  const startBtn = document.getElementById('proc-start-' + procType);
-  const stopBtn  = document.getElementById('proc-stop-'  + procType);
-  const select   = document.getElementById('proc-device-' + procType);
+  // Determine which devices to show
+  const devicesToShow = activeDevice
+    ? (DEVICES_LIST[activeDevice] ? {[activeDevice]: DEVICES_LIST[activeDevice]} : {})
+    : DEVICES_LIST;
 
-  if (dot) {
-    dot.className = 'status-dot ' + (running ? 'dot-ok' : crashed ? 'dot-err' : 'dot-grey');
+  if (!Object.keys(devicesToShow).length) {
+    container.innerHTML = '<span class="text-muted small">Nenhum device.</span>';
+    return;
   }
-  if (badge) {
-    badge.textContent = running ? 'Rodando' : crashed ? 'Erro (exit ' + st.exit_code + ')' : 'Parado';
-    badge.className = 'badge ms-auto ' + (running ? 'bg-success' : crashed ? 'bg-danger' : 'bg-secondary');
-  }
-  if (startBtn) startBtn.classList.toggle('d-none', !!running);
-  if (stopBtn)  stopBtn.classList.toggle('d-none', !running);
-  if (select)   select.disabled = !!running;
-}
 
-function updateProcessDeviceSelects() {
-  ['delfos', 'atena'].forEach(procType => {
-    const sel = document.getElementById('proc-device-' + procType);
-    if (!sel) return;
-    const cur = sel.value;
-    sel.innerHTML = '';
-    Object.entries(DEVICES_LIST).forEach(([id, cfg]) => {
-      const label = cfg.label ? `${id} (${cfg.label})` : id;
-      sel.add(new Option(label, id));
+  Object.entries(devicesToShow).forEach(([devId, devCfg]) => {
+    const devLabel = devCfg.label || devId;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'mb-2';
+
+    // Device header (only when showing multiple devices)
+    if (!activeDevice) {
+      const header = document.createElement('div');
+      header.className = 'fw-semibold small mb-1 text-muted';
+      header.textContent = devLabel;
+      wrapper.appendChild(header);
+    }
+
+    const row = document.createElement('div');
+    row.className = 'd-flex gap-2';
+
+    ['delfos', 'atena'].forEach(procType => {
+      const procId = `${procType}:${devId}`;
+      const st = processStates[procId];
+      const running = st && st.running;
+      const crashed = st && !st.running && st.exit_code != null && st.exit_code !== 0;
+
+      const dotCls = running ? 'dot-ok' : crashed ? 'dot-err' : 'dot-grey';
+      const badgeText = running ? 'Rodando' : crashed ? `Erro (exit ${st.exit_code})` : 'Parado';
+      const badgeCls = running ? 'bg-success' : crashed ? 'bg-danger' : 'bg-secondary';
+      const ptLabel = procType.charAt(0).toUpperCase() + procType.slice(1);
+
+      const card = document.createElement('div');
+      card.className = 'proc-card flex-fill';
+      card.innerHTML = `
+        <div class="d-flex align-items-center mb-1">
+          <span class="status-dot ${dotCls}"></span>
+          <strong class="small">${ptLabel}</strong>
+          <span class="badge ${badgeCls} ms-auto" style="font-size:.65em">${badgeText}</span>
+        </div>
+        <div class="d-flex gap-1">
+          ${!running ? `<button class="btn btn-success py-0 px-2" style="font-size:.7rem"
+                    onclick="startProcess('${procType}', '${devId}')">Iniciar</button>` : ''}
+          ${running ? `<button class="btn btn-danger py-0 px-2" style="font-size:.7rem"
+                    onclick="stopProcess('${procType}', '${devId}')">Parar</button>` : ''}
+          <button class="btn btn-outline-secondary py-0 px-2" style="font-size:.7rem"
+                  onclick="showProcessLogs('${procType}', '${devId}')">Logs</button>
+        </div>`;
+      row.appendChild(card);
     });
-    if (cur && sel.querySelector(`option[value="${cur}"]`)) sel.value = cur;
+
+    wrapper.appendChild(row);
+    container.appendChild(wrapper);
   });
 }
 
-async function startProcess(procType) {
-  const sel = document.getElementById('proc-device-' + procType);
-  const deviceId = sel ? sel.value : '';
+async function startProcess(procType, deviceId) {
   if (!deviceId) { showToast('Selecione um device.', 'warning'); return; }
-  const btn = document.getElementById('proc-start-' + procType);
-  if (btn) { btn.disabled = true; btn.textContent = 'Iniciando...'; }
   try {
     const res = await apiFetch(`/api/processes/${procType}/start`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({device_id: deviceId}),
     });
-    processState[procType] = res;
-    renderProcessCard(procType);
-    showToast(`${procType} iniciado.`);
+    const procId = res.proc_id || `${procType}:${deviceId}`;
+    processStates[procId] = res;
+    renderProcessCards();
+    showToast(`${procType} iniciado para ${deviceId}.`);
   } catch (e) {
     showToast(String(e), 'danger');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Iniciar'; }
   }
 }
 
-async function stopProcess(procType) {
-  const btn = document.getElementById('proc-stop-' + procType);
-  if (btn) { btn.disabled = true; btn.textContent = 'Parando...'; }
+async function stopProcess(procType, deviceId) {
   try {
-    const res = await apiFetch(`/api/processes/${procType}/stop`, {method: 'POST'});
-    processState[procType] = res;
-    renderProcessCard(procType);
-    showToast(`${procType} parado.`);
+    const res = await apiFetch(`/api/processes/${procType}/stop`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({device_id: deviceId}),
+    });
+    const procId = res.proc_id || `${procType}:${deviceId}`;
+    processStates[procId] = res;
+    renderProcessCards();
+    showToast(`${procType} parado para ${deviceId}.`);
   } catch (e) {
     showToast(String(e), 'danger');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Parar'; }
   }
 }
 
 let _currentLogsProc = null;
-async function showProcessLogs(procType) {
+let _currentLogsDevice = null;
+async function showProcessLogs(procType, deviceId) {
   _currentLogsProc = procType;
+  _currentLogsDevice = deviceId || '';
+  const label = procType.charAt(0).toUpperCase() + procType.slice(1);
   document.getElementById('processLogsTitle').textContent =
-    `Logs — ${procType.charAt(0).toUpperCase() + procType.slice(1)}`;
+    `Logs -- ${label}` + (deviceId ? ` (${deviceId})` : '');
   await _refreshProcessLogs();
   new bootstrap.Modal(document.getElementById('processLogsModal')).show();
 }
@@ -1464,7 +1559,10 @@ async function showProcessLogs(procType) {
 async function _refreshProcessLogs() {
   if (!_currentLogsProc) return;
   try {
-    const data = await apiFetch(`/api/processes/${_currentLogsProc}/logs?last_n=200`);
+    const qs = _currentLogsDevice
+      ? `?device_id=${encodeURIComponent(_currentLogsDevice)}&last_n=200`
+      : '?last_n=200';
+    const data = await apiFetch(`/api/processes/${_currentLogsProc}/logs${qs}`);
     const pre = document.getElementById('processLogsContent');
     pre.textContent = (data.lines || []).join('\n') || '(sem logs)';
     pre.scrollTop = pre.scrollHeight;
