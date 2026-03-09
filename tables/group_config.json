@@ -7,7 +7,7 @@
   },
   "devices": {
     "simulador": {
-      "label": "",
+      "label": "CLP Principal",
       "protocol": "tcp",
       "host": "localhost",
       "port": 5020,
@@ -17,8 +17,21 @@
       "parity": "N",
       "stopbits": 1,
       "csv_files": [
-        "operacao.csv"
+        "mapeamento_clp.csv"
       ]
+    },
+    "west": {
+      "label": "West",
+      "protocol": "tcp",
+      "host": "localhost",
+      "port": 5021,
+      "unit_id": 1,
+      "serial_port": "",
+      "baudrate": 9600,
+      "parity": "N",
+      "stopbits": 1,
+      "csv_files": [],
+      "enabled": true
     }
   },
   "channels": {

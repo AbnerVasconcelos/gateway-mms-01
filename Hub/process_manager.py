@@ -44,6 +44,7 @@ class ProcessInstance:
         env['MODBUS_HOST'] = str(self.config.get('modbus_host', ''))
         env['MODBUS_PORT'] = str(self.config.get('modbus_port', 502))
         env['MODBUS_UNIT_ID'] = str(self.config.get('modbus_unit_id', 1))
+        env['MODBUS_PROTOCOL'] = str(self.config.get('modbus_protocol', 'tcp'))
         env['REDIS_HOST'] = str(self.config.get('redis_host', 'localhost'))
         env['REDIS_PORT'] = str(self.config.get('redis_port', 6379))
         env['TABLES_DIR'] = str(self.config.get('tables_dir', os.path.join(gateway_dir, 'tables')))

@@ -27,9 +27,12 @@ CLP (Modbus TCP/RTU)          [múltiplos devices]
 
 ```
 gateway/
+├── shared/                    # Módulos compartilhados entre Delfos e Atena
+│   └── modbus_functions.py    # ModbusClientWrapper, setup_modbus(protocol=), read/write unificados
+│
 ├── Delfos/                    # Processo leitor do CLP
 │   ├── delfos.py              # Entry point — time-tracking loop 50ms
-│   ├── modbus_functions.py    # setup_modbus(), read_coils(), read_registers()
+│   ├── modbus_functions.py    # (symlink/import de shared) setup_modbus(), read_coils(), read_registers()
 │   ├── redis_config_functions.py  # setup_redis(), publish_to_channel(), get_latest_message()
 │   ├── table_filter.py        # find_contiguous_groups(), extract_parameters_by_group(), extract_parameters_by_channel()
 │   ├── .env                   # Credenciais locais (NÃO commitar)
@@ -38,7 +41,7 @@ gateway/
 ├── Atena/                     # Processo escritor do CLP
 │   ├── atena.py               # Entry point — loop de eventos Redis
 │   ├── data_handle.py         # Handlers por canal (user_status, plc_commands, ia_status, ia_data)
-│   ├── modbus_functions.py    # setup_modbus(), write_coils_to_device(), write_registers_to_device()
+│   ├── modbus_functions.py    # (symlink/import de shared) setup_modbus(), write_coils_to_device(), write_registers_to_device()
 │   ├── redis_config_functions.py  # setup_redis(), subscribe_to_channels()
 │   ├── table_filter.py        # extract_deep_keys(), find_values_by_object_tag()
 │   ├── .env                   # Credenciais locais (NÃO commitar)
@@ -57,14 +60,21 @@ gateway/
 │   └── .env.example           # Template de variáveis
 │
 ├── tables/
-│   ├── operacao.csv           # Mapeamento principal: 81 tags Modbus ↔ JSON
-│   ├── configuracao.csv       # Parâmetros de configuração: 41 tags
+│   ├── operacao.csv           # Header-only (dados movidos para CSVs individuais)
+│   ├── configuracao.csv       # Header-only (dados movidos para CSVs individuais)
+│   ├── mapeamento_clp.csv     # Mapeamento principal do CLP (io_fisicas + retentivas + globais)
+│   ├── io_fisicas.csv         # I/O físicas: DI, DO, AI, AO
+│   ├── retentivas.csv         # Variáveis retentivas do CLP
+│   ├── globais.csv            # Variáveis globais do CLP
+│   ├── temperatura_24z.csv    # Mapeamento controlador temperatura 24 zonas
+│   ├── temperatura_28z.csv    # Mapeamento controlador temperatura 28 zonas
 │   ├── group_config.json      # Devices, canais (delay_ms, history_size)
-│   ├── variable_overrides.json# Exceções por tag individual (enabled, channel)
-│   ├── simulator_config.json   # Config dos simuladores embarcados (gerado pelo Hub)
-│   ├── alarms_data.csv        # Subconjunto de alarmes (referência)
-│   ├── read_data.csv          # Mapeamento simplificado (testes)
-│   └── write_data.csv         # Mapeamento de escrita (testes)
+│   ├── variable_overrides.json# Atribuição direta por tag (canal, enabled)
+│   ├── simulator_config.json  # Config dos simuladores embarcados (gerado pelo Hub)
+│   └── csv_individuais/       # Backup dos CSVs individuais originais
+│
+├── scripts/
+│   └── transform_tables.py    # Script de transformação de tabelas brutas → CSVs formatados
 │
 ├── .gitignore
 ├── requirements.txt
@@ -103,7 +113,7 @@ gateway/
 
 - **Loop:** blocking `pubsub.listen()` — orientado a eventos
 - **Assina:** `user_status`, `plc_commands`, `ia_status`, `ia_data`
-- **Escreve:** coils e holding registers no CLP via Modbus TCP
+- **Escreve:** coils e holding registers no CLP via Modbus TCP ou RTU over TCP
 
 | Canal | Handler | Função | Status |
 |-------|---------|--------|--------|
@@ -139,7 +149,8 @@ gateway/
 | `POST` | `/api/variables/bulk-assign` | Atribui/remove canal de múltiplas tags (`{tags, channel}`; `channel=""` remove) |
 | `GET` | `/api/channels` | Lista canais: `{channel: {delay_ms, history_size}}` |
 | `POST` | `/api/channels` | Cria canal com prefixo `plc_` |
-| `DELETE` | `/api/channels/{channel}` | Remove canal |
+| `DELETE` | `/api/channels/{channel}` | Remove canal (bloqueia canais de sistema) |
+| `GET` | `/api/channels/system` | Lista canais de sistema que não podem ser removidos |
 | `PATCH` | `/api/channels/{channel}/delay` | Atualiza `delay_ms` do canal + publica `config_reload` |
 | `PATCH` | `/api/channels/{channel}/history` | Atualiza `history_size` + aplica `ltrim` imediato no Redis |
 | `GET` | `/api/groups` | Retorna `{}` — seção groups removida na Fase 5 |
@@ -189,7 +200,7 @@ gateway/
 Permite iniciar e parar Delfos e Atena diretamente do painel web, sem terminais separados.
 
 - **Abordagem:** lança subprocessos OS via `asyncio.create_subprocess_exec()`
-- **Env vars:** herda `os.environ` e sobrescreve `MODBUS_HOST`, `MODBUS_PORT`, `MODBUS_UNIT_ID`, `REDIS_HOST`, `REDIS_PORT`, `TABLES_DIR` a partir da config do device selecionado. `load_dotenv()` não sobrescreve vars já existentes, então funciona sem alterar Delfos/Atena.
+- **Env vars:** herda `os.environ` e sobrescreve `MODBUS_HOST`, `MODBUS_PORT`, `MODBUS_UNIT_ID`, `MODBUS_PROTOCOL`, `REDIS_HOST`, `REDIS_PORT`, `TABLES_DIR` a partir da config do device selecionado. `load_dotenv()` não sobrescreve vars já existentes, então funciona sem alterar Delfos/Atena.
 - **`cwd`:** diretório do processo (`Delfos/` ou `Atena/`) para imports relativos
 - **Log capture:** stdout/stderr capturados linha a linha (buffer de 200 linhas)
 - **Exit detection:** task `_watch_exit()` detecta crash e notifica via `proc:status`
@@ -197,6 +208,17 @@ Permite iniciar e parar Delfos e Atena diretamente do painel web, sem terminais 
 - **Python:** detecta `.venv/Scripts/python.exe` (Win) ou `.venv/bin/python` (Linux), fallback `sys.executable`
 
 **Sem persistência** — processos são efêmeros e param junto com o Hub (`shutdown_all()` no lifecycle).
+
+---
+
+### ModbusClientWrapper — Cliente unificado TCP/RTU (`shared/modbus_functions.py`)
+
+Abstração que unifica a API de `pyModbusTCP` (TCP puro) e `pymodbus` (RTU over TCP) num único wrapper.
+
+- **`setup_modbus(protocol=)`** — aceita `"tcp"` (default, usa `pyModbusTCP.client.ModbusClient`) ou `"rtu_tcp"` (usa `pymodbus.client.ModbusTcpClient` com `ModbusRtuFramer`)
+- **API unificada:** `read_coils()`, `read_holding_registers()`, `write_single_coil()`, `write_single_register()`, `open()`, `close()` — mesma assinatura independente do protocolo
+- **RTU error handling:** chamadas RTU verificam `result.isError()` e levantam `Exception` com contexto
+- **Seleção de protocolo:** Delfos e Atena leem `MODBUS_PROTOCOL` do env e passam para `setup_modbus()`; o ProcessManager propaga o `protocol` do device config
 
 ---
 
@@ -211,9 +233,14 @@ Substitui `tests/modbus_simulator.py` standalone — simuladores rodam dentro do
 **SimulatorInstance:**
 - Encapsula um `ModbusTcpServer` (pymodbus) com contexto carregado de CSVs
 - Suporta coils (tipo M) e holding registers (tipo D)
-- **Simulação automática:** varia registers por onda senoidal, coils por toggle aleatório (a cada 2s)
+- **Simulação automática:** varia registers por onda senoidal, coils por toggle aleatório — parâmetros configuráveis:
+  - `sim_interval` — segundos entre ciclos (default 2.0)
+  - `sim_registers` — quantos registers variar por ciclo (default 8, 0=todos)
+  - `sim_coils` — quantos coils variar por ciclo (default 12, 0=todos)
+  - `sim_coil_prob` — probabilidade de toggle por coil (default 0.3)
 - **Lock de tags:** `sim_lock` trava variável — simulação não sobrescreve, permite escrita manual via `sim_write`
 - **Broadcast:** valores emitidos via `sim:values` a cada 500ms ao room `sim:{sim_id}`
+- **Edição em runtime:** modal de configurações no painel LabTest (botão engrenagem) permite alterar todos os parâmetros do simulador (deve estar parado)
 
 **SimulatorManager:**
 - CRUD de simuladores com persistência em JSON
@@ -253,6 +280,7 @@ Delfos e Atena usam o mesmo conjunto de variáveis Modbus. O Hub usa variáveis 
 MODBUS_HOST=192.168.1.2
 MODBUS_PORT=502
 MODBUS_UNIT_ID=2
+MODBUS_PROTOCOL=tcp          # tcp ou rtu_tcp (RTU over TCP)
 REDIS_HOST=localhost
 REDIS_PORT=6379
 TABLES_DIR=../tables
@@ -275,9 +303,19 @@ HUB_PORT=4567
 
 ## Tabelas CSV
 
-### `operacao.csv` — mapeamento operacional
+### CSVs de mapeamento Modbus
 
-Colunas relevantes:
+Os CSVs de mapeamento foram reorganizados em arquivos individuais por domínio. `operacao.csv` e `configuracao.csv` agora contêm apenas o header (dados migrados). O mapeamento ativo está nos CSVs individuais referenciados por cada device em `group_config.json`.
+
+**CSVs ativos:**
+- `mapeamento_clp.csv` — mapeamento consolidado do CLP principal (I/O, retentivas, globais)
+- `io_fisicas.csv` — entradas/saídas digitais e analógicas (DI, DO, AI, AO)
+- `retentivas.csv` — variáveis retentivas
+- `globais.csv` — variáveis globais do processo (extrusora, bomba, calandras, puxador, bobinadores, alarmes)
+- `temperatura_24z.csv` — controlador de temperatura 24 zonas (protocolo RTU over TCP)
+- `temperatura_28z.csv` — controlador de temperatura 28 zonas (protocolo RTU over TCP)
+
+Colunas relevantes (mesmo formato em todos):
 
 | Coluna | Descrição |
 |--------|-----------|
@@ -286,12 +324,11 @@ Colunas relevantes:
 | `Tipo` | `M` = coil, `D` = register |
 | `Modbus` | Endereço Modbus inteiro |
 | `At` | `%MB` = coil, `%MW` = holding register |
+| `Classe` | (opcional) Classificação da variável — exibida na API `/api/variables` |
 
-**Domínios:** Extrusora (7 tags), Puxador (7 tags), producao (14 tags), threeJs (30 tags), saidasDigitais (5 tags), dosador, alimentador, totalizadores, alarmes.
+### `operacao.csv` / `configuracao.csv` — headers legados
 
-### `configuracao.csv` — parâmetros de configuração
-
-Parâmetros de calibração, PID, receitas e limites. Mesma estrutura de colunas.
+Mantidos apenas com o header para compatibilidade de referência. Os dados foram migrados para os CSVs individuais acima.
 
 ### `group_config.json` — devices e canais
 
@@ -348,6 +385,8 @@ Define devices Modbus e canais Redis. Lido pelo Delfos na inicialização e a ca
 - `enabled: false` em um device → Delfos ignora todos os seus CSVs no próximo hot-reload
 - Devices com `csv_files` idênticos causam variáveis duplicadas — **cada device deve ter CSVs exclusivos**
 
+**Canais de sistema (`SYSTEM_CHANNELS`):** `user_status`, `config_reload`, `plc_commands`, `plc_data`, `alarms`, `ia_status`, `ia_data` — são protegidos contra remoção via API (`DELETE /api/channels/{channel}` retorna 403). O painel web marca esses canais com badge "SISTEMA" e oculta o botão de remoção.
+
 ### `variable_overrides.json` — atribuição direta por tag
 
 **Única fonte de roteamento.** Define qual canal cada tag publica. Tags ausentes deste arquivo não são lidas pelo Delfos. Editável pelo painel web ou via `PATCH /api/variables/{tag}`.
@@ -380,9 +419,13 @@ Gerado e gerenciado pelo Hub (LabTest). Persistido em `tables/`. Cada chave é u
     "protocol": "tcp",
     "port": 5020,
     "unit_id": 1,
-    "csv_files": ["operacao.csv"],
+    "csv_files": ["mapeamento_clp.csv"],
     "simulate": true,
-    "auto_start": false
+    "auto_start": false,
+    "sim_interval": 2.0,
+    "sim_registers": 8,
+    "sim_coils": 12,
+    "sim_coil_prob": 0.3
   }
 }
 ```
@@ -393,6 +436,10 @@ Gerado e gerenciado pelo Hub (LabTest). Persistido em `tables/`. Cada chave é u
 - `csv_files` — lista de CSVs em `tables/` para carregar contexto
 - `simulate` — `true` = variação automática de valores; `false` = valores estáticos
 - `auto_start` — `true` = inicia automaticamente no startup do Hub
+- `sim_interval` — intervalo em segundos entre ciclos de simulação (default 2.0)
+- `sim_registers` — quantos registers variar por ciclo (default 8, 0=todos)
+- `sim_coils` — quantos coils variar por ciclo (default 12, 0=todos)
+- `sim_coil_prob` — probabilidade de toggle por coil por ciclo (default 0.3)
 
 ---
 
@@ -517,6 +564,7 @@ python -m pytest tests/test_hub.py tests/test_segmented_reading.py -v
 | `tests/test_atena.py` | Atena — loop Redis → Modbus | 6 |
 | `tests/test_full_loop.py` | Loop completo Delfos+Atena simultâneos | 7 |
 | `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping, simulators | 61 |
+| `tests/test_e2e_rtu.py` | Teste end-to-end RTU over TCP (simulador + Delfos + Atena) | — |
 
 **Total unit tests (sem deps externas):** 91 passando (`test_hub` + `test_segmented_reading`)
 
@@ -542,7 +590,7 @@ cp tests/.env.test Atena/.env
 ## Problemas conhecidos
 
 1. **`handle_ia_data_message`** é um stub — lógica de processamento de dados da IA não implementada
-2. **Código duplicado:** `redis_config_functions.py` e `modbus_functions.py` são idênticos em Delfos e Atena — candidatos a um módulo compartilhado
+2. **Código duplicado parcialmente resolvido:** `modbus_functions.py` foi extraído para `shared/` com `ModbusClientWrapper` unificado; `redis_config_functions.py` ainda é duplicado em Delfos e Atena
 3. **Eventos Socket.IO — nomenclatura intencional:** client→server usa underscore (`plc_write`, `sim_write`); server→client usa colon (`plc:data`, `proc:status`, `sim:values`). Frontends devem seguir esta convenção.
 4. **Redis sem replicação:** ponto único de falha
 5. **Delfos — device único por instância:** Delfos usa um único cliente Modbus; para múltiplos devices físicos simultâneos seria necessário múltiplos clientes (atualmente lê devices em série, não em paralelo)
@@ -555,7 +603,7 @@ cp tests/.env.test Atena/.env
 - Não commitar arquivos `.env`
 - Não hardcodar IPs, portas ou credenciais no código
 - Não usar `print()` — usar `logging`
-- Não modificar `operacao.csv` sem entender o impacto nos endereços Modbus
+- Não modificar CSVs de mapeamento Modbus sem entender o impacto nos endereços
 - Não alterar a ordem das colunas nos CSVs (a leitura depende dos nomes das colunas)
 - Não adicionar o mesmo CSV a múltiplos devices (causa variáveis duplicadas nos overrides)
 - Não adicionar seção `groups` ao `group_config.json` — removida na Fase 5

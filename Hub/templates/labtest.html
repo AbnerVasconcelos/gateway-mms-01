@@ -130,6 +130,28 @@
           <input class="form-check-input" type="checkbox" id="new-sim-simulate" checked />
           <label class="form-check-label small" for="new-sim-simulate">Simular variacao de valores</label>
         </div>
+        <div class="row g-2 mb-2">
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Intervalo (s)</label>
+            <input type="number" id="new-sim-interval" class="form-control form-control-sm"
+                   value="2" min="0.1" step="0.1" title="Intervalo entre ciclos de simulacao" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Registers</label>
+            <input type="number" id="new-sim-registers" class="form-control form-control-sm"
+                   value="8" min="0" title="Qtd registers variados por ciclo (0=todos)" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Coils</label>
+            <input type="number" id="new-sim-coils" class="form-control form-control-sm"
+                   value="12" min="0" title="Qtd coils variados por ciclo (0=todos)" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Prob. coil</label>
+            <input type="number" id="new-sim-coil-prob" class="form-control form-control-sm"
+                   value="0.3" min="0" max="1" step="0.05" title="Probabilidade de toggle por coil por ciclo (0-1)" />
+          </div>
+        </div>
         <div class="form-check">
           <input class="form-check-input" type="checkbox" id="new-sim-autostart" />
           <label class="form-check-label small" for="new-sim-autostart">Auto-start ao iniciar Hub</label>
@@ -138,6 +160,87 @@
       <div class="modal-footer">
         <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
         <button class="btn btn-primary btn-sm" id="confirm-new-sim-btn">Criar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Simulator Modal -->
+<div class="modal fade" id="editSimModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Configuracoes do simulador</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-sim-id" />
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">ID</label>
+          <input type="text" id="edit-sim-id-display" class="form-control form-control-sm" disabled />
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Label</label>
+          <input type="text" id="edit-sim-label" class="form-control form-control-sm" />
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Protocolo</label>
+            <select id="edit-sim-protocol" class="form-select form-select-sm">
+              <option value="tcp">TCP</option>
+              <option value="rtu_tcp">RTU over TCP</option>
+            </select>
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Porta</label>
+            <input type="number" id="edit-sim-port" class="form-control form-control-sm" min="1024" />
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Unit ID</label>
+            <input type="number" id="edit-sim-unit" class="form-control form-control-sm" min="1" />
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Arquivos CSV <span class="text-muted">(um por linha)</span></label>
+          <textarea id="edit-sim-csvs" class="form-control form-control-sm" rows="2"></textarea>
+        </div>
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="edit-sim-simulate" />
+          <label class="form-check-label small" for="edit-sim-simulate">Simular variacao de valores</label>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Intervalo (s)</label>
+            <input type="number" id="edit-sim-interval" class="form-control form-control-sm"
+                   min="0.1" step="0.1" title="Intervalo entre ciclos de simulacao" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Registers</label>
+            <input type="number" id="edit-sim-registers" class="form-control form-control-sm"
+                   min="0" title="Qtd registers variados por ciclo (0=todos)" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Coils</label>
+            <input type="number" id="edit-sim-coils" class="form-control form-control-sm"
+                   min="0" title="Qtd coils variados por ciclo (0=todos)" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Prob. coil</label>
+            <input type="number" id="edit-sim-coil-prob" class="form-control form-control-sm"
+                   min="0" max="1" step="0.05" title="Probabilidade de toggle por coil por ciclo (0-1)" />
+          </div>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="edit-sim-autostart" />
+          <label class="form-check-label small" for="edit-sim-autostart">Auto-start ao iniciar Hub</label>
+        </div>
+        <div class="alert alert-warning small mt-3 mb-0 d-none" id="edit-sim-running-warn">
+          O simulador deve estar parado para salvar alteracoes.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="confirm-edit-sim-btn">Salvar</button>
       </div>
     </div>
   </div>
@@ -319,6 +422,9 @@ function renderCards() {
             ? `<button class="btn btn-sm btn-outline-danger flex-fill" onclick="event.stopPropagation();stopSim('${simId}')">Stop</button>`
             : `<button class="btn btn-sm btn-outline-success flex-fill" onclick="event.stopPropagation();startSim('${simId}')">Start</button>`
           }
+          <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation();openEditSim('${simId}')" title="Configuracoes">
+            &#9881;
+          </button>
           <label class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation()" title="Upload CSV">
             CSV
             <input type="file" accept=".csv" class="d-none" onchange="uploadSimCsv('${simId}', this)" />
@@ -390,6 +496,10 @@ document.getElementById('confirm-new-sim-btn').onclick = async () => {
   const csvFiles = csvText ? csvText.split('\n').map(s => s.trim()).filter(Boolean) : [];
   const simulate = document.getElementById('new-sim-simulate').checked;
   const autoStart = document.getElementById('new-sim-autostart').checked;
+  const simInterval = parseFloat(document.getElementById('new-sim-interval').value) || 2.0;
+  const simRegisters = parseInt(document.getElementById('new-sim-registers').value) || 0;
+  const simCoils = parseInt(document.getElementById('new-sim-coils').value) || 0;
+  const simCoilProb = parseFloat(document.getElementById('new-sim-coil-prob').value) || 0.3;
 
   if (!simId) { alert('ID do simulador e obrigatorio.'); return; }
 
@@ -397,6 +507,8 @@ document.getElementById('confirm-new-sim-btn').onclick = async () => {
     const result = await api('POST', '/api/simulators', {
       sim_id: simId, label, protocol, port, unit_id: unitId,
       csv_files: csvFiles, simulate, auto_start: autoStart,
+      sim_interval: simInterval, sim_registers: simRegisters,
+      sim_coils: simCoils, sim_coil_prob: simCoilProb,
     });
     simulators[simId] = result;
     renderCards();
@@ -406,6 +518,71 @@ document.getElementById('confirm-new-sim-btn').onclick = async () => {
     document.getElementById('new-sim-label').value = '';
     document.getElementById('new-sim-csvs').value = '';
   } catch (e) { alert('Erro ao criar: ' + e.message); }
+};
+
+// ── Edit simulator ────────────────────────────────────────────────────────
+function openEditSim(simId) {
+  const state = simulators[simId];
+  if (!state) return;
+  const cfg = state.config || {};
+  const running = state.running;
+
+  document.getElementById('edit-sim-id').value = simId;
+  document.getElementById('edit-sim-id-display').value = simId;
+  document.getElementById('edit-sim-label').value = cfg.label || '';
+  document.getElementById('edit-sim-protocol').value = cfg.protocol || 'tcp';
+  document.getElementById('edit-sim-port').value = cfg.port || 5020;
+  document.getElementById('edit-sim-unit').value = cfg.unit_id || 1;
+  document.getElementById('edit-sim-csvs').value = (cfg.csv_files || []).join('\n');
+  document.getElementById('edit-sim-simulate').checked = cfg.simulate !== false;
+  document.getElementById('edit-sim-interval').value = cfg.sim_interval ?? 2.0;
+  document.getElementById('edit-sim-registers').value = cfg.sim_registers ?? 8;
+  document.getElementById('edit-sim-coils').value = cfg.sim_coils ?? 12;
+  document.getElementById('edit-sim-coil-prob').value = cfg.sim_coil_prob ?? 0.3;
+  document.getElementById('edit-sim-autostart').checked = !!cfg.auto_start;
+
+  // Show warning and disable save if running
+  const warn = document.getElementById('edit-sim-running-warn');
+  const saveBtn = document.getElementById('confirm-edit-sim-btn');
+  if (running) {
+    warn.classList.remove('d-none');
+    saveBtn.disabled = true;
+  } else {
+    warn.classList.add('d-none');
+    saveBtn.disabled = false;
+  }
+
+  const modal = new bootstrap.Modal(document.getElementById('editSimModal'));
+  modal.show();
+}
+
+document.getElementById('confirm-edit-sim-btn').onclick = async () => {
+  const simId = document.getElementById('edit-sim-id').value;
+  const label = document.getElementById('edit-sim-label').value.trim();
+  const protocol = document.getElementById('edit-sim-protocol').value;
+  const port = parseInt(document.getElementById('edit-sim-port').value) || 5020;
+  const unitId = parseInt(document.getElementById('edit-sim-unit').value) || 1;
+  const csvText = document.getElementById('edit-sim-csvs').value.trim();
+  const csvFiles = csvText ? csvText.split('\n').map(s => s.trim()).filter(Boolean) : [];
+  const simulate = document.getElementById('edit-sim-simulate').checked;
+  const simInterval = parseFloat(document.getElementById('edit-sim-interval').value) || 2.0;
+  const simRegisters = parseInt(document.getElementById('edit-sim-registers').value) || 0;
+  const simCoils = parseInt(document.getElementById('edit-sim-coils').value) || 0;
+  const simCoilProb = parseFloat(document.getElementById('edit-sim-coil-prob').value) || 0.3;
+  const autoStart = document.getElementById('edit-sim-autostart').checked;
+
+  try {
+    const result = await api('PATCH', `/api/simulators/${simId}`, {
+      label, protocol, port, unit_id: unitId,
+      csv_files: csvFiles, simulate, auto_start: autoStart,
+      sim_interval: simInterval, sim_registers: simRegisters,
+      sim_coils: simCoils, sim_coil_prob: simCoilProb,
+    });
+    simulators[simId] = result;
+    renderCards();
+    if (selectedSimId === simId) await loadVariables(simId);
+    bootstrap.Modal.getInstance(document.getElementById('editSimModal')).hide();
+  } catch (e) { alert('Erro ao salvar: ' + e.message); }
 };
 
 // ── Select simulator + load variables ──────────────────────────────────────

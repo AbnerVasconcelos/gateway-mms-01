@@ -125,6 +125,18 @@
       font-size: 1.2rem; padding: 0 4px; line-height: 1;
     }
 
+    /* ── System channel indicator ─────────────────────────────────────────── */
+    .channel-card.system-channel {
+      border-left: 3px solid #ffc107;
+      opacity: .85;
+    }
+    .badge-system {
+      font-size: .55rem;
+      padding: 1px 4px;
+      vertical-align: middle;
+      letter-spacing: .03em;
+    }
+
     /* ── Sidebar section labels ──────────────────────────────────────────── */
     .sidebar-section-label {
       font-size: .7rem;
@@ -473,6 +485,7 @@ let knownRooms    = [];
 // Canal -> indice de cor (0-5), populado ao carregar canais
 const CHANNEL_COLORS = {};
 let   CHANNELS_LIST  = [];
+let   SYSTEM_CHANNELS = new Set();
 
 // Device state
 let   activeDevice  = '';          // '' = Todos
@@ -593,6 +606,10 @@ function setWsStatus(ok) {
 // ── Canais ────────────────────────────────────────────────────────────────────
 async function loadChannels() {
   const data = await apiFetch('/api/channels');
+  try {
+    const sys = await apiFetch('/api/channels/system');
+    SYSTEM_CHANNELS = new Set(sys.channels || []);
+  } catch { /* endpoint may not exist in older versions */ }
   const container = document.getElementById('channels-container');
   container.innerHTML = '';
 
@@ -618,17 +635,20 @@ async function loadChannels() {
   const activeFilter = document.getElementById('filter-channel').value;
 
   Object.entries(data).forEach(([ch, cfg]) => {
+    const isSys = SYSTEM_CHANNELS.has(ch);
     const card = document.createElement('div');
     card.id        = 'card-' + ch;
-    card.className = 'channel-card' + (activeFilter === ch ? ' active-filter' : '');
+    card.className = 'channel-card' + (activeFilter === ch ? ' active-filter' : '') + (isSys ? ' system-channel' : '');
     card.onclick   = () => filterByChannel(ch, card);
     card.innerHTML = `
       <div class="d-flex align-items-center mb-1">
         <span class="activity-dot me-2" id="act-${ch}"></span>
-        <div class="fw-semibold text-truncate flex-grow-1" style="font-size:.8rem" title="${ch}">${ch}</div>
-        <button class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" style="font-size:.6rem"
+        <div class="fw-semibold text-truncate flex-grow-1" style="font-size:.8rem" title="${ch}">${ch}${
+          isSys ? ' <span class="badge bg-warning text-dark badge-system" title="Canal de sistema — não pode ser removido">SISTEMA</span>' : ''
+        }</div>
+        ${isSys ? '' : `<button class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" style="font-size:.6rem"
                 onclick="event.stopPropagation(); removeChannel('${ch}', this)"
-                title="Remover canal">✕</button>
+                title="Remover canal">✕</button>`}
       </div>
       <div class="d-flex align-items-center gap-1 mb-1">
         <label class="text-muted mb-0" style="font-size:.7rem;white-space:nowrap">Delay:</label>
@@ -669,6 +689,10 @@ function filterByChannel(ch, cardEl) {
 }
 
 async function removeChannel(channel, btn) {
+  if (SYSTEM_CHANNELS.has(channel)) {
+    showToast(`Canal "${channel}" é de sistema e não pode ser removido.`, 'warning');
+    return;
+  }
   if (!confirm(`Remover o canal "${channel}"?\n\nGrupos já mapeados não serão alterados.`)) return;
   try {
     await apiFetch(`/api/channels/${encodeURIComponent(channel)}`, {method: 'DELETE'});

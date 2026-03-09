@@ -160,7 +160,8 @@ def main():
     subscribe_to_channels(pubsub, ['user_status', 'config_reload'])
 
     # Modbus
-    client = retry_on_failure(setup_modbus)
+    _modbus_protocol = os.environ.get('MODBUS_PROTOCOL', 'tcp')
+    client = retry_on_failure(lambda: setup_modbus(protocol=_modbus_protocol))
     if client is None:
         return
 

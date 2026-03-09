@@ -174,6 +174,7 @@ async def start_process(proc_type: str, body: ProcessStartBody):
         'modbus_host': dev.get('host', ''),
         'modbus_port': dev.get('port', 502),
         'modbus_unit_id': dev.get('unit_id', 1),
+        'modbus_protocol': dev.get('protocol', 'tcp'),
         'redis_host': _REDIS_HOST,
         'redis_port': _REDIS_PORT,
         'tables_dir': os.path.abspath(config_store._TABLES_DIR),
@@ -352,11 +353,19 @@ async def delete_channel(channel: str):
     """Remove um canal criado explicitamente. Não afeta grupos já mapeados."""
     try:
         config_store.delete_channel(channel)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     if redis_pub:
         await redis_pub.publish('config_reload', json.dumps({'reload': True}))
     return {'deleted': channel}
+
+
+@app.get('/api/channels/system')
+async def get_system_channels():
+    """Retorna lista de canais de sistema que não podem ser removidos."""
+    return {'channels': sorted(config_store.SYSTEM_CHANNELS)}
 
 
 class DelayPatch(BaseModel):
@@ -639,14 +648,18 @@ async def list_simulators():
 
 
 class SimulatorCreate(BaseModel):
-    sim_id:    str
-    label:     str       = ''
-    protocol:  str       = 'tcp'
-    port:      int       = 5020
-    unit_id:   int       = 1
-    csv_files: list[str] = []
-    simulate:  bool      = True
-    auto_start: bool     = False
+    sim_id:       str
+    label:        str       = ''
+    protocol:     str       = 'tcp'
+    port:         int       = 5020
+    unit_id:      int       = 1
+    csv_files:    list[str] = []
+    simulate:     bool      = True
+    auto_start:   bool      = False
+    sim_interval:  float     = 2.0
+    sim_registers: int       = 8
+    sim_coils:     int       = 12
+    sim_coil_prob: float     = 0.3
 
 
 @app.post('/api/simulators', status_code=201)
@@ -679,13 +692,17 @@ async def delete_simulator(sim_id: str):
 
 
 class SimulatorPatch(BaseModel):
-    label:     Optional[str]       = None
-    protocol:  Optional[str]       = None
-    port:      Optional[int]       = None
-    unit_id:   Optional[int]       = None
-    csv_files: Optional[list[str]] = None
-    simulate:  Optional[bool]      = None
-    auto_start: Optional[bool]     = None
+    label:         Optional[str]       = None
+    protocol:      Optional[str]       = None
+    port:          Optional[int]       = None
+    unit_id:       Optional[int]       = None
+    csv_files:     Optional[list[str]] = None
+    simulate:      Optional[bool]      = None
+    auto_start:    Optional[bool]      = None
+    sim_interval:  Optional[float]     = None
+    sim_registers: Optional[int]       = None
+    sim_coils:     Optional[int]       = None
+    sim_coil_prob: Optional[float]     = None
 
 
 @app.patch('/api/simulators/{sim_id}')

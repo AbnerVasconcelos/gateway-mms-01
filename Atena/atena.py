@@ -37,7 +37,8 @@ def main():
 
     subscribe_to_channels(pubsub, channels)
 
-    client = setup_modbus()
+    _modbus_protocol = os.environ.get('MODBUS_PROTOCOL', 'tcp')
+    client = setup_modbus(protocol=_modbus_protocol)
     if client is None:
         logger.critical("Falha ao conectar ao Modbus. Encerrando.")
         return

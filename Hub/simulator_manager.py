@@ -284,12 +284,19 @@ class SimulatorInstance:
             'locked_count': len(self._locked_tags),
         }
 
-    async def _simulate_values(self, interval: float = 2.0) -> None:
-        """Varia valores de registers e coils, pulando tags travadas."""
+    async def _simulate_values(self) -> None:
+        """Varia valores de registers e coils, pulando tags travadas.
+
+        Parâmetros lidos de self.config (atualizáveis em runtime):
+          sim_interval   — segundos entre ciclos (default 2.0)
+          sim_registers  — quantos registers variar por ciclo (default 8, 0=todos)
+          sim_coils      — quantos coils variar por ciclo (default 12, 0=todos)
+          sim_coil_prob  — probabilidade de toggle por coil por ciclo (default 0.3)
+        """
         slave = self.context[0x00]
         step = 0
 
-        # Monta mapa reverso: address → tag (para checar locks)
+        # Mapa reverso: address → tag (para checar locks)
         addr_to_tag_reg: dict[int, str] = {}
         addr_to_tag_coil: dict[int, str] = {}
         for var in self._variables:
@@ -299,11 +306,13 @@ class SimulatorInstance:
                 addr_to_tag_coil[var['address']] = var['tag']
 
         while True:
-            await asyncio.sleep(interval)
+            interval = self.config.get('sim_interval', 2.0)
+            await asyncio.sleep(max(0.1, interval))
             step += 1
 
             # Simula registers
-            n_reg = min(8, len(self._reg_addresses))
+            max_reg = self.config.get('sim_registers', 8)
+            n_reg = len(self._reg_addresses) if max_reg == 0 else min(max_reg, len(self._reg_addresses))
             for addr in self._reg_addresses[:n_reg]:
                 tag = addr_to_tag_reg.get(addr)
                 if tag and tag in self._locked_tags:
@@ -319,12 +328,13 @@ class SimulatorInstance:
                     pass
 
             # Simula coils (toggle aleatório a cada ciclo)
-            n_coil = min(12, len(self._coil_addresses))
+            max_coil = self.config.get('sim_coils', 12)
+            n_coil = len(self._coil_addresses) if max_coil == 0 else min(max_coil, len(self._coil_addresses))
             for addr in self._coil_addresses[:n_coil]:
                 tag = addr_to_tag_coil.get(addr)
                 if tag and tag in self._locked_tags:
                     continue
-                if random.random() < 0.3:
+                if random.random() < self.config.get('sim_coil_prob', 0.3):
                     try:
                         vals = slave.getValues(1, addr, 1)
                         current = vals[0] if vals else 0

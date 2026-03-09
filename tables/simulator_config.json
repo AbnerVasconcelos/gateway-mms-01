@@ -1,35 +1,35 @@
 {
-  "Simulador": {
-    "label": "",
-    "protocol": "tcp",
-    "port": 5020,
-    "unit_id": 1,
-    "csv_files": [
-      "operacao.csv"
-    ],
-    "simulate": true,
-    "auto_start": false
-  },
-  "sim_default": {
-    "label": "Simulador CLP Principal",
+  "WEST": {
+    "label": "Controlador de temperatura",
     "protocol": "tcp",
     "port": 5021,
-    "unit_id": 2,
+    "unit_id": 1,
     "csv_files": [
-      "operacao.csv"
+      "temperatura_24z.csv",
+      "temperatura_28z.csv"
     ],
     "simulate": true,
-    "auto_start": false
+    "auto_start": true,
+    "sim_interval": 1.0,
+    "sim_registers": 0,
+    "sim_coils": 0,
+    "sim_coil_prob": 0.3
   },
-  "teste": {
+  "PLC_300": {
     "label": "",
     "protocol": "tcp",
     "port": 5020,
     "unit_id": 1,
     "csv_files": [
-      "operacao.csv"
+      "io_fisicas.csv",
+      "retentivas.csv",
+      "globais.csv"
     ],
     "simulate": true,
-    "auto_start": false
+    "auto_start": true,
+    "sim_interval": 1.0,
+    "sim_registers": 0,
+    "sim_coils": 0,
+    "sim_coil_prob": 0.3
   }
 }

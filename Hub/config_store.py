@@ -156,8 +156,16 @@ def create_channel(channel: str, delay_ms: int = 1000, history_size: int = 100) 
     logger.info("Canal '%s' criado (delay_ms=%d, history_size=%d).", channel, delay_ms, history_size)
 
 
+SYSTEM_CHANNELS = frozenset([
+    'user_status', 'config_reload', 'plc_commands',
+    'plc_data', 'alarms', 'ia_status', 'ia_data',
+])
+
+
 def delete_channel(channel: str) -> None:
     """Remove um canal de group_config['channels']. Não altera grupos existentes."""
+    if channel in SYSTEM_CHANNELS:
+        raise ValueError(f"Canal '{channel}' é um canal de sistema e não pode ser removido.")
     config = load_group_config()
     channels = config.get('channels', {})
     if channel not in channels:
@@ -246,6 +254,8 @@ def load_all_variables() -> list:
                 var_at  = str(row.get('At', '')).strip()
                 address = int(row['Modbus']) if pd.notna(row['Modbus']) else None
 
+                classe  = str(row['Classe']).strip() if 'Classe' in row.index and pd.notna(row.get('Classe')) else None
+
                 ov      = overrides.get(tag, {})
                 enabled = ov.get('enabled', True)
                 channel = ov.get('channel')   # None quando não atribuída
@@ -262,6 +272,7 @@ def load_all_variables() -> list:
                     'enabled':      enabled,
                     'source':       source,
                     'device':       device_id,
+                    'classe':       classe,
                 })
 
     if devices:

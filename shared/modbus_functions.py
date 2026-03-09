@@ -1,6 +1,5 @@
 import logging
 import os
-from pyModbusTCP.client import ModbusClient
 from collections import defaultdict
 from time import sleep
 from dotenv import load_dotenv
@@ -9,20 +8,88 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-_MODBUS_HOST    = os.environ.get('MODBUS_HOST', '192.168.1.2')
-_MODBUS_PORT    = int(os.environ.get('MODBUS_PORT', 502))
-_MODBUS_UNIT_ID = int(os.environ.get('MODBUS_UNIT_ID', 2))
+_MODBUS_HOST     = os.environ.get('MODBUS_HOST', '192.168.1.2')
+_MODBUS_PORT     = int(os.environ.get('MODBUS_PORT', 502))
+_MODBUS_UNIT_ID  = int(os.environ.get('MODBUS_UNIT_ID', 2))
+_MODBUS_PROTOCOL = os.environ.get('MODBUS_PROTOCOL', 'tcp')
 
 
-def setup_modbus():
+class ModbusClientWrapper:
+    """Wrapper que unifica a API de pyModbusTCP (TCP puro) e pymodbus (RTU over TCP)."""
+
+    def __init__(self, client, protocol, unit_id):
+        self._client = client
+        self._protocol = protocol
+        self._unit_id = unit_id
+
+    def read_coils(self, address, count):
+        if self._protocol == 'tcp':
+            return self._client.read_coils(address, count)
+        result = self._client.read_coils(address, count, slave=self._unit_id)
+        if result.isError():
+            raise Exception(f"Modbus RTU error (read_coils addr={address}): {result}")
+        return result.bits[:count]
+
+    def read_holding_registers(self, address, count):
+        if self._protocol == 'tcp':
+            return self._client.read_holding_registers(address, count)
+        result = self._client.read_holding_registers(address, count, slave=self._unit_id)
+        if result.isError():
+            raise Exception(f"Modbus RTU error (read_holding_registers addr={address}): {result}")
+        return result.registers[:count]
+
+    def write_single_coil(self, address, value):
+        if self._protocol == 'tcp':
+            return self._client.write_single_coil(address, value)
+        result = self._client.write_coil(address, bool(value), slave=self._unit_id)
+        if result.isError():
+            raise Exception(f"Modbus RTU error (write_coil addr={address}): {result}")
+        return result
+
+    def write_single_register(self, address, value):
+        if self._protocol == 'tcp':
+            return self._client.write_single_register(address, value)
+        result = self._client.write_register(address, int(value), slave=self._unit_id)
+        if result.isError():
+            raise Exception(f"Modbus RTU error (write_register addr={address}): {result}")
+        return result
+
+    def open(self):
+        if self._protocol == 'tcp':
+            return self._client.open()
+        return self._client.connect()
+
+    def close(self):
+        return self._client.close()
+
+
+def setup_modbus(protocol=None):
+    if protocol is None:
+        protocol = _MODBUS_PROTOCOL
+
+    host = _MODBUS_HOST
+    port = _MODBUS_PORT
+    unit_id = _MODBUS_UNIT_ID
     attempts = 3
     delay = 1
 
     for _ in range(attempts):
         try:
-            client = ModbusClient(_MODBUS_HOST, _MODBUS_PORT, unit_id=_MODBUS_UNIT_ID, auto_open=True)
-            client.open()
-            logger.info("Modbus conectado em %s:%s (unit_id=%s)", _MODBUS_HOST, _MODBUS_PORT, _MODBUS_UNIT_ID)
+            if protocol == 'rtu_tcp':
+                from pymodbus.client import ModbusTcpClient
+                from pymodbus.framer import ModbusRtuFramer
+                raw_client = ModbusTcpClient(host, port=port, framer=ModbusRtuFramer)
+                connected = raw_client.connect()
+                if not connected:
+                    raise ConnectionError(f"Falha ao conectar via RTU over TCP em {host}:{port}")
+                client = ModbusClientWrapper(raw_client, 'rtu_tcp', unit_id)
+                logger.info("Modbus RTU over TCP conectado em %s:%s (unit_id=%s)", host, port, unit_id)
+            else:
+                from pyModbusTCP.client import ModbusClient
+                raw_client = ModbusClient(host, port, unit_id=unit_id, auto_open=True)
+                raw_client.open()
+                client = ModbusClientWrapper(raw_client, 'tcp', unit_id)
+                logger.info("Modbus TCP conectado em %s:%s (unit_id=%s)", host, port, unit_id)
             return client
         except Exception as e:
             logger.error("Erro ao configurar Modbus: %s, nova tentativa em %ss.", e, delay)
