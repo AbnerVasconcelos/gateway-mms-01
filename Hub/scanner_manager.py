@@ -109,12 +109,21 @@ def _scan_single_variable(client, var: dict, retries: int) -> dict:
     """
     Lê uma única variável via Modbus. Bloqueante.
 
+    Suporta variáveis bit-addressed: quando var['bit_index'] não é None,
+    lê como holding register e extrai o bit correspondente.
+
     Retorna dict com status/value/latency/error/retries_used.
     """
     tag = var['tag']
     address = var['address']
     var_type = var.get('type', '')
-    is_coil = var_type == '%MB' or var.get('tipo') == 'M'
+    bit_index = var.get('bit_index')
+
+    # Variáveis bit-addressed sempre lêem como register
+    if bit_index is not None:
+        is_coil = False
+    else:
+        is_coil = var_type == '%MB' or var.get('tipo') == 'M'
 
     last_error = None
     for attempt in range(1, retries + 1):
@@ -132,13 +141,18 @@ def _scan_single_variable(client, var: dict, retries: int) -> dict:
                 continue
 
             value = result[0] if result else None
-            if is_coil:
+
+            if bit_index is not None and value is not None:
+                # Extrai bit do valor do registrador
+                value = bool((value >> bit_index) & 1)
+            elif is_coil:
                 value = bool(value) if value is not None else None
 
             return {
                 'tag':          tag,
                 'address':      address,
                 'type':         var_type,
+                'bit_index':    bit_index,
                 'status':       'ok',
                 'value':        value,
                 'latency_ms':   latency,
@@ -155,6 +169,7 @@ def _scan_single_variable(client, var: dict, retries: int) -> dict:
         'tag':          tag,
         'address':      address,
         'type':         var_type,
+        'bit_index':    bit_index,
         'status':       'error',
         'value':        None,
         'latency_ms':   latency,

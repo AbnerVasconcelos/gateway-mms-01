@@ -240,9 +240,8 @@
       </div>
       <div class="modal-body">
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Nome <span class="text-muted">(sem o prefixo)</span></label>
+          <label class="form-label small fw-semibold">Nome do canal</label>
           <div class="input-group input-group-sm">
-            <span class="input-group-text">plc_</span>
             <input type="text" id="new-ch-name" class="form-control" placeholder="meu_canal" />
           </div>
         </div>
@@ -459,6 +458,61 @@
   </div>
 </div>
 
+<!-- ── Adicionar variável modal ────────────────────────────────────────── -->
+<div class="modal fade" id="addVariableModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Adicionar variável</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Device</label>
+          <select id="addvar-device" class="form-select form-select-sm" onchange="onAddVarDeviceChange()">
+            <option value="">Selecione...</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">CSV destino</label>
+          <select id="addvar-csv" class="form-select form-select-sm">
+            <option value="">Selecione o device primeiro</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Tag / ObjecTag</label>
+          <input type="text" id="addvar-tag" class="form-control form-control-sm" placeholder="minhaNovaTag" />
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Grupo / key</label>
+          <input type="text" id="addvar-group" class="form-control form-control-sm" placeholder="controle_extrusora" />
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Tipo / At</label>
+            <select id="addvar-type" class="form-select form-select-sm">
+              <option value="%MW">%MW (register)</option>
+              <option value="%MB">%MB (coil)</option>
+            </select>
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Endereço Modbus</label>
+            <input type="text" id="addvar-address" class="form-control form-control-sm" placeholder="1584 ou 1584.05" />
+          </div>
+          <div class="col-4">
+            <label class="form-label small fw-semibold">Classe <span class="text-muted">(opc.)</span></label>
+            <input type="text" id="addvar-classe" class="form-control form-control-sm" placeholder="" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="confirm-add-variable-btn">Adicionar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
 <!-- ── Main layout: Sidebar + Grid ─────────────────────────────────────── -->
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
@@ -509,6 +563,10 @@
       <span class="fw-semibold small">Variáveis</span>
       <button class="btn btn-sm btn-outline-secondary py-0" style="font-size:.75rem" id="bulk-move-btn"
               disabled onclick="openBulkMoveModal()">Mover sel.</button>
+      <button class="btn btn-sm btn-outline-danger py-0" style="font-size:.75rem" id="bulk-delete-btn"
+              disabled onclick="bulkDeleteVariables()">Remover sel.</button>
+      <button class="btn btn-sm btn-outline-primary py-0" style="font-size:.75rem"
+              onclick="openAddVariableModal()">+ Adicionar</button>
       <button class="btn btn-sm btn-outline-success py-0" style="font-size:.75rem"
               onclick="bulkEnable(true)">Habilitar todas</button>
       <button class="btn btn-sm btn-outline-danger py-0" style="font-size:.75rem"
@@ -779,7 +837,8 @@ function renderChannelCards() {
       <div class="d-flex align-items-center mb-1">
         <span class="activity-dot me-2" id="${dotId}"></span>
         <div class="fw-semibold text-truncate flex-grow-1" style="font-size:.8rem" title="${ch}">
-          ${ch}${devId && !activeDevice ? ` <span class="badge bg-info" style="font-size:.55rem;vertical-align:middle">${devId}</span>` : ''}${
+          <span id="chlabel-${ch}">${ch}</span>${!isSys ? `<a href="#" class="text-muted ms-1" style="font-size:.65rem;text-decoration:none"
+             onclick="event.preventDefault();event.stopPropagation();editChannelName('${ch}','${devId}')" title="Renomear">&#9998;</a>` : ''}${devId && !activeDevice ? ` <span class="badge bg-info" style="font-size:.55rem;vertical-align:middle">${devId}</span>` : ''}${
           isSys ? ' <span class="badge bg-warning text-dark badge-system" title="Canal de sistema">SISTEMA</span>' : ''
         }</div>
         ${isSys ? '' : `<button class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" style="font-size:.6rem"
@@ -973,7 +1032,12 @@ function renderDeviceCards() {
     card.innerHTML = `
       <div class="d-flex align-items-center mb-1">
         <span class="status-dot ${dotCls}" id="devdot-${id}" style="width:10px;height:10px"></span>
-        <span class="fw-semibold small flex-grow-1">${cfg.label || id} <small class="text-muted">(${id})</small></span>
+        <span class="fw-semibold small flex-grow-1">
+          <span id="devlabel-${id}" style="cursor:default">${cfg.label || id}</span>
+          <a href="#" class="text-muted ms-1" style="font-size:.7rem;text-decoration:none"
+             onclick="event.preventDefault();event.stopPropagation();editDeviceLabel('${id}')" title="Renomear">&#9998;</a>
+          <small class="text-muted">(${id})</small>
+        </span>
         <span class="badge ${isEnabled ? 'bg-success' : 'bg-secondary'} me-1" style="font-size:.6em"
               id="devenabled-${id}">${isEnabled ? 'Ativo' : 'Pausado'}</span>
         <button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:.6rem"
@@ -1291,7 +1355,7 @@ function getFilteredRows() {
     (!typ || v.type    === typ) &&
     (!ch  || v.channel === ch)  &&
     (!dev || v.device  === dev) &&
-    (!txt || v.tag.toLowerCase().includes(txt) || v.group.toLowerCase().includes(txt))
+    (!txt || v.tag.toLowerCase().includes(txt) || v.group.toLowerCase().includes(txt) || String(v.address).includes(txt))
   );
 }
 
@@ -1331,7 +1395,11 @@ const varColumnDefs = [
     width: 40, suppressMovable: true, pinned: 'left', sortable: false,
   },
   {headerName: 'Tag',   field: 'tag',   sortable: true, filter: true, width: 210,
-   editable: true, onCellValueChanged: e => patchCsvField(e, 'tag')},
+   editable: true, onCellValueChanged: e => patchCsvField(e, 'tag'),
+   cellRenderer: p => {
+     const badge = p.data?._added ? ' <span class="badge bg-info" style="font-size:.55rem;vertical-align:middle" title="Adicionada manualmente">NOVO</span>' : '';
+     return `${p.value}${badge}`;
+   }},
   {headerName: 'Grupo', field: 'group', sortable: true, filter: true, width: 140,
    editable: true, onCellValueChanged: e => patchCsvField(e, 'group')},
   {
@@ -1422,6 +1490,11 @@ const varColumnDefs = [
       return `${JSON.stringify(lv.value)}  ${age}s atrás`;
     },
   },
+  {
+    headerName: '', field: '_delete', width: 45, sortable: false, suppressMovable: true,
+    cellRenderer: p => `<button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:.65rem;line-height:1"
+      onclick="deleteVariable('${p.data.tag}', '${p.data.device || ''}')" title="Remover variável">&#10005;</button>`,
+  },
 ];
 
 function initVarGrid() {
@@ -1445,6 +1518,7 @@ function initVarGrid() {
     onSelectionChanged: () => {
       const count = varGrid.getSelectedRows().length;
       document.getElementById('bulk-move-btn').disabled = count === 0;
+      document.getElementById('bulk-delete-btn').disabled = count === 0;
     },
   };
   varGrid = agGrid.createGrid(document.getElementById('var-grid'), gridOptions);
@@ -1592,7 +1666,7 @@ document.getElementById('confirm-new-channel-btn').addEventListener('click', asy
   const history = parseInt(document.getElementById('new-ch-history').value, 10);
   if (!suffix) { showToast('Informe o nome do canal.', 'danger'); return; }
   if (!activeDevice) { showToast('Selecione um device antes de criar um canal.', 'warning'); return; }
-  const channel = 'plc_' + suffix;
+  const channel = suffix;
   const payload = {channel, delay_ms: delay, history_size: history, device_id: activeDevice};
   try {
     await apiFetch('/api/channels', {
@@ -1902,6 +1976,161 @@ async function loadScanResults(deviceId) {
     const data = await apiFetch(`/api/devices/${encodeURIComponent(deviceId)}/scan/results`);
     Object.assign(scanResults, data);
   } catch { /* no cached results */ }
+}
+
+// ── Remover variável ──────────────────────────────────────────────────────────
+async function deleteVariable(tag, deviceId) {
+  if (!confirm(`Remover a variável "${tag}" do CSV?\n\nEssa ação não pode ser desfeita.`)) return;
+  try {
+    const qs = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
+    await apiFetch(`/api/variables/${encodeURIComponent(tag)}${qs}`, {method: 'DELETE'});
+    showToast(`Variável "${tag}" removida.`);
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function bulkDeleteVariables() {
+  const selected = varGrid ? varGrid.getSelectedRows() : [];
+  if (!selected.length) return;
+  if (!confirm(`Remover ${selected.length} variável(is) dos CSVs?\n\nEssa ação não pode ser desfeita.`)) return;
+  let ok = 0, fail = 0;
+  for (const row of selected) {
+    try {
+      const qs = row.device ? `?device_id=${encodeURIComponent(row.device)}` : '';
+      await apiFetch(`/api/variables/${encodeURIComponent(row.tag)}${qs}`, {method: 'DELETE'});
+      ok++;
+    } catch { fail++; }
+  }
+  showToast(`${ok} removida(s)${fail ? `, ${fail} erro(s)` : ''}.`);
+  loadVariables();
+}
+
+// ── Adicionar variável ─────────────────────────────────────────────────────────
+function openAddVariableModal() {
+  const devSel = document.getElementById('addvar-device');
+  devSel.innerHTML = '<option value="">Selecione...</option>';
+  Object.entries(DEVICES_LIST).forEach(([id, cfg]) => {
+    devSel.add(new Option(cfg.label ? `${cfg.label} (${id})` : id, id));
+  });
+  // Pre-select active device if set
+  if (activeDevice && DEVICES_LIST[activeDevice]) {
+    devSel.value = activeDevice;
+    onAddVarDeviceChange();
+  } else {
+    document.getElementById('addvar-csv').innerHTML = '<option value="">Selecione o device primeiro</option>';
+  }
+  document.getElementById('addvar-tag').value = '';
+  document.getElementById('addvar-group').value = '';
+  document.getElementById('addvar-type').value = '%MW';
+  document.getElementById('addvar-address').value = '';
+  document.getElementById('addvar-classe').value = '';
+  new bootstrap.Modal(document.getElementById('addVariableModal')).show();
+}
+
+function onAddVarDeviceChange() {
+  const devId = document.getElementById('addvar-device').value;
+  const csvSel = document.getElementById('addvar-csv');
+  csvSel.innerHTML = '';
+  if (!devId || !DEVICES_LIST[devId]) {
+    csvSel.innerHTML = '<option value="">Selecione o device primeiro</option>';
+    return;
+  }
+  const csvFiles = DEVICES_LIST[devId].csv_files || [];
+  if (!csvFiles.length) {
+    csvSel.innerHTML = '<option value="">Nenhum CSV neste device</option>';
+    return;
+  }
+  csvFiles.forEach(f => csvSel.add(new Option(f, f)));
+}
+
+document.getElementById('confirm-add-variable-btn').addEventListener('click', async () => {
+  const deviceId = document.getElementById('addvar-device').value;
+  const csvFile  = document.getElementById('addvar-csv').value;
+  const tag      = document.getElementById('addvar-tag').value.trim();
+  const group    = document.getElementById('addvar-group').value.trim();
+  const type     = document.getElementById('addvar-type').value;
+  const address  = document.getElementById('addvar-address').value.trim();
+  const classe   = document.getElementById('addvar-classe').value.trim();
+
+  if (!deviceId) { showToast('Selecione um device.', 'danger'); return; }
+  if (!csvFile)  { showToast('Selecione um CSV.', 'danger'); return; }
+  if (!tag)      { showToast('Informe a tag.', 'danger'); return; }
+  if (!group)    { showToast('Informe o grupo.', 'danger'); return; }
+  if (!address)  { showToast('Informe o endereço Modbus.', 'danger'); return; }
+
+  try {
+    await apiFetch('/api/variables', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({device_id: deviceId, csv_file: csvFile, tag, group, type, address, classe}),
+    });
+    bootstrap.Modal.getInstance(document.getElementById('addVariableModal')).hide();
+    showToast(`Variável "${tag}" adicionada.`);
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+});
+
+// ── Inline edit: device label ─────────────────────────────────────────────────
+function editDeviceLabel(id) {
+  const span = document.getElementById('devlabel-' + id);
+  if (!span) return;
+  const current = span.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.className = 'form-control form-control-sm py-0 d-inline-block';
+  input.style.cssText = 'width:120px;font-size:.8rem';
+  const save = () => {
+    const val = input.value.trim();
+    if (val && val !== current) {
+      apiFetch(`/api/devices/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({label: val}),
+      }).then(() => { showToast(`Label de ${id} atualizado.`); loadDevices(); })
+        .catch(err => { showToast(String(err), 'danger'); loadDevices(); });
+    } else {
+      loadDevices();  // revert
+    }
+  };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') loadDevices(); });
+  input.addEventListener('blur', save);
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+}
+
+// ── Inline edit: channel name ─────────────────────────────────────────────────
+function editChannelName(ch, devId) {
+  const span = document.getElementById('chlabel-' + ch);
+  if (!span) return;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = ch;
+  input.className = 'form-control form-control-sm py-0 d-inline-block';
+  input.style.cssText = 'width:120px;font-size:.8rem';
+  const save = () => {
+    const val = input.value.trim();
+    if (val && val !== ch) {
+      apiFetch(`/api/channels/${encodeURIComponent(ch)}/rename`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({new_name: val, device_id: devId}),
+      }).then(() => { showToast(`Canal "${ch}" renomeado para "${val}".`); loadChannels(); loadVariables(); })
+        .catch(err => { showToast(String(err), 'danger'); loadChannels(); });
+    } else {
+      loadChannels();  // revert
+    }
+  };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') loadChannels(); });
+  input.addEventListener('blur', save);
+  span.replaceWith(input);
+  input.focus();
+  input.select();
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

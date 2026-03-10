@@ -31,5 +31,35 @@
     "sim_registers": 0,
     "sim_coils": 0,
     "sim_coil_prob": 0.3
+  },
+  "west_24_zonas": {
+    "label": "",
+    "protocol": "tcp",
+    "port": 5021,
+    "unit_id": 1,
+    "csv_files": [
+      "temperatura_24z.csv"
+    ],
+    "simulate": true,
+    "auto_start": true,
+    "sim_interval": 0.5,
+    "sim_registers": 0,
+    "sim_coils": 0,
+    "sim_coil_prob": 0.3
+  },
+  "west28zonas": {
+    "label": "west28zonas",
+    "protocol": "tcp",
+    "port": 5022,
+    "unit_id": 1,
+    "csv_files": [
+      "temperatura_28z.csv"
+    ],
+    "simulate": true,
+    "auto_start": true,
+    "sim_interval": 0.5,
+    "sim_registers": 0,
+    "sim_coils": 0,
+    "sim_coil_prob": 0.3
   }
 }

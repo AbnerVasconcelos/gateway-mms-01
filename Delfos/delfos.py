@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.redis_config_functions import setup_redis, publish_to_channel, subscribe_to_channels, get_latest_message
-from shared.modbus_functions import setup_modbus, read_coils, read_registers
+from shared.modbus_functions import setup_modbus, read_coils, read_registers, read_registers_with_bits
 from table_filter import extract_parameters_by_channel
 
 load_dotenv()
@@ -249,13 +249,14 @@ def main():
                 coil_data = {}
                 unsuccessful_reads += 1
 
-            # Le registers do canal
+            # Le registers do canal (com extração de bits quando aplicável)
             try:
-                reg_data, _ = read_registers(
+                reg_data, _ = read_registers_with_bits(
                     client,
                     ch_data['reg_groups'],
                     ch_data['reg_tags'],
                     ch_data['reg_keys'],
+                    ch_data.get('bit_vars'),
                 )
                 successful_reads += 1
             except Exception as e:

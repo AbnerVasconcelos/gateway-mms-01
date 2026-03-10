@@ -1,0 +1,191 @@
+{
+  "tempZona25": {
+    "channel": "plc_wes2temperatura"
+  },
+  "tempZona26": {
+    "channel": "plc_wes2temperatura"
+  },
+  "tempZona27": {
+    "channel": "plc_wes2temperatura"
+  },
+  "tempZona28": {
+    "channel": "plc_wes2temperatura"
+  },
+  "correnteBaixaSetZona25": {
+    "channel": "plc_west2SetPoint"
+  },
+  "correnteBaixaSetZona26": {
+    "channel": "plc_west2SetPoint"
+  },
+  "correnteBaixaSetZona27": {
+    "channel": "plc_west2SetPoint"
+  },
+  "correnteBaixaSetZona28": {
+    "channel": "plc_west2SetPoint"
+  },
+  "setpointZona25": {
+    "channel": "plc_west2SetPoint"
+  },
+  "setpointZona26": {
+    "channel": "plc_west2SetPoint"
+  },
+  "setpointZona27": {
+    "channel": "plc_west2SetPoint"
+  },
+  "setpointZona28": {
+    "channel": "plc_west2SetPoint"
+  },
+  "pressaoSensor1": {
+    "channel": "plc_west2pressoes"
+  },
+  "pressaoSensor2": {
+    "channel": "plc_west2pressoes"
+  },
+  "pressaoSensor3": {
+    "channel": "plc_west2pressoes"
+  },
+  "ligaDesligaZona25": {
+    "channel": "plc_west2ligDeslZona"
+  },
+  "ligaDesligaZona26": {
+    "channel": "plc_west2ligDeslZona"
+  },
+  "ligaDesligaZona27": {
+    "channel": "plc_west2ligDeslZona"
+  },
+  "ligaDesligaZona28": {
+    "channel": "plc_west2ligDeslZona"
+  },
+  "correnteZona25": {
+    "channel": "plc_west2corrente"
+  },
+  "correnteZona26": {
+    "channel": "plc_west2corrente"
+  },
+  "correnteZona27": {
+    "channel": "plc_west2corrente"
+  },
+  "correnteZona28": {
+    "channel": "plc_west2corrente"
+  },
+  "tempNaoAtingidaZona25": {
+    "channel": "plc_west2alertas"
+  },
+  "tempNaoAtingidaZona26": {
+    "channel": "plc_west2alertas"
+  },
+  "tempNaoAtingidaZona27": {
+    "channel": "plc_west2alertas"
+  },
+  "tempNaoAtingidaZona28": {
+    "channel": "plc_west2alertas"
+  },
+  "correnteBaixaPressao1": {
+    "channel": "plc_west2alertas"
+  },
+  "correnteBaixaPressao2": {
+    "channel": "plc_west2alertas"
+  },
+  "correnteBaixaPressao3": {
+    "channel": "plc_west2alertas"
+  },
+  "tempBaixaZona26": {
+    "channel": "plc_west2alertas"
+  },
+  "tempBaixaZona27": {
+    "channel": "plc_west2alertas"
+  },
+  "tempBaixaZona28": {
+    "channel": "plc_west2alertas"
+  },
+  "correnteBaixaZona25": {
+    "channel": "plc_west2alertas"
+  },
+  "correnteBaixaZona26": {
+    "channel": "plc_west2alertas"
+  },
+  "correnteBaixaZona27": {
+    "channel": "plc_west2alertas"
+  },
+  "correnteBaixaZona28": {
+    "channel": "plc_west2alertas"
+  },
+  "correnteZonaPressao1": {
+    "channel": "plc_west2pressoes"
+  },
+  "correnteZonaPressao2": {
+    "channel": "plc_west2pressoes"
+  },
+  "correnteZonaPressao3": {
+    "channel": "plc_west2pressoes"
+  },
+  "alarmeAltoPressao1": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoPressao2": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoPressao3": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoAltoPressao1": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoAltoPressao2": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoAltoPressao3": {
+    "channel": "plc_west2alertas"
+  },
+  "tempBaixaZona25": {
+    "channel": "plc_west2alertas"
+  },
+  "intensidadeAquecZona25": {
+    "channel": "plc_west2corrente"
+  },
+  "intensidadeAquecZona26": {
+    "channel": "plc_west2corrente"
+  },
+  "intensidadeAquecZona27": {
+    "channel": "plc_west2corrente"
+  },
+  "intensidadeAquecZona28": {
+    "channel": "plc_west2corrente"
+  },
+  "intensidadeAquecPressao1": {
+    "channel": "plc_west2pressoes"
+  },
+  "intensidadeAquecPressao2": {
+    "channel": "plc_west2pressoes"
+  },
+  "intensidadeAquecPressao3": {
+    "channel": "plc_west2pressoes"
+  },
+  "ligaDesligaSensor1": {
+    "channel": "plc_west2ligDeslZona"
+  },
+  "ligaDesligaSensor2": {
+    "channel": "plc_west2ligDeslZona"
+  },
+  "ligaDesligaSensor3": {
+    "channel": "plc_west2ligDeslZona"
+  },
+  "alarmeAltoSensor1": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoAltoSensor1": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoSensor2": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoAltoSensor2": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoSensor3": {
+    "channel": "plc_west2alertas"
+  },
+  "alarmeAltoAltoSensor3": {
+    "channel": "plc_west2alertas"
+  }
+}

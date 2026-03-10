@@ -1,5 +1,15 @@
 {
   "tempoCorte": {
-    "enabled": false
+    "enabled": false,
+    "channel": "plc_preArraste"
+  },
+  "comprCorte": {
+    "channel": "plc_retentivas"
+  },
+  "fatorAjusteCal1": {
+    "channel": "plc_retentivas"
+  },
+  "comprimentoCorte": {
+    "channel": "plc_preArraste"
   }
 }

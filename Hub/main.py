@@ -121,9 +121,12 @@ async def on_startup():
     redis_pub = aioredis.Redis(host=_REDIS_HOST, port=_REDIS_PORT, db=0)
     logger.info('Hub: Redis publisher pronto em %s:%s', _REDIS_HOST, _REDIS_PORT)
     def _get_channel_map():
-        """Build {channel_name: device_id} from config_store.get_channels()."""
+        """Build {channel_name: device_id} from config_store.get_channels().
+        Excludes disabled channels."""
         channels = config_store.get_channels()
-        return {ch: info.get('device_id', 'unknown') for ch, info in channels.items()}
+        return {ch: info.get('device_id', 'unknown')
+                for ch, info in channels.items()
+                if info.get('enabled', True)}
 
     asyncio.create_task(start_bridge(sio, _REDIS_HOST, _REDIS_PORT,
                                      get_channel_map=_get_channel_map))
@@ -308,6 +311,41 @@ async def get_variables():
     }
 
 
+class VariableCreate(BaseModel):
+    device_id: str
+    csv_file:  str
+    tag:       str
+    group:     str
+    type:      str          # '%MB' ou '%MW'
+    address:   str          # string — suporta bit addressing como '1584.05'
+    classe:    str = ''
+
+
+@app.post('/api/variables', status_code=201)
+async def create_variable(body: VariableCreate):
+    """Cria uma nova variável no CSV do device e opcionalmente cria override vazio."""
+    try:
+        result = config_store.add_csv_variable(
+            device_id=body.device_id,
+            csv_file=body.csv_file,
+            tag=body.tag,
+            group=body.group,
+            at_type=body.type,
+            address=body.address,
+            classe=body.classe,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (ValueError, FileNotFoundError) as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    # Cria override marcando a variável como adicionada manualmente
+    config_store.patch_variable_override(body.tag, {'_added': True}, device_id=body.device_id)
+
+    await _publish_config_reload(body.device_id)
+    return result
+
+
 class VariablePatch(BaseModel):
     enabled:   Optional[bool] = None
     channel:   Optional[str]  = None
@@ -372,6 +410,17 @@ async def patch_variable(tag: str, body: VariablePatch):
 
     await _publish_config_reload(tag_device)
     return {'tag': tag, 'updated': all_fields}
+
+
+@app.delete('/api/variables/{tag}')
+async def delete_variable(tag: str, device_id: Optional[str] = None):
+    """Remove uma variável do CSV fonte e seu override."""
+    tag_device = device_id or config_store.find_tag_device(tag)
+    deleted = config_store.delete_csv_variable(tag, device_id=tag_device)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Tag '{tag}' não encontrada nos CSVs.")
+    await _publish_config_reload(tag_device)
+    return {'deleted': tag}
 
 
 class BulkAssignBody(BaseModel):
@@ -477,11 +526,11 @@ class ChannelCreate(BaseModel):
 
 @app.post('/api/channels', status_code=201)
 async def create_channel(body: ChannelCreate):
-    """Cria um novo canal Redis com prefixo plc_ dentro de um device."""
+    """Cria um novo canal Redis dentro de um device."""
     if not body.device_id:
         raise HTTPException(status_code=422, detail="device_id obrigatorio para criar canal.")
-    if not body.channel.startswith('plc_') or len(body.channel) <= len('plc_'):
-        raise HTTPException(status_code=422, detail="Canal deve ter prefixo 'plc_' seguido de um nome.")
+    if not body.channel or not body.channel.strip():
+        raise HTTPException(status_code=422, detail="Nome do canal não pode ser vazio.")
     if body.delay_ms < 1 or body.history_size < 1:
         raise HTTPException(status_code=422, detail='delay_ms e history_size devem ser >= 1.')
     try:
@@ -547,6 +596,58 @@ async def set_channel_history(channel: str, body: HistoryPatch, device_id: Optio
 
     await _publish_config_reload(device_id)
     return {'channel': channel, 'history_size': body.history_size}
+
+
+@app.get('/api/channels/{channel}/history')
+async def get_channel_history(channel: str, limit: int = 100):
+    """Retorna as últimas `limit` mensagens do histórico Redis de um canal."""
+    if limit < 1:
+        limit = 1
+    elif limit > 1000:
+        limit = 1000
+    if not redis_pub:
+        raise HTTPException(status_code=503, detail='Redis indisponível.')
+    raw = await redis_pub.lrange(f'history:{channel}', 0, limit - 1)
+    items = []
+    for entry in raw:
+        try:
+            items.append(json.loads(entry))
+        except (json.JSONDecodeError, TypeError):
+            items.append(str(entry))
+    return {'channel': channel, 'count': len(items), 'items': items}
+
+
+class ChannelEnabledPatch(BaseModel):
+    enabled: bool
+
+
+@app.patch('/api/channels/{channel}/enabled')
+async def set_channel_enabled(channel: str, body: ChannelEnabledPatch, device_id: Optional[str] = None):
+    """Habilita ou desabilita um canal. Canal desabilitado não é lido pelo Delfos nem assinado pela bridge."""
+    try:
+        config_store.update_channel_enabled(channel, body.enabled, device_id=device_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    await _publish_config_reload(device_id)
+    return {'channel': channel, 'enabled': body.enabled}
+
+
+class ChannelRename(BaseModel):
+    new_name:  str
+    device_id: str
+
+
+@app.patch('/api/channels/{channel}/rename')
+async def rename_channel(channel: str, body: ChannelRename):
+    """Renomeia um canal dentro de um device, migrando overrides."""
+    try:
+        config_store.rename_channel(channel, body.new_name, body.device_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    await _publish_config_reload(body.device_id)
+    return {'old_name': channel, 'new_name': body.new_name, 'device_id': body.device_id}
 
 
 # ── Devices ───────────────────────────────────────────────────────────────────

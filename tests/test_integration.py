@@ -14,6 +14,7 @@ Uso:
 import logging
 import os
 import subprocess
+import sys
 import time
 import unittest
 
@@ -27,7 +28,10 @@ logging.basicConfig(
 logger = logging.getLogger("test_integration")
 
 GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYTHON      = os.path.join(GATEWAY_DIR, ".venv", "Scripts", "python")
+if sys.platform == 'win32':
+    PYTHON = os.path.join(GATEWAY_DIR, '.venv', 'Scripts', 'python')
+else:
+    PYTHON = os.path.join(GATEWAY_DIR, '.venv', 'bin', 'python')
 HOST        = os.environ.get("MODBUS_HOST", "127.0.0.1")
 PORT        = 5020   # porta exclusiva deste módulo
 
@@ -60,18 +64,18 @@ def tearDownModule():
         logger.info("Simulador encerrado.")
 
 # ---------------------------------------------------------------------------
-# Endereços de referência (de operacao.csv)
+# Endereços de referência (de mapeamento_clp.csv — atualizado conforme CSVs atuais)
 # ---------------------------------------------------------------------------
-COIL_PUXADOR_BASE    = 2150   # puxadorLigaDesliga … puxadorErro (grupos)
-COIL_EXTRUSORA_BASE  = 2169   # extrusoraAutManEstado … extrusoraLigaDesligaBotao
-COIL_EMERGENCIA      = 2048   # alarmes/emergencia
-COIL_LIGA_DESLIGA    = 2173   # extrusoraLigaDesligaBotao
+COIL_PUXADOR_BASE    = 16016  # di101, di102, di103 (contiguous group of 32)
+COIL_EXTRUSORA_BASE  = 48045  # indDesvTemp, ligaDeslCalandra, extrusoraManualAutomatico
+COIL_EMERGENCIA      = 48000  # resetAlarme (contiguous group of 15)
+COIL_LIGA_DESLIGA    = 48002  # ligaDeslBomba
 
-REG_EXTR_SPEED       = 39810  # extrusoraFeedBackSpeed
-REG_EXTR_REF         = 40123  # extrusoraRefVelocidade
-REG_PUX_SPEED        = 39791  # puxadorFeedBackSpeed
-REG_LARGURA_PROG     = 4507   # larguraProgramada (configuração)
-REG_NIVEL_A          = 40373  # nivelA (threeJs)
+REG_EXTR_SPEED       = 8478   # prearrasteMpm
+REG_EXTR_REF         = 28015  # tempoCorte
+REG_PUX_SPEED        = 8479   # correntePrearraste
+REG_LARGURA_PROG     = 28000  # fatorAjusteCal1
+REG_NIVEL_A          = 5003   # ai1
 
 
 class TestLeitura(unittest.TestCase):
@@ -126,10 +130,10 @@ class TestLeitura(unittest.TestCase):
         """Leitura contígua de coils (comportamento do find_contiguous_groups)."""
         # Delfos lê grupos de endereços contíguos em uma única chamada
         for start, count, label in [
-            (2048, 1,  "emergencia"),
-            (2051, 4,  "capacitivos A-D"),
-            (2150, 4,  "puxador coils"),
-            (2169, 5,  "extrusora coils"),
+            (16000, 5,  "entrada digital base"),
+            (16016, 4,  "entrada digital slot1"),
+            (48000, 3,  "resetAlarme, habBloqTemp, ligaDeslBomba"),
+            (40416, 4,  "upExtr, downExtr, enrateExtr, emergExtr"),
         ]:
             result = self.client.read_coils(start, count)
             self.assertIsNotNone(result, f"Falha ao ler {label} em addr={start}")
@@ -139,10 +143,10 @@ class TestLeitura(unittest.TestCase):
     def test_06_read_multiple_registers(self):
         """Leitura de registers em diferentes faixas de endereço."""
         addrs = [
-            (REG_EXTR_SPEED, "extrusoraFeedBackSpeed"),
-            (REG_PUX_SPEED,  "puxadorFeedBackSpeed"),
-            (REG_EXTR_REF,   "extrusoraRefVelocidade"),
-            (REG_LARGURA_PROG, "larguraProgramada"),
+            (REG_EXTR_SPEED, "prearrasteMpm"),
+            (REG_PUX_SPEED,  "correntePrearraste"),
+            (REG_EXTR_REF,   "tempoCorte"),
+            (REG_LARGURA_PROG, "fatorAjusteCal1"),
         ]
         for addr, label in addrs:
             result = self.client.read_holding_registers(addr, 1)
@@ -219,8 +223,8 @@ class TestEscrita(unittest.TestCase):
         Sequência realista: liga equipamento (coil) + define setpoint (register).
         Simula o que handle_plc_commands_message do Atena faz ao receber ch3.
         """
-        coil_addr = 2171   # extrusoraLigadoDesligado
-        reg_addr  = 40123  # extrusoraRefVelocidade
+        coil_addr = COIL_EMERGENCIA   # resetAlarme
+        reg_addr  = REG_EXTR_REF     # tempoCorte
         setpoint  = 1450
 
         # Escreve
@@ -277,18 +281,16 @@ class TestLeituraDelfos(unittest.TestCase):
 
     def test_20_delfos_coil_groups(self):
         """Lê todos os grupos de coils contíguos como o Delfos faria."""
-        # Grupos contíguos reais de operacao.csv
+        # Grupos contíguos reais de mapeamento_clp.csv
         coil_groups = [
-            (2048, 1),   # [alarmes] emergencia
-            (2051, 4),   # [threeJs] capacitivo A-D
-            (2071, 3),   # [saidasDigitais] misturador, alimentandoMixer, ...
-            (2077, 3),   # [saidasDigitais] compressorRadial, vacuo
-            (2082, 2),   # [totalizadores]
-            (2096, 2),   # [threeJs] vacuoA, vacuoB
-            (2102, 2),   # [threeJs] vacuoC, vacuoD
-            (2150, 4),   # [Puxador]
-            (2156, 2),   # [Extrusora/Puxador] erros
-            (2169, 5),   # [Extrusora] coils
+            (16000, 10),  # entrada digital base
+            (16016, 32),  # entrada digital slot1
+            (40416, 4),   # upExtr, downExtr, enrateExtr, emergExtr
+            (48000, 15),  # resetAlarme .. habBloqPuxador
+            (48045, 9),   # indDesvTemp .. ligaCanBob2
+            (48080, 2),   # ligaDeslPrearraste, ligaDeslAlimentador
+            (48083, 8),   # alCanBomba .. alCanBob2
+            (48095, 2),   # bob1Completo, bob2Completo
         ]
         total_read = 0
         for start, count in coil_groups:
@@ -300,27 +302,16 @@ class TestLeituraDelfos(unittest.TestCase):
 
     def test_21_delfos_register_groups(self):
         """Lê todos os grupos de registers contíguos como o Delfos faria."""
-        # Grupos (não todos são contíguos, mas os individuais sempre funcionam)
+        # Grupos contíguos reais de mapeamento_clp.csv
         register_groups = [
-            (4507,  1),   # larguraProgramada
-            (4526,  2),   # nivelMaximo, nivelMinimo
-            (4542,  1),   # espessuraProgramada
-            (4545,  4),   # percentual A-D
-            (4553,  1),   # densidadeMedia
-            (39772, 1),   # larguraAtual
-            (39781, 1),   # kgHoraAtual
-            (39791, 2),   # puxadorFeedBackSpeed, totalizadorKiloGrama
-            (39794, 2),   # pesoBalanca, gramaMinutoAtual
-            (39800, 1),   # kgHoraProgramado
-            (39810, 1),   # extrusoraFeedBackSpeed
-            (39812, 4),   # gramatura, espessura
-            (39928, 1),   # totalizadorMetragem
-            (40003, 1),   # puxadorRefVelocidade
-            (40070, 1),   # puxadorProgramado
-            (40123, 1),   # extrusoraRefVelocidade
-            (40285, 1),   # gramaMinuto
-            (40287, 1),   # espessuraAlgoritmo
-            (40373, 4),   # nivelA-D
+            (5003,  11),  # ai1 .. ai105
+            (6775,  1),   # register isolado
+            (8005,  12),  # alarmesWord1 .. alarmesWord12
+            (8025,  1),   # register isolado
+            (8027,  4),   # grupo de 4
+            (8478,  11),  # prearrasteMpm .. grupo de 11
+            (28000, 10),  # fatorAjusteCal1 .. fatorAjustePuxador
+            (28015, 18),  # tempoCorte .. comprimentoCorte + contíguos
         ]
         total_read = 0
         for start, count in register_groups:

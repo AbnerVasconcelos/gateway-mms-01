@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import time
 import unittest
 
@@ -30,11 +31,14 @@ logging.basicConfig(
 logger = logging.getLogger("test_atena")
 
 GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYTHON      = os.path.join(GATEWAY_DIR, ".venv", "Scripts", "python")
+if sys.platform == 'win32':
+    PYTHON = os.path.join(GATEWAY_DIR, '.venv', 'Scripts', 'python')
+else:
+    PYTHON = os.path.join(GATEWAY_DIR, '.venv', 'bin', 'python')
 REDIS_HOST  = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT  = int(os.environ.get("REDIS_PORT", 6379))
 MODBUS_HOST = os.environ.get("MODBUS_HOST", "127.0.0.1")
-MODBUS_PORT = 5021   # porta exclusiva deste módulo (evita conflito com outros suites)
+MODBUS_PORT = 5023   # porta exclusiva deste módulo (evita conflito com simuladores do Hub em 5020/5021)
 
 # Delay após publicar para o Atena processar a mensagem
 ATENA_DELAY = float(os.environ.get("ATENA_DELAY", "0.8"))
@@ -114,25 +118,25 @@ class TestAtenaEscrita(unittest.TestCase):
 
     def test_01_escreve_coil(self):
         """Atena deve escrever coil no simulador ao receber plc_commands."""
-        addr = 2173   # extrusoraLigaDesligaBotao
+        addr = 48000   # resetAlarme
 
         # Garante estado inicial False
         self.mb.write_single_coil(addr, False)
         time.sleep(0.1)
 
-        self._publish_ch3({"Extrusora": {"extrusoraLigaDesligaBotao": 1}})
+        self._publish_ch3({"sistema": {"resetAlarme": 1}})
 
         result = self.mb.read_coils(addr, 1)
         self.assertIsNotNone(result, "Leitura do simulador retornou None")
         self.assertTrue(result[0], f"Coil {addr} deveria ser True após escrita pelo Atena")
-        logger.info("extrusoraLigaDesligaBotao (addr=%d) = %s  OK", addr, result[0])
+        logger.info("resetAlarme (addr=%d) = %s  OK", addr, result[0])
 
     def test_02_escreve_register(self):
         """Atena deve escrever register no simulador ao receber plc_commands."""
-        addr      = 40123   # extrusoraRefVelocidade
+        addr      = 28015   # tempoCorte
         setpoint  = 1450
 
-        self._publish_ch3({"Extrusora": {"extrusoraRefVelocidade": setpoint}})
+        self._publish_ch3({"corte": {"tempoCorte": setpoint}})
 
         result = self.mb.read_holding_registers(addr, 1)
         self.assertIsNotNone(result, "Leitura do simulador retornou None")
@@ -140,18 +144,20 @@ class TestAtenaEscrita(unittest.TestCase):
             result[0], setpoint,
             f"Register {addr}: esperado={setpoint}, recebido={result[0]}",
         )
-        logger.info("extrusoraRefVelocidade (addr=%d) = %d  OK", addr, result[0])
+        logger.info("tempoCorte (addr=%d) = %d  OK", addr, result[0])
 
     def test_03_escreve_coil_e_register_simultaneos(self):
         """Atena deve escrever coil e register no mesmo comando."""
-        coil_addr = 2171   # extrusoraLigadoDesligado
-        reg_addr  = 40123  # extrusoraRefVelocidade
+        coil_addr = 48001  # habBloqTemp
+        reg_addr  = 28015  # tempoCorte
         setpoint  = 1500
 
         self._publish_ch3({
-            "Extrusora": {
-                "extrusoraLigadoDesligado": 1,
-                "extrusoraRefVelocidade": setpoint,
+            "sistema": {
+                "habBloqTemp": 1,
+            },
+            "corte": {
+                "tempoCorte": setpoint,
             }
         })
 
@@ -164,16 +170,18 @@ class TestAtenaEscrita(unittest.TestCase):
         self.assertEqual(reg[0], setpoint, f"Register {reg_addr}: esperado={setpoint}, recebido={reg[0]}")
         logger.info("Escrita simultânea: coil[%d]=%s, reg[%d]=%d  OK", coil_addr, coil[0], reg_addr, reg[0])
 
-    def test_04_escreve_puxador(self):
-        """Atena deve escrever tags do Puxador corretamente."""
-        coil_addr = 2150   # puxadorLigaDesliga
-        reg_addr  = 40003  # puxadorRefVelocidade
+    def test_04_escreve_comandos_e_corte(self):
+        """Atena deve escrever tags de comandos e corte corretamente."""
+        coil_addr = 48002  # ligaDeslBomba
+        reg_addr  = 28016  # comprimentoCorte
         setpoint  = 1200
 
         self._publish_ch3({
-            "Puxador": {
-                "puxadorLigaDesliga": 1,
-                "puxadorRefVelocidade": setpoint,
+            "comandos": {
+                "ligaDeslBomba": 1,
+            },
+            "corte": {
+                "comprimentoCorte": setpoint,
             }
         })
 
@@ -184,11 +192,11 @@ class TestAtenaEscrita(unittest.TestCase):
         self.assertIsNotNone(reg)
         self.assertTrue(coil[0])
         self.assertEqual(reg[0], setpoint)
-        logger.info("Puxador: coil[%d]=%s, reg[%d]=%d  OK", coil_addr, coil[0], reg_addr, reg[0])
+        logger.info("Comandos+Corte: coil[%d]=%s, reg[%d]=%d  OK", coil_addr, coil[0], reg_addr, reg[0])
 
     def test_05_user_state_false_bloqueia_escrita(self):
         """Com user_state=False, Atena deve ignorar plc_commands."""
-        addr = 40123  # extrusoraRefVelocidade
+        addr = 28015  # tempoCorte
 
         # Define valor conhecido
         self.mb.write_single_register(addr, 9999)
@@ -199,7 +207,7 @@ class TestAtenaEscrita(unittest.TestCase):
         time.sleep(ATENA_DELAY)
 
         # Tenta escrever via plc_commands — não deve surtir efeito
-        self._publish_ch3({"Extrusora": {"extrusoraRefVelocidade": 1111}})
+        self._publish_ch3({"corte": {"tempoCorte": 1111}})
 
         result = self.mb.read_holding_registers(addr, 1)
         self.assertIsNotNone(result)
@@ -217,9 +225,9 @@ class TestAtenaEscrita(unittest.TestCase):
         """Tag desconhecida no plc_commands não deve travar o Atena."""
         self._publish_ch3({"NaoExiste": {"tagFalsa": 42}})
         # Se Atena ainda está vivo, conseguimos publicar novamente
-        self.r.publish("plc_commands", json.dumps({"Extrusora": {"extrusoraRefVelocidade": 1400}}))
+        self.r.publish("plc_commands", json.dumps({"corte": {"tempoCorte": 1400}}))
         time.sleep(ATENA_DELAY)
-        result = self.mb.read_holding_registers(40123, 1)
+        result = self.mb.read_holding_registers(28015, 1)
         self.assertIsNotNone(result, "Atena parou após tag inexistente")
         self.assertEqual(result[0], 1400)
         logger.info("Tag inexistente tratada sem erro; Atena continua operacional  OK")

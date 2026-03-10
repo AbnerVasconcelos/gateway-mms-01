@@ -4,7 +4,7 @@ Teste de integração completa: Delfos + Atena rodando ao mesmo tempo.
 
 Verifica o loop bidirecional end-to-end:
 
-    Redis ch3 → Atena → Modbus simulator → Delfos → Redis ch2
+    Redis simulador_commands → Atena → Modbus simulator → Delfos → Redis plc_preArraste/plc_operacao
 
 Este script inicia e gerencia os três processos (simulador, Delfos, Atena)
 automaticamente. Requer apenas Redis rodando.
@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import time
 import unittest
 
@@ -30,7 +31,10 @@ logging.basicConfig(
 logger = logging.getLogger("test_full_loop")
 
 GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYTHON      = os.path.join(GATEWAY_DIR, ".venv", "Scripts", "python")
+if sys.platform == 'win32':
+    PYTHON = os.path.join(GATEWAY_DIR, '.venv', 'Scripts', 'python')
+else:
+    PYTHON = os.path.join(GATEWAY_DIR, '.venv', 'bin', 'python')
 REDIS_HOST  = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT  = int(os.environ.get("REDIS_PORT", 6379))
 MODBUS_HOST = "127.0.0.1"
@@ -53,7 +57,7 @@ def _drain(pubsub, timeout: float = 0.05):
 
 def wait_for_ch2(pubsub, key_path: list, expected, timeout: float = 8.0):
     """
-    Aguarda até `timeout` s por uma mensagem em plc_data onde
+    Aguarda até `timeout` s por uma mensagem no canal subscrito onde
     data[key_path[0]][key_path[1]]... == expected.
 
     Retorna o payload JSON completo se encontrado, None se timeout.
@@ -99,6 +103,8 @@ class TestFullLoop(unittest.TestCase):
         _env = os.environ.copy()
         _env["MODBUS_HOST"] = MODBUS_HOST
         _env["MODBUS_PORT"] = str(MODBUS_PORT)
+        _env["DEVICE_ID"] = "simulador"
+        _env["COMMAND_CHANNEL"] = "simulador_commands"
 
         # --- Simulador Modbus ------------------------------------------
         cls.sim = subprocess.Popen(
@@ -148,131 +154,133 @@ class TestFullLoop(unittest.TestCase):
                 proc.kill()
             logger.info("%s encerrado.", name)
 
-    def _sub_ch2(self):
-        """Retorna pubsub inscrito em plc_data com buffer drenado."""
+    def _sub_channel(self, channel):
+        """Retorna pubsub inscrito no canal indicado com buffer drenado."""
         ps = self.r.pubsub()
-        ps.subscribe("plc_data")
+        ps.subscribe(channel)
         ps.get_message(timeout=0.1)   # confirma subscription
         _drain(ps)
         return ps
 
+    def _sub_ch2(self):
+        """Retorna pubsub inscrito em plc_preArraste com buffer drenado."""
+        return self._sub_channel("plc_preArraste")
+
     def _write(self, payload: dict):
-        self.r.publish("plc_commands", json.dumps(payload))
-        logger.info("→ plc_commands: %s", payload)
+        self.r.publish("simulador_commands", json.dumps(payload))
+        logger.info("→ simulador_commands: %s", payload)
 
     # ------------------------------------------------------------------
     # Testes
     # ------------------------------------------------------------------
 
     def test_01_delfos_publica_plc_data(self):
-        """Delfos deve estar publicando dados estruturados em plc_data."""
-        raw = self.r.get("last_message:plc_data")
-        self.assertIsNotNone(raw, "Nenhuma mensagem em plc_data — Delfos não publicou nada.")
+        """Delfos deve estar publicando dados estruturados em plc_preArraste."""
+        raw = self.r.get("last_message:plc_preArraste")
+        self.assertIsNotNone(raw, "Nenhuma mensagem em plc_preArraste — Delfos não publicou nada.")
         data = json.loads(raw)
         for campo in ("coils", "registers", "timestamp"):
-            self.assertIn(campo, data, f"Campo '{campo}' ausente no plc_data")
-        self.assertIn("Extrusora", data["registers"])
-        self.assertIn("Puxador",   data["registers"])
+            self.assertIn(campo, data, f"Campo '{campo}' ausente no plc_preArraste")
+        self.assertIn("corte", data["registers"])
         logger.info(
-            "plc_data OK: %d namespaces de coils, %d de registers",
+            "plc_preArraste OK: %d namespaces de coils, %d de registers",
             len(data["coils"]), len(data["registers"]),
         )
 
     def test_02_delfos_publica_alarms(self):
-        """Delfos deve publicar alarmes/configuração em alarms."""
-        raw = self.r.get("last_message:alarms")
-        self.assertIsNotNone(raw, "Nenhuma mensagem em alarms.")
+        """Delfos deve publicar alarmes/configuração em plc_alarmes."""
+        raw = self.r.get("last_message:plc_alarmes")
+        self.assertIsNotNone(raw, "Nenhuma mensagem em plc_alarmes.")
         data = json.loads(raw)
         self.assertIn("coils",     data)
         self.assertIn("registers", data)
         self.assertIn("timestamp", data)
-        logger.info("alarms OK.")
+        logger.info("plc_alarmes OK.")
 
     def test_03_loop_register(self):
         """
         Loop register completo:
-          plc_commands → Atena escreve no simulador → Delfos lê → plc_data reflete.
+          simulador_commands → Atena escreve no simulador → Delfos lê → plc_preArraste reflete.
         """
         ps        = self._sub_ch2()
         setpoint  = 1350
 
-        self._write({"Extrusora": {"extrusoraRefVelocidade": setpoint}})
+        self._write({"corte": {"tempoCorte": setpoint}})
 
         data = wait_for_ch2(
             ps,
-            ["registers", "Extrusora", "extrusoraRefVelocidade"],
+            ["registers", "corte", "tempoCorte"],
             setpoint,
             timeout=DELFOS_CYCLE * 5,
         )
         self.assertIsNotNone(
             data,
-            f"plc_data não refletiu extrusoraRefVelocidade={setpoint} "
+            f"plc_preArraste não refletiu tempoCorte={setpoint} "
             f"após {DELFOS_CYCLE * 5:.0f}s",
         )
-        logger.info("Loop register: setpoint %d refletido no plc_data  OK", setpoint)
+        logger.info("Loop register: setpoint %d refletido no plc_preArraste  OK", setpoint)
 
     def test_04_loop_coil(self):
         """
         Loop coil completo:
-          plc_commands liga extrusora → Atena escreve coil → Delfos lê → plc_data reflete.
+          simulador_commands liga resetAlarme → Atena escreve coil → Delfos lê → plc_operacao reflete.
         """
-        ps = self._sub_ch2()
+        ps = self._sub_channel("plc_operacao")
 
-        self._write({"Extrusora": {"extrusoraLigaDesligaBotao": 1}})
+        self._write({"sistema": {"resetAlarme": 1}})
 
         data = wait_for_ch2(
             ps,
-            ["coils", "Extrusora", "extrusoraLigaDesligaBotao"],
+            ["coils", "sistema", "resetAlarme"],
             True,
             timeout=DELFOS_CYCLE * 5,
         )
         self.assertIsNotNone(
             data,
-            "plc_data não refletiu extrusoraLigaDesligaBotao=True",
+            "plc_operacao não refletiu resetAlarme=True",
         )
-        logger.info("Loop coil: extrusoraLigaDesligaBotao=True refletido  OK")
+        logger.info("Loop coil: resetAlarme=True refletido  OK")
 
     def test_05_loop_multiplos_tags(self):
         """
-        Escrita de múltiplos tags (Extrusora + Puxador) — ambos devem
-        aparecer no plc_data.
+        Escrita de múltiplos tags (tempoCorte + comprimentoCorte) — ambos devem
+        aparecer no plc_preArraste.
         """
-        ps    = self._sub_ch2()
-        s_ext = 1600
-        s_pux = 1100
+        ps      = self._sub_ch2()
+        s_tempo = 1600
+        s_compr = 1100
 
         self._write({
-            "Extrusora": {"extrusoraRefVelocidade": s_ext},
-            "Puxador":   {"puxadorRefVelocidade":   s_pux},
+            "corte": {"tempoCorte": s_tempo, "comprimentoCorte": s_compr},
         })
 
         deadline   = time.time() + DELFOS_CYCLE * 5
-        extr_ok = pux_ok = False
+        tempo_ok = compr_ok = False
 
         while time.time() < deadline:
             msg = ps.get_message(timeout=0.1)
             if msg and msg["type"] == "message":
                 regs = json.loads(msg["data"]).get("registers", {})
-                if regs.get("Extrusora", {}).get("extrusoraRefVelocidade") == s_ext:
-                    extr_ok = True
-                if regs.get("Puxador", {}).get("puxadorRefVelocidade") == s_pux:
-                    pux_ok = True
-                if extr_ok and pux_ok:
+                if regs.get("corte", {}).get("tempoCorte") == s_tempo:
+                    tempo_ok = True
+                if regs.get("corte", {}).get("comprimentoCorte") == s_compr:
+                    compr_ok = True
+                if tempo_ok and compr_ok:
                     break
 
-        self.assertTrue(extr_ok, f"extrusoraRefVelocidade={s_ext} não apareceu no plc_data")
-        self.assertTrue(pux_ok,  f"puxadorRefVelocidade={s_pux} não apareceu no plc_data")
-        logger.info("Múltiplos tags: extrusora=%d, puxador=%d  OK", s_ext, s_pux)
+        self.assertTrue(tempo_ok,  f"tempoCorte={s_tempo} não apareceu no plc_preArraste")
+        self.assertTrue(compr_ok,  f"comprimentoCorte={s_compr} não apareceu no plc_preArraste")
+        logger.info("Múltiplos tags: tempoCorte=%d, comprimentoCorte=%d  OK", s_tempo, s_compr)
 
     def test_06_user_state_false_interrompe_loop(self):
         """
-        Com user_state=False, Atena não deve escrever — plc_data não deve
-        refletir o valor enviado no plc_commands.
+        Com user_state=False, Atena não deve escrever — plc_preArraste não deve
+        refletir o valor enviado no simulador_commands.
         """
         ps = self._sub_ch2()
 
         # Define valor conhecido via escrita direta
-        self.r.publish("plc_commands", json.dumps({"Extrusora": {"extrusoraRefVelocidade": 1500}}))
+        self.r.publish("simulador_commands", json.dumps({"corte": {"tempoCorte": 1500}}))
         time.sleep(DELFOS_CYCLE * 2)
 
         # Desabilita user_state
@@ -281,18 +289,18 @@ class TestFullLoop(unittest.TestCase):
 
         # Tenta escrever com user_state=False
         valor_bloqueado = 7777
-        self._write({"Extrusora": {"extrusoraRefVelocidade": valor_bloqueado}})
+        self._write({"corte": {"tempoCorte": valor_bloqueado}})
 
-        # plc_data NÃO deve conter o valor bloqueado
+        # plc_preArraste NÃO deve conter o valor bloqueado
         data = wait_for_ch2(
             ps,
-            ["registers", "Extrusora", "extrusoraRefVelocidade"],
+            ["registers", "corte", "tempoCorte"],
             valor_bloqueado,
             timeout=DELFOS_CYCLE * 3,
         )
         self.assertIsNone(
             data,
-            f"plc_data refletiu {valor_bloqueado} mesmo com user_state=False!",
+            f"plc_preArraste refletiu {valor_bloqueado} mesmo com user_state=False!",
         )
         logger.info("Bloqueio user_state=False confirmado  OK")
 

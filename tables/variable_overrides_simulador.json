@@ -1,5 +1,318 @@
 {
   "tempoCorte": {
-    "enabled": false
+    "enabled": false,
+    "channel": "plc_preArraste"
+  },
+  "fatorAjusteCal1": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "fatorAjusteCal3": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "fatorAjustePuxador": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "fatorAjustePrearraste": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "ajusteRampaAcelCalPux": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "ajusteRampaDesacelCalPux": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "fatorAjusteCal2": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "rampaAceleraExt": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "rampaDesaceleraExt": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "ganhoDExt": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "ganhoIExt": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "ganhoPExt": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "rampaAceleraPrearraste": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "rampaDesaceleraPrearraste": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "ajusteFinoComprPrearraste": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "rampaAceleraBomba": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "rampaDesaceleraBomba": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "almPressHCoex": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "almPressHhCoex": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "rampaAceleraCoExt1": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "rampaDesaceleraCoExt1": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "almPressHBomba": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "almPressHhBomba": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "acumProdPrearraste": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "alarmesWord1": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord2": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord3": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord4": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord5": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord6": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord7": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord8": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord9": {
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord10": {
+    "channel": "plc_alarmes"
+  },
+  "ligaDeslExtr": {
+    "channel": "plc_operacao"
+  },
+  "ligaDeslBomba": {
+    "channel": "plc_operacao"
+  },
+  "ligaDeslCoExt1": {
+    "channel": "plc_operacao"
+  },
+  "ligaDeslCalandra": {
+    "channel": "plc_operacao"
+  },
+  "escritaSetPointPressao": {
+    "channel": "plc_operacao"
+  },
+  "setPointVelBomba": {
+    "channel": "plc_operacao"
+  },
+  "percentualCalandraSuperior": {
+    "channel": "plc_operacao"
+  },
+  "setPointCalandraCentral": {
+    "channel": "plc_operacao"
+  },
+  "percentualCalandraInferior": {
+    "channel": "plc_operacao"
+  },
+  "percentualPuxador": {
+    "channel": "plc_operacao"
+  },
+  "extrusoraManualAutomatico": {
+    "channel": "plc_operacao"
+  },
+  "rpmExtrusora": {
+    "channel": "plc_operacao"
+  },
+  "pressaoBombaEntrada": {
+    "channel": "plc_operacao"
+  },
+  "rpmBomba": {
+    "channel": "plc_operacao"
+  },
+  "rpmCoExtrusora": {
+    "channel": "plc_operacao"
+  },
+  "metroPorMinCalandraSuperior": {
+    "channel": "plc_operacao"
+  },
+  "metroPorMinutoCalandraCentral": {
+    "channel": "plc_operacao"
+  },
+  "metroPorMinutoCalandraInferior": {
+    "channel": "plc_operacao"
+  },
+  "correnteExtrusora": {
+    "channel": "plc_operacao"
+  },
+  "correnteBomba": {
+    "channel": "plc_operacao"
+  },
+  "correnteCoExtrusora": {
+    "channel": "plc_operacao"
+  },
+  "correnteCalandraSuperior": {
+    "channel": "plc_operacao"
+  },
+  "correnteCalandraCentral": {
+    "channel": "plc_operacao"
+  },
+  "correnteCalandraInferior": {
+    "channel": "plc_operacao"
+  },
+  "correntePuxador": {
+    "channel": "plc_operacao"
+  },
+  "manualAUtomaticoCoExtrusora": {
+    "channel": "plc_operacao"
+  },
+  "__test_ping": {
+    "_added": true
+  },
+  "rampaPuxadorCalandrasDesaceleracao": {
+    "_added": true
+  },
+  "rampaPuxadorCalandrasAsceleração": {
+    "_added": true
+  },
+  "pressaoCoExtrusora": {
+    "_added": true,
+    "channel": "plc_operacao"
+  },
+  "resetAlarme": {
+    "channel": "plc_operacao"
+  },
+  "blinkLadoEsquerdo": {
+    "_added": true
+  },
+  "alCanExtrusora": {
+    "channel": "plc_redeCan"
+  },
+  "alCanCoextrusora": {
+    "channel": "plc_redeCan"
+  },
+  "alCanRuwRem": {
+    "channel": "plc_redeCan"
+  },
+  "alCanRuwPan": {
+    "channel": "plc_redeCan"
+  },
+  "alCanBobinador2": {
+    "channel": "plc_redeCan"
+  },
+  "alCanBomba": {
+    "channel": "plc_redeCan"
+  },
+  "alCanCalandra1": {
+    "channel": "plc_redeCan"
+  },
+  "alCanBobinador1": {
+    "channel": "plc_redeCan"
+  },
+  "alCanCalandra2": {
+    "channel": "plc_redeCan"
+  },
+  "alCanPrearraste": {
+    "channel": "plc_redeCan"
+  },
+  "alCanCalandra3": {
+    "channel": "plc_redeCan"
+  },
+  "alCanPuxador": {
+    "channel": "plc_redeCan"
+  },
+  "percentualPreArraste": {
+    "channel": "plc_preArraste"
+  },
+  "prearrasteMpm": {
+    "channel": "plc_preArraste"
+  },
+  "correntePrearraste": {
+    "channel": "plc_preArraste"
+  },
+  "comprimentoCorte": {
+    "channel": "plc_preArraste"
+  },
+  "setPointProdução": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "setPointContaMetroPreArraste": {
+    "channel": "plc_retentivas",
+    "enabled": true
+  },
+  "acumuladorContametroPreArraste": {
+    "channel": "plc_preArraste"
+  },
+  "ligaDesligaFaca": {
+    "channel": "plc_preArraste"
+  },
+  "resetProducaoPrearraste": {
+    "channel": "plc_preArraste"
+  },
+  "multistatePrearraste": {
+    "channel": "plc_preArraste"
+  },
+  "multistateExtrusora": {
+    "channel": "plc_operacao"
+  },
+  "multistateBomba": {
+    "channel": "plc_operacao"
+  },
+  "multistateCalandra1": {
+    "channel": "plc_operacao"
+  },
+  "multistateCalandra2": {
+    "channel": "plc_operacao"
+  },
+  "multistateCalandra3": {
+    "channel": "plc_operacao"
+  },
+  "multistatePuxador": {
+    "channel": "plc_operacao"
+  },
+  "multistateCoextrusora": {
+    "channel": "plc_operacao"
   }
 }

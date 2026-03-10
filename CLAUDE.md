@@ -28,12 +28,13 @@ CLP (Modbus TCP/RTU)          [múltiplos devices]
 ```
 gateway/
 ├── shared/                    # Módulos compartilhados entre Delfos e Atena
-│   └── modbus_functions.py    # ModbusClientWrapper, setup_modbus(protocol=), read/write unificados
+│   ├── __init__.py            # Package init (vazio)
+│   ├── modbus_functions.py    # ModbusClientWrapper, setup_modbus(protocol=), read/write unificados
+│   ├── redis_config_functions.py  # setup_redis(), publish_to_channel(), subscribe_to_channels(), get_latest_message()
+│   └── bit_addressing.py      # Parsing e manipulação de bits em holding registers (bit addressing)
 │
 ├── Delfos/                    # Processo leitor do CLP
 │   ├── delfos.py              # Entry point — time-tracking loop 50ms
-│   ├── modbus_functions.py    # (symlink/import de shared) setup_modbus(), read_coils(), read_registers()
-│   ├── redis_config_functions.py  # setup_redis(), publish_to_channel(), get_latest_message()
 │   ├── table_filter.py        # find_contiguous_groups(), extract_parameters_by_group(), extract_parameters_by_channel()
 │   ├── .env                   # Credenciais locais (NÃO commitar)
 │   └── .env.example           # Template de variáveis
@@ -41,8 +42,6 @@ gateway/
 ├── Atena/                     # Processo escritor do CLP
 │   ├── atena.py               # Entry point — loop de eventos Redis
 │   ├── data_handle.py         # Handlers por canal (user_status, plc_commands, ia_status, ia_data)
-│   ├── modbus_functions.py    # (symlink/import de shared) setup_modbus(), write_coils_to_device(), write_registers_to_device()
-│   ├── redis_config_functions.py  # setup_redis(), subscribe_to_channels()
 │   ├── table_filter.py        # extract_deep_keys(), find_values_by_object_tag()
 │   ├── .env                   # Credenciais locais (NÃO commitar)
 │   └── .env.example           # Template de variáveis
@@ -76,7 +75,8 @@ gateway/
 │
 ├── scripts/
 │   ├── transform_tables.py    # Script de transformação de tabelas brutas → CSVs formatados
-│   └── migrate_config.py      # Migração: global variable_overrides.json → per-device files
+│   ├── migrate_config.py      # Migração: global variable_overrides.json → per-device files
+│   └── migrate_bit_addressing.py  # Migração: corrige coluna Modbus nos CSVs de temperatura com bit addressing
 │
 ├── .gitignore
 ├── requirements.txt
@@ -93,8 +93,8 @@ gateway/
 - **Isolamento por device:** cada instância Delfos opera sobre um único device. Requer `DEVICE_ID` (obrigatório) como variável de ambiente.
 - **Loop:** time-tracking com tick de ~50ms; **o canal é a unidade de publicação** — cada canal tem seu próprio timer configurado nos `channels` do device em `group_config.json`
 - **CSVs:** lê apenas os CSVs do seu device (`group_config["devices"][DEVICE_ID]["csv_files"]`)
-- **Lê:** coils e holding registers do CLP via Modbus TCP/RTU, **por canal** (todos os grupos mapeados para o canal são lidos juntos numa única passagem)
-- **Publica:** canais segmentados conforme configurados no device (ex.: `plc_alarmes`, `plc_process`, `plc_visual`, `plc_config`)
+- **Lê:** coils e holding registers do CLP via Modbus TCP/RTU, **por canal** (todos os grupos mapeados para o canal são lidos juntos numa única passagem). Suporta **bit addressing**: variáveis bit-addressed são lidas como holding registers e cada bit é extraído individualmente via `read_registers_with_bits()`
+- **Publica:** canais segmentados conforme configurados no device (ex.: `plc_alarmes`, `plc_retentivas`, `plc_operacao`, `plc_west1Temperatura`)
 - **Assina:** `user_status` (estado do usuário), `config_reload_{device_id}` (hot-reload de config sem reiniciar)
 
 **Formato da mensagem publicada:**
@@ -118,7 +118,7 @@ gateway/
 - **Loop:** blocking `pubsub.listen()` — orientado a eventos
 - **CSVs:** lê apenas os CSVs do seu device (`group_config["devices"][DEVICE_ID]["csv_files"]`)
 - **Assina:** `user_status`, `{device_id}_commands` (via `COMMAND_CHANNEL`), `ia_status`, `ia_data`
-- **Escreve:** coils e holding registers no CLP via Modbus TCP ou RTU over TCP
+- **Escreve:** coils e holding registers no CLP via Modbus TCP ou RTU over TCP. Suporta **bit writes** via read-modify-write para variáveis bit-addressed
 
 | Canal | Handler | Função | Status |
 |-------|---------|--------|--------|
@@ -127,14 +127,14 @@ gateway/
 | `ia_status` | `handle_ia_status_message` | Atualiza `ia_mode` | Completo |
 | `ia_data` | `handle_ia_data_message` | Processa dados da IA | **STUB — sem implementação** |
 
-**Lookup de endereço:** `find_values_by_object_tag()` busca nos CSVs do device pelo campo `ObjecTag` e retorna endereços Modbus correspondentes. `handle_plc_commands_message` aceita lista de caminhos CSV.
+**Lookup de endereço:** `find_values_by_object_tag()` busca nos CSVs do device pelo campo `ObjecTag` e retorna 5-tupla: `(coil_addrs, coil_vals, reg_addrs, reg_vals, bit_writes)`. Variáveis bit-addressed retornam em `bit_writes` como `[(register_addr, bit_index, bool_value)]` e são escritas via read-modify-write em `_write_bit_to_register()`. `handle_plc_commands_message` aceita lista de caminhos CSV.
 
 ---
 
 ### Hub — Bridge Redis ↔ WebSocket (`Hub/main.py`)
 
 - **Protocolo:** FastAPI + python-socketio (ASGI), inicia com `uvicorn Hub.main:asgi_app --port 4567`
-- **Bridge:** `redis_bridge.py` usa subscrição dinâmica baseada nos canais configurados em cada device. `start_bridge(sio, get_channel_map)` recebe um callable que retorna o mapa de canais ativos. Emite **dois eventos** por mensagem:
+- **Bridge:** `redis_bridge.py` usa subscrição dinâmica baseada nos canais configurados em cada device. `start_bridge(sio, redis_host, redis_port, get_channel_map)` recebe um callable que retorna o mapa de canais ativos. Emite **dois eventos** por mensagem:
   - `device:data` → payload `{channel, data}`, enviado ao room do device (`device_id`)
   - `channel:data` → payload `{channel, data}`, enviado ao room do canal (`device_id:channel`)
 - **Rooms:** cada device mapeia para o room `device_id`; cada canal mapeia para o room `device_id:channel` (ex.: `simulador:plc_alarmes`)
@@ -150,8 +150,10 @@ gateway/
 | Método | Rota | Função |
 |--------|------|--------|
 | `GET` | `/health` | Health check |
-| `GET` | `/api/variables` | Lista todos os tags; `channel=null` quando não atribuída |
+| `GET` | `/api/variables` | Lista todos os tags; `channel=null` quando não atribuída; inclui `bit_index` (int ou null) para bit addressing |
+| `POST` | `/api/variables` | Cria nova variável no CSV (`{device_id, csv_file, tag, group, type, address}`) |
 | `PATCH` | `/api/variables/{tag}` | Atualiza override de um tag (`enabled`, `channel`); `channel=""` remove atribuição |
+| `DELETE` | `/api/variables/{tag}` | Remove variável do CSV e dos overrides |
 | `POST` | `/api/variables/bulk-assign` | Atribui/remove canal de múltiplas tags (`{tags, channel}`; `channel=""` remove) |
 | `POST` | `/api/variables/bulk-enable` | Habilita/desabilita múltiplas tags (`{tags, enabled}`) |
 | `GET` | `/api/channels` | Lista canais: `{channel: {delay_ms, history_size}}` |
@@ -160,6 +162,9 @@ gateway/
 | `GET` | `/api/channels/system` | Lista canais de sistema que não podem ser removidos |
 | `PATCH` | `/api/channels/{channel}/delay` | Atualiza `delay_ms` do canal + publica `config_reload_{device_id}` |
 | `PATCH` | `/api/channels/{channel}/history` | Atualiza `history_size` + aplica `ltrim` imediato no Redis |
+| `GET` | `/api/channels/{channel}/history` | Retorna histórico do canal (`?limit=100`) |
+| `PATCH` | `/api/channels/{channel}/enabled` | Habilita/desabilita canal (`{enabled}`) |
+| `PATCH` | `/api/channels/{channel}/rename` | Renomeia canal (`{new_name, device_id}`), migra overrides |
 | `GET` | `/api/groups` | Retorna `{}` — seção groups removida na Fase 5 |
 | `POST` | `/api/upload` | Parseia `.xlsx` ou `.csv` e retorna preview |
 | `POST` | `/api/upload/confirm` | Aplica arquivo como nova configuração (só atualiza overrides) |
@@ -172,6 +177,7 @@ gateway/
 | `POST` | `/api/devices/{id}/toggle` | Alterna `enabled` — pausa/retoma leitura do device no Delfos |
 | `POST` | `/api/devices/{id}/clear` | Remove overrides de todas as tags do device; `?delete_files=true` apaga CSVs do disco |
 | `POST` | `/api/devices/{id}/upload-csv` | Salva CSV em `tables/` e adiciona a `device.csv_files` |
+| `DELETE` | `/api/devices/{id}/csv/{filename}` | Remove CSV do device; `?delete_file=true` apaga do disco; limpa overrides órfãs |
 | `POST` | `/api/devices/{id}/scan` | Inicia scan de variáveis. Body: `{interval_ms, retries, channel}`. 409 se Delfos rodando ou scan ativo |
 | `POST` | `/api/devices/{id}/scan/cancel` | Cancela scan em andamento |
 | `GET` | `/api/devices/{id}/scan` | Retorna sessão de scan atual com resultados |
@@ -233,6 +239,7 @@ Abstração que unifica a API de `pyModbusTCP` (TCP puro) e `pymodbus` (RTU over
 
 - **`setup_modbus(protocol=)`** — aceita `"tcp"` (default, usa `pyModbusTCP.client.ModbusClient`) ou `"rtu_tcp"` (usa `pymodbus.client.ModbusTcpClient` com `ModbusRtuFramer`)
 - **API unificada:** `read_coils()`, `read_holding_registers()`, `write_single_coil()`, `write_single_register()`, `open()`, `close()` — mesma assinatura independente do protocolo
+- **Bit addressing:** `read_registers_with_bits(client, groups, tags, keys, bit_vars=None)` — lê holding registers e extrai bits individuais quando `bit_vars` indica. Backward compatible: quando `bit_vars` é `None`, comportamento idêntico a `read_registers()`
 - **RTU error handling:** chamadas RTU verificam `result.isError()` e levantam `Exception` com contexto
 - **Seleção de protocolo:** Delfos e Atena leem `MODBUS_PROTOCOL` do env e passam para `setup_modbus()`; o ProcessManager propaga o `protocol` do device config
 
@@ -281,7 +288,7 @@ Lê variáveis de um device uma a uma, registra quais retornam valor válido e q
 - `start_scan(device_id, device_cfg, variables, config, progress_callback)` — inicia scan async
 - `cancel_scan(device_id)` — cancela scan em andamento
 - `get_scan(device_id)` / `is_scanning(device_id)` — consulta estado
-- `get_results_for_grid(device_id)` — retorna `{tag: {status, latency_ms, error, value}}`
+- `get_results_for_grid(device_id)` — retorna `{tag: {status, latency_ms, error, value, bit_index}}`
 - `load_cached_results(device_id)` / `load_all_cached()` — lê JSONs persistidos
 
 **Fluxo de scan:**
@@ -298,10 +305,13 @@ Lê variáveis de um device uma a uma, registra quais retornam valor válido e q
 
 | Canal | Direção | Produtor | Consumidor | Freq. típica | Conteúdo |
 |-------|---------|----------|------------|--------------|----------|
-| `plc_alarmes` | → | Delfos | Hub, externos | 200ms | Grupos de alarme |
-| `plc_process` | → | Delfos | Hub, externos | 500ms | Extrusora, Puxador, producao, dosador, alimentador, saidasDigitais |
-| `plc_visual` | → | Delfos | Hub, externos | 1s | threeJs (visualização 3D) |
-| `plc_config` | → | Delfos | Hub, externos | 5s | totalizadores, configuracao |
+| `plc_alarmes` | → | Delfos | Hub, externos | 1s | Grupos de alarme |
+| `plc_retentivas` | → | Delfos | Hub, externos | 1s | Variáveis retentivas |
+| `plc_operacao` | → | Delfos | Hub, externos | 1s | Variáveis de operação |
+| `plc_redeCan` | → | Delfos | Hub, externos | 1s | Rede CAN |
+| `plc_preArraste` | → | Delfos | Hub, externos | 1s | Pré-arraste |
+| `plc_west1Temperatura` | → | Delfos | Hub, externos | 1s | Temperaturas 24 zonas (West 1) |
+| `plc_west2*` | → | Delfos | Hub, externos | 1s | Temperaturas, pressões, alertas 28 zonas (West 2) |
 | `{device_id}_commands` | → | Hub/UI | Atena | sob demanda | Comandos de escrita no CLP (por device) |
 | `user_status` | ↔ | Hub/UI | Delfos, Atena | sob demanda | `{"user_state": true/false}` |
 | `config_reload_{device_id}` | → | Hub | Delfos | sob demanda | `{"reload": true}` — aciona hot-reload do device |
@@ -369,7 +379,7 @@ Colunas relevantes (mesmo formato em todos):
 | `key` | Namespace lógico (`alarmes`, `producao`, `controle_extrusora`, `corte`, etc.) |
 | `ObjecTag` | Nome da variável no JSON e na HMI |
 | `Tipo` | `M` = coil, `D` = register |
-| `Modbus` | Endereço Modbus inteiro |
+| `Modbus` | Endereço Modbus (string). Inteiro (`"1584"`) para registrador normal; com sufixo de bit (`"1584.01"`) para bit addressing — ver seção [Bit Addressing](#bit-addressing) |
 | `At` | `%MB` = coil, `%MW` = holding register |
 | `Classe` | (opcional) Classificação da variável — exibida na API `/api/variables` |
 
@@ -392,31 +402,55 @@ Define devices Modbus com canais Redis **por device**. Lido pelo Delfos na inici
       "unit_id": 1,
       "csv_files": ["mapeamento_clp.csv"],
       "command_channel": "simulador_commands",
+      "enabled": true,
       "channels": {
-        "plc_alarmes": { "delay_ms": 200,  "history_size": 55  },
-        "plc_process": { "delay_ms": 500,  "history_size": 100 },
-        "plc_visual":  { "delay_ms": 1000, "history_size": 100 },
-        "plc_config":  { "delay_ms": 1000, "history_size": 100 }
+        "plc_retentivas":  { "delay_ms": 1000, "history_size": 100 },
+        "plc_alarmes":     { "delay_ms": 1000, "history_size": 55  },
+        "plc_operacao":    { "delay_ms": 1000, "history_size": 100 },
+        "plc_redeCan":     { "delay_ms": 1000, "history_size": 100 },
+        "plc_preArraste":  { "delay_ms": 1000, "history_size": 100 }
       }
     },
-    "clp2": {
-      "label": "CLP Secundário",
-      "protocol": "rtu",
-      "serial_port": "COM3",
-      "baudrate": 9600,
-      "parity": "N",
-      "stopbits": 1,
+    "west_24z": {
+      "label": "West 24 Zonas",
+      "protocol": "tcp",
+      "host": "localhost",
+      "port": 5021,
       "unit_id": 1,
+      "csv_files": ["temperatura_24z.csv"],
+      "command_channel": "west_24z_commands",
       "enabled": true,
-      "csv_files": ["clp2_tags.csv"],
-      "command_channel": "clp2_commands",
       "channels": {
-        "plc_process": { "delay_ms": 500,  "history_size": 100 }
+        "plc_west1Temperatura": { "delay_ms": 1000, "history_size": 100 },
+        "plc_west1SetPoint":    { "delay_ms": 1000, "history_size": 100 },
+        "plc_west1Corrente":    { "delay_ms": 1000, "history_size": 100 },
+        "plc_west1LigDeslZona": { "delay_ms": 1000, "history_size": 100 },
+        "plc_west1Alertas":     { "delay_ms": 1000, "history_size": 100 }
+      }
+    },
+    "west_28z": {
+      "label": "West 28 Zonas",
+      "protocol": "tcp",
+      "host": "localhost",
+      "port": 5022,
+      "unit_id": 1,
+      "csv_files": ["temperatura_28z.csv"],
+      "command_channel": "west_28z_commands",
+      "enabled": true,
+      "channels": {
+        "plc_west2SetPoint":     { "delay_ms": 1000, "history_size": 100 },
+        "plc_west2pressoes":     { "delay_ms": 1000, "history_size": 100 },
+        "plc_west2alertas":      { "delay_ms": 1000, "history_size": 100 },
+        "plc_west2ligDeslZona":  { "delay_ms": 1000, "history_size": 100 },
+        "plc_west2corrente":     { "delay_ms": 1000, "history_size": 100 },
+        "plc_wes2temperatura":   { "delay_ms": 1000, "history_size": 100 }
       }
     }
   }
 }
 ```
+
+> **Nota:** o exemplo acima reflete os devices reais em produção. Para devices RTU, os campos `serial_port`, `baudrate`, `parity` ("N"/"E"/"O"), `stopbits` substituem `host`/`port`.
 
 **Campos de device:**
 - TCP: `protocol="tcp"`, `host`, `port`, `unit_id`
@@ -505,21 +539,75 @@ Cada device também aceita upload individual via `POST /api/devices/{id}/upload-
 
 ---
 
+## Bit Addressing
+
+Variáveis digitais (liga/desliga) de controladores de temperatura são armazenadas como **bits individuais dentro de holding registers de 16 bits**. A coluna `Modbus` dos CSVs codifica isso com um sufixo decimal:
+
+```
+1584        → registrador 1584 inteiro (sem bit addressing)
+1584.00     → registrador 1584, bit 0
+1584.01     → registrador 1584, bit 1
+1584.09     → registrador 1584, bit 9
+1584.1      → registrador 1584, bit 10   ← NÃO é bit 1! (caso legado)
+1584.10     → registrador 1584, bit 10
+1584.15     → registrador 1584, bit 15
+```
+
+**Regra de disambiguação do sufixo:**
+- Sufixo com 2 dígitos: interpretado literal → `.00`=0, `.01`=1, `.09`=9, `.10`=10, `.15`=15
+- Sufixo com 1 dígito: multiplicado por 10 → `.1`=10 (caso legado de CSVs antigos onde `.1` = bit 10 truncado)
+- Range válido: 0-15 (16 bits por registrador)
+
+### Módulo central: `shared/bit_addressing.py`
+
+| Função | Assinatura | Descrição |
+|--------|-----------|-----------|
+| `parse_modbus_address` | `(raw: str\|int) → (int, int\|None)` | Parsing da string Modbus → `(register_addr, bit_index)`. `bit_index=None` para registrador normal |
+| `extract_bit` | `(value: int, bit: int) → bool` | Extrai bit de um valor de 16 bits: `(value >> bit) & 1` |
+| `set_bit` | `(value: int, bit: int, on: bool) → int` | Ativa/desativa bit num valor de 16 bits |
+| `is_bit_addressed` | `(raw: str\|int) → bool` | Detecção rápida: `True` se endereço tem sufixo de bit |
+
+### Impacto nos componentes
+
+**Delfos (leitura):**
+- `extract_parameters_by_channel()` classifica variáveis bit-addressed como **register reads** (não coils), deduplicando endereços
+- Retorna `bit_vars` no dict de cada canal: `{register_addr: [{'tag': str, 'key': str, 'bit': int}, ...]}`
+- `read_registers_with_bits()` (em `shared/modbus_functions.py`) lê o registrador inteiro e extrai cada bit individualmente
+
+**Hub (API + Scanner):**
+- `GET /api/variables` retorna campo `bit_index` (int ou null) para cada variável
+- Scanner lê variáveis bit-addressed como holding registers e extrai o bit do resultado
+
+**Atena (escrita):**
+- `find_values_by_object_tag()` retorna 5-tupla incluindo `bit_writes: [(register_addr, bit_index, bool_value)]`
+- `_write_bit_to_register()` implementa **read-modify-write**: lê o registrador, altera o bit, escreve de volta (3 retries, 0.2s delay)
+
+### CSVs afetados
+
+- `temperatura_24z.csv` — 89 variáveis com bit addressing (controlador 24 zonas)
+- `temperatura_28z.csv` — 24 variáveis com bit addressing (controlador 28 zonas)
+- CSVs sem bit addressing (ex.: `mapeamento_clp.csv`, `globais.csv`) funcionam sem alteração — backward compatible
+
+---
+
 ## Dependências
 
 ```
-pyModbusTCP==0.2.1      # cliente Modbus TCP síncrono (em uso)
-pymodbus==3.6.4         # servidor Modbus TCP (simulador de testes) + cliente RTU
-redis==5.0.3            # pub/sub + store (inclui redis.asyncio para o Hub)
-pandas==3.0.1           # leitura de CSV
-python-dotenv==1.2.1    # carregamento de .env
-numpy==2.4.2            # suporte numérico
-pytest==9.0.2           # execução dos testes
-fastapi                 # Hub — framework web ASGI
-uvicorn[standard]       # Hub — servidor ASGI
-python-socketio==5.x    # Hub — Socket.IO server
-openpyxl                # Hub — leitura/escrita de .xlsx
-python-multipart>=0.0.5 # Hub — upload de arquivos (FastAPI File)
+pyModbusTCP==0.2.1              # cliente Modbus TCP síncrono (em uso)
+pymodbus==3.6.4                 # servidor Modbus TCP (simulador de testes) + cliente RTU
+redis==5.0.3                    # pub/sub + store (inclui redis.asyncio para o Hub)
+pandas==3.0.1                   # leitura de CSV
+python-dotenv==1.2.1            # carregamento de .env
+numpy==2.4.2                    # suporte numérico
+pytest==9.0.2                   # execução dos testes
+python-dateutil==2.9.0.post0    # utilitários de data
+six==1.17.0                     # compatibilidade Python 2/3
+tzdata==2025.3                  # dados de timezone
+fastapi>=0.100.0                # Hub — framework web ASGI
+uvicorn[standard]>=0.20.0       # Hub — servidor ASGI
+python-socketio[client]>=5.8.0  # Hub — Socket.IO server + client
+openpyxl>=3.1.0                 # Hub — leitura/escrita de .xlsx
+python-multipart>=0.0.5         # Hub — upload de arquivos (FastAPI File)
 ```
 
 ---
@@ -600,20 +688,21 @@ cd Atena && python atena.py
 python -m pytest tests/ -v
 
 # Apenas unit tests (sem deps externas):
-python -m pytest tests/test_hub.py tests/test_segmented_reading.py -v
+python -m pytest tests/test_hub.py tests/test_segmented_reading.py tests/test_bit_addressing.py -v
 ```
 
 | Arquivo | Cobre | Testes |
 |---------|-------|--------|
 | `tests/modbus_simulator.py` | Servidor Modbus TCP que lê os CSVs e simula o CLP | — |
 | `tests/test_integration.py` | Simulador — leitura/escrita Modbus direta | 15 |
-| `tests/test_segmented_reading.py` | Delfos — leitura segmentada por canal, delays, hot-reload | 30 |
+| `tests/test_bit_addressing.py` | `shared/bit_addressing.py` — parsing, extração e manipulação de bits | 21 |
+| `tests/test_segmented_reading.py` | Delfos — leitura segmentada por canal, delays, hot-reload, bit addressing | 39 |
 | `tests/test_atena.py` | Atena — loop Redis → Modbus | 6 |
 | `tests/test_full_loop.py` | Loop completo Delfos+Atena simultâneos | 7 |
-| `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping, simulators, scanner | 76 |
+| `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping, simulators, scanner, bit addressing | 112 |
 | `tests/test_e2e_rtu.py` | Teste end-to-end RTU over TCP (simulador + Delfos + Atena) | — |
 
-**Total unit tests (sem deps externas):** 106 (`test_hub` + `test_segmented_reading`)
+**Total unit tests (sem deps externas):** 172 (`test_hub` + `test_segmented_reading` + `test_bit_addressing`)
 
 Para apontar Delfos/Atena ao simulador localmente:
 ```bash
@@ -637,7 +726,7 @@ cp tests/.env.test Atena/.env
 ## Problemas conhecidos
 
 1. **`handle_ia_data_message`** é um stub — lógica de processamento de dados da IA não implementada
-2. **Código duplicado parcialmente resolvido:** `modbus_functions.py` foi extraído para `shared/` com `ModbusClientWrapper` unificado; `redis_config_functions.py` ainda é duplicado em Delfos e Atena
+2. **Código duplicado resolvido:** `modbus_functions.py` e `redis_config_functions.py` foram extraídos para `shared/` — Delfos e Atena importam diretamente de `shared.*`
 3. **Eventos Socket.IO — nomenclatura intencional:** client→server usa underscore (`plc_write`, `sim_write`); server→client usa colon (`device:data`, `proc:status`, `sim:values`). Frontends devem seguir esta convenção.
 4. **Redis sem replicação:** ponto único de falha
 5. **ProcessManager sem reinício automático:** processos que crasham são detectados (`proc:status` com `exit_code`) mas não reiniciam sozinhos — o usuário precisa clicar "Iniciar" novamente. Suporta múltiplos processos do mesmo tipo para devices diferentes.

@@ -445,14 +445,17 @@ def _is_bit_offset(offset_val) -> bool:
     return '.' in s
 
 
-def _parse_modbus_decimal(decimal_val) -> tuple[int, str]:
-    """Parse DECIMAL column. Returns (modbus_int, delta_adress_str).
-    For bit offsets like 1584.01, returns (1584, "48.1") as delta."""
+def _parse_modbus_decimal(decimal_val) -> tuple[str, str]:
+    """Parse DECIMAL column. Returns (modbus_str, delta_adress_str).
+    For bit offsets like 1584.01, returns ("1584.01", "48.1") as delta.
+    For normal addresses like 1584, returns ("1584", "").
+    The Modbus column is kept as string to preserve bit suffix."""
     s = str(decimal_val)
     if '.' in s:
         parts = s.split('.')
-        return int(parts[0]), s
-    return int(float(s)), ""
+        # Preserve the full decimal value as-is (e.g., "1584.01", "1584.1")
+        return s, s
+    return str(int(float(s))), ""
 
 
 def _process_xls_sheet(df: pd.DataFrame, sheet_label: str) -> list[dict]:
@@ -476,13 +479,14 @@ def _process_xls_sheet(df: pd.DataFrame, sheet_label: str) -> list[dict]:
             match = _match_patterns(read_desc, _TEMP_READ_PATTERNS)
             if match:
                 key, obj_tag = match
-                modbus_int, delta = _parse_modbus_decimal(read_decimal)
+                modbus_str, delta = _parse_modbus_decimal(read_decimal)
                 is_bit = _is_bit_offset(read_offset) if pd.notna(read_offset) else False
 
                 if is_bit:
                     tipo, at = "M", "%MB"
                     offset_str = str(read_offset) if pd.notna(read_offset) else ""
-                    comment = f"{read_desc} (bit {offset_str} do registro {modbus_int})"
+                    register_int = modbus_str.split('.')[0] if '.' in modbus_str else modbus_str
+                    comment = f"{read_desc} (bit {offset_str} do registro {register_int})"
                     delta = offset_str
                 else:
                     tipo, at = "D", "%MW"
@@ -494,7 +498,7 @@ def _process_xls_sheet(df: pd.DataFrame, sheet_label: str) -> list[dict]:
                     "Identifiers": f"{sheet_label}_read_{read_offset}",
                     "Tipo": tipo,
                     "Delta Adress": delta,
-                    "Modbus": modbus_int,
+                    "Modbus": modbus_str,
                     "At": at,
                     "comentarios": comment,
                     "Classe": "temperatura",
@@ -505,13 +509,14 @@ def _process_xls_sheet(df: pd.DataFrame, sheet_label: str) -> list[dict]:
             match = _match_patterns(write_desc, _TEMP_WRITE_PATTERNS)
             if match:
                 key, obj_tag = match
-                modbus_int, delta = _parse_modbus_decimal(write_decimal)
+                modbus_str, delta = _parse_modbus_decimal(write_decimal)
                 is_bit = _is_bit_offset(write_offset) if write_offset is not None else False
 
                 if is_bit:
                     tipo, at = "M", "%MB"
                     offset_str = str(write_offset)
-                    comment = f"{write_desc} (bit {offset_str} do registro {modbus_int})"
+                    register_int = modbus_str.split('.')[0] if '.' in modbus_str else modbus_str
+                    comment = f"{write_desc} (bit {offset_str} do registro {register_int})"
                     delta = offset_str
                 else:
                     tipo, at = "D", "%MW"
@@ -523,7 +528,7 @@ def _process_xls_sheet(df: pd.DataFrame, sheet_label: str) -> list[dict]:
                     "Identifiers": f"{sheet_label}_write_{write_offset}",
                     "Tipo": tipo,
                     "Delta Adress": delta,
-                    "Modbus": modbus_int,
+                    "Modbus": modbus_str,
                     "At": at,
                     "comentarios": comment,
                     "Classe": "temperatura",

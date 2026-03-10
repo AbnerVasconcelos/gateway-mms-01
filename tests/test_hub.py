@@ -92,7 +92,7 @@ class TestConfigStore(unittest.TestCase):
         cfg = config_store.load_group_config()
         # Channels are now inside devices
         device_channels = cfg['devices']['simulador'].get('channels', {})
-        for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
+        for ch in ('plc_alarmes', 'plc_retentivas', 'plc_operacao'):
             self.assertIn(ch, device_channels, f"Canal '{ch}' ausente em devices.simulador.channels")
 
     # ── save_group_config ────────────────────────────────────────────────────
@@ -163,8 +163,8 @@ class TestConfigStore(unittest.TestCase):
     def test_11_get_channel_history_sizes_unique_channels(self):
         sizes = config_store.get_channel_history_sizes()
         self.assertIsInstance(sizes, dict)
-        # Canais esperados no projeto
-        for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
+        # Canais esperados no projeto (ao menos os do device simulador)
+        for ch in ('plc_alarmes', 'plc_retentivas', 'plc_operacao'):
             self.assertIn(ch, sizes, f"Canal '{ch}' ausente no retorno")
 
     def test_12_get_channel_history_sizes_values_are_positive_int(self):
@@ -641,7 +641,7 @@ class TestHubHTTP(unittest.TestCase):
     def test_31_api_channels_returns_dict(self):
         resp = self._get('/api/channels')
         self.assertIsInstance(resp, dict)
-        for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
+        for ch in ('plc_alarmes', 'plc_retentivas', 'plc_operacao'):
             self.assertIn(ch, resp, f"Canal '{ch}' ausente em /api/channels")
 
     def test_32_api_channels_values_are_dicts_with_delay_and_history(self):
@@ -663,7 +663,7 @@ class TestHubHTTP(unittest.TestCase):
         self.assertIn('overrides', resp)
 
     def test_35_patch_history_updates_channel(self):
-        resp = self._patch('/api/channels/plc_alarmes/history', {'history_size': 55})
+        resp = self._patch('/api/channels/plc_alarmes/history?device_id=simulador', {'history_size': 55})
         self.assertEqual(resp['channel'],      'plc_alarmes')
         self.assertEqual(resp['history_size'], 55)
         # Verifica que foi persistido (formato agora é dict)
@@ -788,7 +788,7 @@ class TestHubSocketIO(unittest.TestCase):
         self.assertTrue(received, "history:sizes não recebido após history_get")
         sizes = received[-1]
         self.assertIsInstance(sizes, dict)
-        for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
+        for ch in ('plc_alarmes', 'plc_retentivas', 'plc_operacao'):
             self.assertIn(ch, sizes)
 
     def _get_device_for_channel(self, channel):
@@ -1284,7 +1284,7 @@ class TestDeviceCRUD(unittest.TestCase):
         cfg = config_store.load_group_config()
         # Channels are inside devices — verify existing device channels preserved
         device_channels = cfg['devices']['simulador'].get('channels', {})
-        for ch in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
+        for ch in ('plc_alarmes', 'plc_retentivas', 'plc_operacao'):
             self.assertIn(ch, device_channels)
 
     def test_83_update_device_updates_field(self):
@@ -1827,6 +1827,67 @@ class TestScannerManager(unittest.TestCase):
         sm._scans['sim1'] = session
         with self.assertRaises(RuntimeError):
             sm.start_scan('sim1', {}, [], {})
+
+
+    # ── Bit addressing ────────────────────────────────────────────────────────
+
+    def test_115_variables_include_bit_index(self):
+        """load_all_variables deve retornar bit_index para variáveis bit-addressed."""
+        variables = config_store.load_all_variables()
+        # Verifica que o campo bit_index existe em todas as variáveis
+        for var in variables:
+            with self.subTest(tag=var.get('tag')):
+                self.assertIn('bit_index', var)
+
+    def test_116_bit_index_correct_for_temperatura(self):
+        """Variáveis de temperatura com Modbus como '1584.01' devem ter bit_index=1."""
+        variables = config_store.load_all_variables()
+        # Busca variável tempNaoAtingidaZona2 (bit 1 do reg 1584)
+        temp_vars = [v for v in variables if v['tag'] == 'tempNaoAtingidaZona2']
+        if temp_vars:
+            var = temp_vars[0]
+            self.assertEqual(var['bit_index'], 1)
+            self.assertEqual(var['address'], 1584)
+
+    def test_117_bit_index_none_for_normal(self):
+        """Variáveis normais (sem bit addressing) devem ter bit_index=None."""
+        variables = config_store.load_all_variables()
+        # Busca variável tempZona1 (register normal 1536)
+        normal_vars = [v for v in variables if v['tag'] == 'tempZona1']
+        if normal_vars:
+            var = normal_vars[0]
+            self.assertIsNone(var['bit_index'])
+            self.assertEqual(var['address'], 1536)
+
+    def test_118_scan_bit_addressed_variable(self):
+        """Scanner deve extrair bit de variável bit-addressed."""
+        from unittest.mock import MagicMock
+        from scanner_manager import _scan_single_variable
+
+        mock_client = MagicMock()
+        # Register value: bit 1 ON, bit 0 OFF → 0b10 = 2
+        mock_client.read_holding_registers.return_value = [2]
+
+        var = {
+            'tag': 'tempNaoAtingidaZona2',
+            'address': 1584,
+            'type': '%MB',
+            'bit_index': 1,
+        }
+        result = _scan_single_variable(mock_client, var, retries=1)
+        self.assertEqual(result['status'], 'ok')
+        self.assertTrue(result['value'])  # bit 1 is ON in value 2
+        self.assertEqual(result['bit_index'], 1)
+
+        # Bit 0 should be OFF
+        var0 = {
+            'tag': 'tempNaoAtingidaZona1',
+            'address': 1584,
+            'type': '%MB',
+            'bit_index': 0,
+        }
+        result0 = _scan_single_variable(mock_client, var0, retries=1)
+        self.assertFalse(result0['value'])  # bit 0 is OFF in value 2
 
 
 if __name__ == '__main__':

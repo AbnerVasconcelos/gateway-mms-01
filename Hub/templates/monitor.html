@@ -62,6 +62,22 @@
 
     .tree-count { color: var(--bs-secondary-color); font-size: .75em; }
 
+    /* History panel */
+    .history-panel {
+      border-top: 1px solid var(--bs-border-color);
+      margin-top: .75rem; padding-top: .75rem;
+    }
+    .history-entry {
+      border: 1px solid var(--bs-border-color);
+      border-radius: .375rem; padding: .5rem .6rem;
+      margin-bottom: .4rem; font-size: .78rem;
+    }
+    .history-entry-index {
+      color: var(--bs-secondary-color); font-size: .7rem;
+      font-weight: 600; margin-bottom: .25rem;
+    }
+    .history-toggle.active { box-shadow: 0 0 0 2px #0d6efd inset; }
+
     .no-channel-selected {
       display: flex; align-items: center; justify-content: center;
       height: 100%; color: var(--bs-secondary-color); font-size: .9rem;
@@ -139,12 +155,23 @@
             <strong id="tree-channel-name" style="font-size:.95rem"></strong>
             <span class="text-muted ms-2" style="font-size:.75rem" id="tree-timestamp"></span>
           </div>
-          <div class="text-muted" style="font-size:.75rem">
-            <span id="tree-msg-count">0</span> msgs
+          <div class="d-flex align-items-center gap-2">
+            <span class="text-muted" style="font-size:.75rem"><span id="tree-msg-count">0</span> msgs</span>
+            <button class="btn btn-outline-secondary btn-sm history-toggle" id="btn-history"
+                    style="font-size:.7rem;padding:2px 8px" onclick="toggleHistory()" disabled>
+              History
+            </button>
           </div>
         </div>
       </div>
       <div id="tree-content" class="tree-node"></div>
+      <div id="history-panel" class="history-panel d-none">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="fw-semibold small">History <span class="text-muted" id="history-count"></span></span>
+          <span class="text-muted" style="font-size:.65rem" id="history-fetched-at"></span>
+        </div>
+        <div id="history-content"></div>
+      </div>
     </div>
   </div>
 
@@ -189,7 +216,7 @@ socket.on('connection_ack', ({ available_rooms }) => {
   socket.emit('join', { rooms });
 });
 
-socket.on('plc:data', ({ channel, data }) => {
+socket.on('device:data', ({ device_id, channel, data }) => {
   const now = Date.now();
   if (!channelData[channel]) {
     channelData[channel] = { lastPayload: null, lastTimestamp: null, msgCount: 0, timestamps: [] };
@@ -326,6 +353,13 @@ function selectChannel(channel) {
   // Show tree area
   document.getElementById('no-selection-msg').classList.add('d-none');
   document.getElementById('tree-container').classList.remove('d-none');
+
+  // Reset history panel
+  historyOpen = false;
+  document.getElementById('history-panel').classList.add('d-none');
+  const btn = document.getElementById('btn-history');
+  btn.classList.remove('active');
+  btn.disabled = false;
 
   renderTree();
 }
@@ -503,6 +537,66 @@ setInterval(() => {
     }
   }
 }, 2000);
+
+// ── History ─────────────────────────────────────────────────────────────────
+let historyOpen = false;
+
+async function toggleHistory() {
+  const panel = document.getElementById('history-panel');
+  const btn = document.getElementById('btn-history');
+
+  if (historyOpen) {
+    // Close
+    historyOpen = false;
+    panel.classList.add('d-none');
+    btn.classList.remove('active');
+    return;
+  }
+
+  if (!selectedChannel) return;
+
+  // Fetch once
+  btn.disabled = true;
+  btn.textContent = 'Carregando...';
+  try {
+    const res = await fetch(`/api/channels/${encodeURIComponent(selectedChannel)}/history?limit=100`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { count, items } = await res.json();
+
+    historyOpen = true;
+    btn.classList.add('active');
+
+    document.getElementById('history-count').textContent = `(${count} msgs)`;
+    document.getElementById('history-fetched-at').textContent =
+      'snapshot ' + new Date().toLocaleTimeString('pt-BR');
+
+    const container = document.getElementById('history-content');
+    if (count === 0) {
+      container.innerHTML = '<span class="text-muted small">Nenhum dado no history.</span>';
+    } else {
+      container.innerHTML = items.map((item, i) => {
+        const ts = item.timestamp || '';
+        const preview = buildTreeHtml(item, `hist_${i}`, 0, new Set());
+        return `<div class="history-entry">
+          <div class="history-entry-index">#${i + 1} ${escapeHtml(ts)}</div>
+          <div class="tree-node">${preview}</div>
+        </div>`;
+      }).join('');
+    }
+
+    panel.classList.remove('d-none');
+  } catch (e) {
+    console.error('Erro ao buscar history:', e);
+    document.getElementById('history-content').innerHTML =
+      `<span class="text-danger small">Erro: ${escapeHtml(e.message)}</span>`;
+    panel.classList.remove('d-none');
+    historyOpen = true;
+    btn.classList.add('active');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'History';
+  }
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadChannelConfigs);

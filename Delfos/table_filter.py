@@ -1,8 +1,12 @@
 import logging
 import itertools
 import os
+import sys
 import time
 import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.bit_addressing import parse_modbus_address, is_bit_addressed
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +129,10 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
 
     Variáveis com enabled=False são excluídas.
 
+    Suporta endereçamento por bit: variáveis com Modbus "1584.01" são interpretadas
+    como bit 1 do registrador 1584. Essas variáveis são reclassificadas como leituras
+    de holding register (não coils) e agrupadas em 'bit_vars'.
+
     Retorno por canal:
         {
             'coil_groups': [[addr, ...], ...],
@@ -133,6 +141,7 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
             'reg_tags':    [[tag, ...], ...],
             'coil_keys':   [[group, ...], ...],
             'reg_keys':    [[group, ...], ...],
+            'bit_vars':    {1584: [{'tag': ..., 'key': ..., 'bit': 0}, ...], ...},
             'history_size': int,
             'sources':     set{'operacao', 'configuracao'},
         }
@@ -151,7 +160,7 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
 
         for attempt in range(attempts):
             try:
-                df = pd.read_csv(csv_path, sep=',')
+                df = pd.read_csv(csv_path, sep=',', dtype={'Modbus': str})
                 break
             except Exception as e:
                 logger.error("Erro ao ler '%s': %s", csv_path, e)
@@ -161,17 +170,22 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
             continue
 
         df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
-        df['Modbus'] = pd.to_numeric(df['Modbus'], errors='coerce')
-        df = df.dropna(subset=['Modbus'])
-        df['Modbus'] = df['Modbus'].astype(int)
 
         for _, row in df.iterrows():
+            modbus_raw = str(row['Modbus']).strip()
+            try:
+                register_addr, bit_index = parse_modbus_address(modbus_raw)
+            except (ValueError, TypeError):
+                logger.warning("Endereço Modbus inválido '%s' no CSV '%s', ignorando.", modbus_raw, csv_path)
+                continue
+
             all_rows.append({
-                'key':    str(row['key']).strip(),
-                'tag':    str(row['ObjecTag']).strip(),
-                'at':     str(row.get('At', '')).strip(),
-                'modbus': int(row['Modbus']),
-                'source': source,
+                'key':       str(row['key']).strip(),
+                'tag':       str(row['ObjecTag']).strip(),
+                'at':        str(row.get('At', '')).strip(),
+                'modbus':    register_addr,
+                'bit_index': bit_index,
+                'source':    source,
             })
 
     # Acumula linhas por canal efetivo (somente variáveis com canal explícito)
@@ -193,21 +207,90 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
         channel_rows.setdefault(channel, []).append(row)
         channel_sources.setdefault(channel, set()).add(source)
 
-    # Constrói grupos contíguos por canal (cross-group)
+    # Constrói grupos contíguos por canal (cross-group), excluindo canais desabilitados
     result: dict = {}
     for channel, rows in channel_rows.items():
-        df_ch = pd.DataFrame(rows)
+        ch_cfg_entry = channels_cfg.get(channel, {})
+        if not ch_cfg_entry.get('enabled', True):
+            logger.info("Canal '%s' desabilitado — ignorado.", channel)
+            continue
+        # Separa variáveis normais de bit-addressed
+        coil_rows = []     # coils genuínos (At=%MB sem bit addressing)
+        reg_rows  = []     # registers normais (At=%MW, sem bit addressing)
+        bit_vars: dict[int, list] = {}  # register_addr → [{tag, key, bit}]
 
-        df_coils = df_ch[df_ch['at'] == '%MB'].copy().sort_values('modbus')
-        df_regs  = df_ch[df_ch['at'] != '%MB'].copy().sort_values('modbus')
+        # Primeiro passo: coletar todos os registradores que têm variáveis bit-addressed
+        bit_addressed_registers: set[int] = set()
+        for row in rows:
+            if row['bit_index'] is not None:
+                bit_addressed_registers.add(row['modbus'])
 
-        coil_groups = _find_contiguous(df_coils['modbus'].tolist())
-        reg_groups  = _find_contiguous(df_regs['modbus'].tolist())
+        for row in rows:
+            at        = row['at']
+            bit_index = row['bit_index']
+            addr      = row['modbus']
 
-        coil_tags = [df_coils.loc[df_coils['modbus'].isin(g)]['tag'].tolist() for g in coil_groups]
-        reg_tags  = [df_regs.loc[df_regs['modbus'].isin(g)]['tag'].tolist()   for g in reg_groups]
-        coil_keys = [df_coils.loc[df_coils['modbus'].isin(g)]['key'].tolist() for g in coil_groups]
-        reg_keys  = [df_regs.loc[df_regs['modbus'].isin(g)]['key'].tolist()   for g in reg_groups]
+            if bit_index is not None:
+                # Variável bit-addressed explícita (Modbus tem sufixo .NN)
+                bit_vars.setdefault(addr, []).append({
+                    'tag': row['tag'],
+                    'key': row['key'],
+                    'bit': bit_index,
+                })
+            elif at == '%MB' and addr in bit_addressed_registers:
+                # Bit 0 implícito: At=%MB sem sufixo, mas o registro tem siblings bit-addressed
+                bit_vars.setdefault(addr, []).append({
+                    'tag': row['tag'],
+                    'key': row['key'],
+                    'bit': 0,
+                })
+            elif at == '%MB':
+                # Coil genuíno (não compartilha registro com bit-addressed)
+                coil_rows.append(row)
+            else:
+                # Register normal
+                reg_rows.append(row)
+
+        # Adiciona registradores de bit_vars ao pool de registers para leitura
+        # (cada endereço aparece uma vez, com um tag/key placeholder)
+        for addr, bvars in sorted(bit_vars.items()):
+            # Usa o primeiro tag do grupo como placeholder
+            first = bvars[0]
+            reg_rows.append({
+                'key':    first['key'],
+                'tag':    first['tag'],
+                'modbus': addr,
+            })
+
+        # Ordena e constrói grupos contíguos
+        coil_rows.sort(key=lambda r: r['modbus'])
+        reg_rows.sort(key=lambda r: r['modbus'])
+
+        # Deduplica reg_rows por endereço (pode haver registros duplicados via bit_vars + normal)
+        seen_reg_addrs: set[int] = set()
+        deduped_reg_rows: list = []
+        for r in reg_rows:
+            if r['modbus'] not in seen_reg_addrs:
+                seen_reg_addrs.add(r['modbus'])
+                deduped_reg_rows.append(r)
+        reg_rows = deduped_reg_rows
+
+        coil_addrs = [r['modbus'] for r in coil_rows]
+        reg_addrs  = [r['modbus'] for r in reg_rows]
+
+        coil_groups = _find_contiguous(coil_addrs)
+        reg_groups  = _find_contiguous(reg_addrs)
+
+        # Mapeia endereços de volta para tags/keys
+        coil_addr_tag = {r['modbus']: r['tag'] for r in coil_rows}
+        coil_addr_key = {r['modbus']: r['key'] for r in coil_rows}
+        reg_addr_tag  = {r['modbus']: r['tag'] for r in reg_rows}
+        reg_addr_key  = {r['modbus']: r['key'] for r in reg_rows}
+
+        coil_tags = [[coil_addr_tag[a] for a in g] for g in coil_groups]
+        coil_keys = [[coil_addr_key[a] for a in g] for g in coil_groups]
+        reg_tags  = [[reg_addr_tag[a] for a in g]  for g in reg_groups]
+        reg_keys  = [[reg_addr_key[a] for a in g]  for g in reg_groups]
 
         ch_cfg       = channels_cfg.get(channel, {})
         history_size = ch_cfg.get('history_size', default_hist)
@@ -219,6 +302,7 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
             'reg_tags':     reg_tags,
             'coil_keys':    coil_keys,
             'reg_keys':     reg_keys,
+            'bit_vars':     bit_vars if bit_vars else None,
             'history_size': history_size,
             'sources':      channel_sources[channel],
         }

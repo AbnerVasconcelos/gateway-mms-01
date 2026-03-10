@@ -139,6 +139,36 @@ def read_registers(client, groups, tags, keys):
     return devices_data, total_registers_read
 
 
+def read_registers_with_bits(client, groups, tags, keys, bit_vars=None):
+    """Lê holding registers e extrai bits quando bit_vars indica.
+
+    bit_vars: {register_addr: [{'tag': str, 'key': str, 'bit': int}, ...]}
+    Quando um endereço está em bit_vars, o valor do registrador é decomposto
+    em bits individuais. Caso contrário, comportamento idêntico a read_registers().
+    """
+    devices_data = defaultdict(dict)
+    total_registers_read = 0
+
+    for group, g_tags, g_keys in zip(groups, tags, keys):
+        try:
+            first_address = group[0]
+            num_addresses = len(group)
+            result = client.read_holding_registers(first_address, num_addresses)
+
+            for addr, key, tag, value in zip(group, g_keys, g_tags, result):
+                if bit_vars and addr in bit_vars:
+                    for bv in bit_vars[addr]:
+                        devices_data[bv['key']][bv['tag']] = bool((value >> bv['bit']) & 1)
+                else:
+                    devices_data[key][tag] = value
+
+            total_registers_read += num_addresses
+        except Exception as e:
+            logger.error("Erro ao ler registros no endereço %s: %s", group[0] if group else '?', e)
+
+    return devices_data, total_registers_read
+
+
 def write_coils_to_device(client, modbus, values):
     attempts = 3
     delay = 0.2

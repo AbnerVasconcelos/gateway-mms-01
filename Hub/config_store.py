@@ -13,9 +13,13 @@ import io
 import json
 import logging
 import os
+import sys
 
 import openpyxl
 import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.bit_addressing import parse_modbus_address
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +150,7 @@ def get_channels() -> dict:
             result[ch] = {
                 'delay_ms':     ch_cfg.get('delay_ms',    default_delay),
                 'history_size': ch_cfg.get('history_size', default_hist),
+                'enabled':      ch_cfg.get('enabled', True),
                 'device_id':    dev_id,
             }
 
@@ -175,6 +180,7 @@ def get_device_channels(device_id: str) -> dict:
         result[ch] = {
             'delay_ms':     ch_cfg.get('delay_ms',    default_delay),
             'history_size': ch_cfg.get('history_size', default_hist),
+            'enabled':      ch_cfg.get('enabled', True),
         }
     return result
 
@@ -254,6 +260,26 @@ def update_channel_history_size(channel: str, size: int, device_id: str | None =
         config.setdefault('channels', {}).setdefault(channel, {})['history_size'] = size
     save_group_config(config)
     logger.info("history_size=%d aplicado ao canal '%s' (device=%s).", size, channel, device_id)
+
+
+def update_channel_enabled(channel: str, enabled: bool, device_id: str | None = None) -> None:
+    """Habilita ou desabilita um canal. Se device_id informado, opera em devices[device_id].channels."""
+    config = load_group_config()
+    if device_id:
+        dev = config.get('devices', {}).get(device_id)
+        if not dev:
+            raise KeyError(f"Device '{device_id}' nao encontrado.")
+        ch_entry = dev.get('channels', {}).get(channel)
+        if ch_entry is None:
+            raise KeyError(f"Canal '{channel}' nao encontrado no device '{device_id}'.")
+        ch_entry['enabled'] = enabled
+    else:
+        ch_entry = config.get('channels', {}).get(channel)
+        if ch_entry is None:
+            raise KeyError(f"Canal '{channel}' nao encontrado.")
+        ch_entry['enabled'] = enabled
+    save_group_config(config)
+    logger.info("enabled=%s aplicado ao canal '%s' (device=%s).", enabled, channel, device_id)
 
 
 def find_tag_device(tag: str) -> str | None:
@@ -345,21 +371,28 @@ def load_all_variables() -> list:
 
             source = os.path.splitext(os.path.basename(csv_path))[0]
 
-            df = pd.read_csv(csv_path, sep=',')
+            df = pd.read_csv(csv_path, sep=',', dtype={'Modbus': str})
             df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
-            df['Modbus'] = pd.to_numeric(df['Modbus'], errors='coerce').astype('Int64')
 
             for _, row in df.iterrows():
                 tag     = str(row['ObjecTag']).strip()
                 group   = str(row['key']).strip()
                 var_at  = str(row.get('At', '')).strip()
-                address = int(row['Modbus']) if pd.notna(row['Modbus']) else None
+                modbus_raw = str(row['Modbus']).strip()
+
+                # Parse endereço com possível sufixo de bit
+                try:
+                    address, bit_index = parse_modbus_address(modbus_raw)
+                except (ValueError, TypeError):
+                    address = None
+                    bit_index = None
 
                 classe  = str(row['Classe']).strip() if 'Classe' in row.index and pd.notna(row.get('Classe')) else None
 
                 ov      = dev_overrides.get(tag, {})
                 enabled = ov.get('enabled', True)
                 channel = ov.get('channel')   # None quando não atribuída
+                added   = ov.get('_added', False)
 
                 # Use device channels for history_size, fallback to global channels_data
                 hist = None
@@ -374,12 +407,14 @@ def load_all_variables() -> list:
                     'group':        group,
                     'type':         var_at,
                     'address':      address,
+                    'bit_index':    bit_index,
                     'channel':      channel,
                     'history_size': hist,
                     'enabled':      enabled,
                     'source':       source,
                     'device':       device_id,
                     'classe':       classe,
+                    '_added':       added,
                 })
 
     if devices:
@@ -638,3 +673,171 @@ def update_csv_variable(tag: str, fields: dict, device_id: str | None = None) ->
         return True
 
     return False
+
+
+def add_csv_variable(device_id: str, csv_file: str, tag: str, group: str,
+                     at_type: str, address: str, classe: str = '') -> dict:
+    """
+    Adiciona uma nova variável ao CSV de mapeamento Modbus.
+
+    Valida que:
+      - O device existe e csv_file pertence a ele
+      - A tag não é duplicada no CSV
+      - at_type é '%MB' ou '%MW'
+
+    Determina Tipo (M/D) a partir de at_type:
+      - '%MB' → 'M' (coil)
+      - '%MW' → 'D' (register)
+
+    Retorna dict da variável criada.
+    """
+    cfg = load_group_config()
+    dev = cfg.get('devices', {}).get(device_id)
+    if not dev:
+        raise KeyError(f"Device '{device_id}' não encontrado.")
+    if csv_file not in dev.get('csv_files', []):
+        raise ValueError(f"CSV '{csv_file}' não pertence ao device '{device_id}'.")
+    if at_type not in ('%MB', '%MW'):
+        raise ValueError(f"Tipo '{at_type}' inválido. Use '%MB' ou '%MW'.")
+
+    csv_path = os.path.join(_TABLES_DIR, csv_file)
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"Arquivo '{csv_file}' não encontrado em {_TABLES_DIR}.")
+
+    df = pd.read_csv(csv_path, sep=',', dtype={'Modbus': str})
+
+    # Verifica duplicata
+    if 'ObjecTag' in df.columns:
+        existing = df['ObjecTag'].astype(str).str.strip().values
+        if tag in existing:
+            raise ValueError(f"Tag '{tag}' já existe no CSV '{csv_file}'.")
+
+    # Determina Tipo a partir de At
+    tipo = 'M' if at_type == '%MB' else 'D'
+
+    new_row = {
+        'key': group,
+        'ObjecTag': tag,
+        'Tipo': tipo,
+        'Modbus': str(address),
+        'At': at_type,
+    }
+    if 'Classe' in df.columns or classe:
+        new_row['Classe'] = classe or ''
+
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    df.to_csv(csv_path, index=False)
+    logger.info("CSV '%s': variável '%s' adicionada (group=%s, at=%s, addr=%s).",
+                csv_file, tag, group, at_type, address)
+
+    return {
+        'tag': tag,
+        'group': group,
+        'type': at_type,
+        'address': address,
+        'classe': classe,
+        'device': device_id,
+        'csv_file': csv_file,
+    }
+
+
+def delete_csv_variable(tag: str, device_id: str | None = None) -> bool:
+    """
+    Remove uma variável do CSV fonte e seu override.
+
+    Localiza o CSV que contém a tag (restrito aos csv_files do device se informado),
+    remove a linha correspondente e reescreve o arquivo.
+    Remove também a entrada do override per-device.
+
+    Retorna True se a variável foi encontrada e removida, False caso contrário.
+    """
+    cfg = load_group_config()
+
+    if device_id:
+        dev = cfg.get('devices', {}).get(device_id, {})
+        csv_files = dev.get('csv_files', [])
+    else:
+        csv_files = []
+        for dev_cfg in cfg.get('devices', {}).values():
+            csv_files.extend(dev_cfg.get('csv_files', []))
+
+    for csv_name in csv_files:
+        csv_path = os.path.join(_TABLES_DIR, csv_name)
+        if not os.path.exists(csv_path):
+            continue
+        try:
+            df = pd.read_csv(csv_path, sep=',', dtype={'Modbus': str})
+        except Exception:
+            continue
+        if 'ObjecTag' not in df.columns:
+            continue
+
+        mask = df['ObjecTag'].astype(str).str.strip() == tag
+        if not mask.any():
+            continue
+
+        df = df[~mask]
+        df.to_csv(csv_path, index=False)
+
+        # Remove override
+        resolved_device = device_id or find_tag_device(tag)
+        if resolved_device:
+            overrides = load_overrides(resolved_device)
+            if tag in overrides:
+                del overrides[tag]
+                save_overrides(overrides, resolved_device)
+
+        logger.info("CSV '%s': variável '%s' removida.", csv_name, tag)
+        return True
+
+    return False
+
+
+def rename_channel(old_name: str, new_name: str, device_id: str) -> None:
+    """
+    Renomeia um canal dentro de um device.
+
+    Atualiza:
+      1. group_config.json: devices[device_id].channels (renomeia a chave)
+      2. variable_overrides_{device_id}.json: todas as tags com channel=old_name → new_name
+
+    Valida que:
+      - old_name existe nos channels do device
+      - new_name não é vazio
+      - Nem old_name nem new_name é canal de sistema
+      - new_name não já existe nos channels do device
+    """
+    if old_name in SYSTEM_CHANNELS:
+        raise ValueError(f"Canal '{old_name}' é um canal de sistema e não pode ser renomeado.")
+    if new_name in SYSTEM_CHANNELS:
+        raise ValueError(f"Canal '{new_name}' é um canal de sistema e não pode ser usado como destino.")
+    if not new_name or not new_name.strip():
+        raise ValueError("O novo nome do canal não pode ser vazio.")
+
+    config = load_group_config()
+    dev = config.get('devices', {}).get(device_id)
+    if not dev:
+        raise KeyError(f"Device '{device_id}' não encontrado.")
+
+    channels = dev.get('channels', {})
+    if old_name not in channels:
+        raise KeyError(f"Canal '{old_name}' não encontrado no device '{device_id}'.")
+    if new_name in channels:
+        raise ValueError(f"Canal '{new_name}' já existe no device '{device_id}'.")
+
+    # Renomeia a chave no channels do device
+    channels[new_name] = channels.pop(old_name)
+    save_group_config(config)
+
+    # Atualiza overrides per-device
+    overrides = load_overrides(device_id)
+    changed = 0
+    for tag, ov in overrides.items():
+        if ov.get('channel') == old_name:
+            ov['channel'] = new_name
+            changed += 1
+    if changed:
+        save_overrides(overrides, device_id)
+
+    logger.info("Canal '%s' renomeado para '%s' no device '%s' (%d overrides migrados).",
+                old_name, new_name, device_id, changed)

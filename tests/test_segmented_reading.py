@@ -24,16 +24,18 @@ GATEWAY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, GATEWAY_DIR)
 sys.path.insert(0, os.path.join(GATEWAY_DIR, 'Delfos'))
 
-from table_filter import extract_parameters_by_group          # noqa: E402
+from table_filter import extract_parameters_by_group, extract_parameters_by_channel  # noqa: E402
 from shared.redis_config_functions import publish_to_channel  # noqa: E402
+from shared.modbus_functions import read_registers_with_bits  # noqa: E402
 
-TABLES_DIR         = os.path.join(GATEWAY_DIR, 'tables')
-MAPEAMENTO_CLP_CSV = os.path.join(TABLES_DIR, 'mapeamento_clp.csv')
-GLOBAIS_CSV        = os.path.join(TABLES_DIR, 'globais.csv')
-RETENTIVAS_CSV     = os.path.join(TABLES_DIR, 'retentivas.csv')
-IO_FISICAS_CSV     = os.path.join(TABLES_DIR, 'io_fisicas.csv')
-GROUP_CONFIG_PATH  = os.path.join(TABLES_DIR, 'group_config.json')
-OVERRIDES_PATH     = os.path.join(TABLES_DIR, 'variable_overrides.json')
+TABLES_DIR          = os.path.join(GATEWAY_DIR, 'tables')
+MAPEAMENTO_CLP_CSV  = os.path.join(TABLES_DIR, 'mapeamento_clp.csv')
+GLOBAIS_CSV         = os.path.join(TABLES_DIR, 'globais.csv')
+RETENTIVAS_CSV      = os.path.join(TABLES_DIR, 'retentivas.csv')
+IO_FISICAS_CSV      = os.path.join(TABLES_DIR, 'io_fisicas.csv')
+TEMP_24Z_CSV        = os.path.join(TABLES_DIR, 'temperatura_24z.csv')
+GROUP_CONFIG_PATH   = os.path.join(TABLES_DIR, 'group_config.json')
+OVERRIDES_PATH      = os.path.join(TABLES_DIR, 'variable_overrides.json')
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +293,7 @@ class TestGroupConfig(unittest.TestCase):
         all_channels = set()
         for dev_id, dev_cfg in self.config.get('devices', {}).items():
             all_channels.update(dev_cfg.get('channels', {}).keys())
-        for expected in ('plc_alarmes', 'plc_process', 'plc_visual', 'plc_config'):
+        for expected in ('plc_alarmes', 'plc_retentivas', 'plc_operacao'):
             with self.subTest(channel=expected):
                 self.assertIn(expected, all_channels)
 
@@ -316,6 +318,170 @@ class TestVariableOverrides(unittest.TestCase):
             if 'enabled' in cfg:
                 with self.subTest(tag=tag):
                     self.assertIsInstance(cfg['enabled'], bool)
+
+
+# ---------------------------------------------------------------------------
+# 5. Bit addressing — extract_parameters_by_channel com CSVs de temperatura
+# ---------------------------------------------------------------------------
+
+class TestBitAddressing(unittest.TestCase):
+    """Testa suporte a bit addressing em extract_parameters_by_channel."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Configura canal de teste com variáveis de temperatura_24z."""
+        cls.temp_csv_exists = os.path.exists(TEMP_24Z_CSV)
+        if not cls.temp_csv_exists:
+            return
+
+        # Overrides: atribui algumas variáveis bit-addressed a um canal
+        cls.overrides = {
+            'tempNaoAtingidaZona1':  {'channel': 'plc_temp_test'},
+            'tempNaoAtingidaZona2':  {'channel': 'plc_temp_test'},
+            'tempNaoAtingidaZona3':  {'channel': 'plc_temp_test'},
+            'tempNaoAtingidaZona11': {'channel': 'plc_temp_test'},
+            'tempZona1':            {'channel': 'plc_temp_test'},
+            'tempZona2':            {'channel': 'plc_temp_test'},
+        }
+        cls.group_config = {
+            '_meta': {'default_delay_ms': 1000, 'default_history_size': 100},
+            'channels': {
+                'plc_temp_test': {'delay_ms': 500, 'history_size': 50},
+            },
+        }
+        cls.channel_data = extract_parameters_by_channel(
+            [TEMP_24Z_CSV], cls.group_config, cls.overrides,
+        )
+
+    def test_50_channel_has_bit_vars(self):
+        """Canal com variáveis de temperatura deve ter bit_vars."""
+        if not self.temp_csv_exists:
+            self.skipTest("temperatura_24z.csv não encontrado")
+        ch = self.channel_data.get('plc_temp_test')
+        self.assertIsNotNone(ch, "Canal plc_temp_test não encontrado")
+        self.assertIsNotNone(ch.get('bit_vars'), "bit_vars deve estar presente")
+
+    def test_51_bit_vars_structure(self):
+        """bit_vars mapeia register_addr → lista de {tag, key, bit}."""
+        if not self.temp_csv_exists:
+            self.skipTest("temperatura_24z.csv não encontrado")
+        ch = self.channel_data['plc_temp_test']
+        bv = ch['bit_vars']
+
+        # Register 1584 deve ter entradas para zonas 1 (bit 0), 2 (bit 1), 3 (bit 2), 11 (bit 10)
+        self.assertIn(1584, bv, "Register 1584 deveria estar em bit_vars")
+        entries = bv[1584]
+        tags = {e['tag']: e['bit'] for e in entries}
+        self.assertEqual(tags.get('tempNaoAtingidaZona1'), 0)
+        self.assertEqual(tags.get('tempNaoAtingidaZona2'), 1)
+        self.assertEqual(tags.get('tempNaoAtingidaZona3'), 2)
+        self.assertEqual(tags.get('tempNaoAtingidaZona11'), 10)
+
+    def test_52_bit_vars_not_in_coil_groups(self):
+        """Variáveis bit-addressed não devem aparecer em coil_groups."""
+        if not self.temp_csv_exists:
+            self.skipTest("temperatura_24z.csv não encontrado")
+        ch = self.channel_data['plc_temp_test']
+        all_coil_addrs = [a for g in ch['coil_groups'] for a in g]
+        # Register 1584 não deve estar em coils
+        self.assertNotIn(1584, all_coil_addrs)
+
+    def test_53_bit_var_register_in_reg_groups(self):
+        """Registradores com bit_vars devem aparecer em reg_groups para serem lidos."""
+        if not self.temp_csv_exists:
+            self.skipTest("temperatura_24z.csv não encontrado")
+        ch = self.channel_data['plc_temp_test']
+        all_reg_addrs = [a for g in ch['reg_groups'] for a in g]
+        # Register 1584 deve estar em reg_groups (para ser lido como holding register)
+        self.assertIn(1584, all_reg_addrs)
+
+    def test_54_no_duplicate_reg_addresses(self):
+        """Cada endereço aparece uma única vez em reg_groups."""
+        if not self.temp_csv_exists:
+            self.skipTest("temperatura_24z.csv não encontrado")
+        ch = self.channel_data['plc_temp_test']
+        all_reg_addrs = [a for g in ch['reg_groups'] for a in g]
+        self.assertEqual(len(all_reg_addrs), len(set(all_reg_addrs)),
+                         f"Endereços duplicados em reg_groups: {all_reg_addrs}")
+
+    def test_55_normal_registers_still_work(self):
+        """Registradores normais (tempZona1, tempZona2) estão em reg_groups sem bit_vars."""
+        if not self.temp_csv_exists:
+            self.skipTest("temperatura_24z.csv não encontrado")
+        ch = self.channel_data['plc_temp_test']
+        all_reg_addrs = [a for g in ch['reg_groups'] for a in g]
+        # tempZona1=1536, tempZona2=1537
+        self.assertIn(1536, all_reg_addrs)
+        self.assertIn(1537, all_reg_addrs)
+        # Esses não devem estar em bit_vars
+        bv = ch.get('bit_vars') or {}
+        self.assertNotIn(1536, bv)
+        self.assertNotIn(1537, bv)
+
+    def test_56_bit_vars_empty_for_normal_csv(self):
+        """CSVs sem variáveis bit-addressed retornam bit_vars=None."""
+        overrides = {
+            'alarmes': {'channel': 'plc_test_normal'},
+        }
+        group_config = {
+            '_meta': {'default_delay_ms': 1000, 'default_history_size': 100},
+            'channels': {'plc_test_normal': {'delay_ms': 500, 'history_size': 50}},
+        }
+        # mapeamento_clp.csv não tem variáveis bit-addressed
+        if not os.path.exists(MAPEAMENTO_CLP_CSV):
+            self.skipTest("mapeamento_clp.csv não encontrado")
+
+        # Precisa de tags que existam no CSV para ter um canal ativo
+        import pandas as pd
+        df = pd.read_csv(MAPEAMENTO_CLP_CSV, sep=',', dtype={'Modbus': str})
+        tags = df['ObjecTag'].dropna().astype(str).str.strip().tolist()[:5]
+        overrides_real = {tag: {'channel': 'plc_test_normal'} for tag in tags}
+
+        channel_data = extract_parameters_by_channel(
+            [MAPEAMENTO_CLP_CSV], group_config, overrides_real,
+        )
+        if 'plc_test_normal' in channel_data:
+            self.assertIsNone(channel_data['plc_test_normal'].get('bit_vars'))
+
+    def test_57_read_registers_with_bits_extraction(self):
+        """read_registers_with_bits extrai bits corretamente de valores mockados."""
+        # Mock client
+        client = MagicMock()
+        # Register 1584 com valor 0b0000_0100_0000_0011 = 0x0403 = 1027
+        # bit 0 = 1, bit 1 = 1, bit 2 = 0, ..., bit 10 = 1
+        client.read_holding_registers.return_value = [0x0403]
+
+        groups = [[1584]]
+        tags = [['tempNaoAtingidaZona1']]
+        keys = [['alarme_temp_nao_atingida']]
+        bit_vars = {
+            1584: [
+                {'tag': 'tempNaoAtingidaZona1',  'key': 'alarme_temp_nao_atingida', 'bit': 0},
+                {'tag': 'tempNaoAtingidaZona2',  'key': 'alarme_temp_nao_atingida', 'bit': 1},
+                {'tag': 'tempNaoAtingidaZona3',  'key': 'alarme_temp_nao_atingida', 'bit': 2},
+                {'tag': 'tempNaoAtingidaZona11', 'key': 'alarme_temp_nao_atingida', 'bit': 10},
+            ],
+        }
+
+        data, count = read_registers_with_bits(client, groups, tags, keys, bit_vars)
+
+        alarm_data = data['alarme_temp_nao_atingida']
+        self.assertTrue(alarm_data['tempNaoAtingidaZona1'])   # bit 0 = 1
+        self.assertTrue(alarm_data['tempNaoAtingidaZona2'])   # bit 1 = 1
+        self.assertFalse(alarm_data['tempNaoAtingidaZona3'])  # bit 2 = 0
+        self.assertTrue(alarm_data['tempNaoAtingidaZona11'])  # bit 10 = 1
+
+    def test_58_read_registers_with_bits_no_bit_vars(self):
+        """read_registers_with_bits sem bit_vars comporta-se como read_registers."""
+        client = MagicMock()
+        client.read_holding_registers.return_value = [42]
+
+        groups = [[1536]]
+        tags = [['tempZona1']]
+        keys = [['temperatura']]
+
+        data, count = read_registers_with_bits(client, groups, tags, keys, None)
+        self.assertEqual(data['temperatura']['tempZona1'], 42)
 
 
 if __name__ == '__main__':
