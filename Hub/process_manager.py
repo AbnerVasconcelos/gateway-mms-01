@@ -197,8 +197,16 @@ class ProcessManager:
     async def start_process(self, proc_type: str, device_id: str, config: dict) -> ProcessInstance:
         """Inicia um novo processo. proc_id e derivado como '{proc_type}:{device_id}'."""
         proc_id = f"{proc_type}:{device_id}"
-        if proc_id in self._processes and self._processes[proc_id].running:
-            raise RuntimeError(f"Processo '{proc_id}' ja esta rodando.")
+        old = self._processes.get(proc_id)
+        if old and old.running:
+            # Double-check: verify the OS process is actually alive
+            if not old.process or old.process.returncode is None:
+                raise RuntimeError(f"Processo '{proc_id}' ja esta rodando.")
+            # Process exited but flag wasn't updated yet — fix it now
+            old.running = False
+            old.exit_code = old.process.returncode
+            old.stopped_at = datetime.datetime.now().isoformat()
+            logger.info("[%s] Processo detectado como encerrado (stale running flag).", proc_id)
 
         proc = ProcessInstance(proc_id, proc_type, config, device_id=device_id)
         await proc.start(self._python, self._gateway_dir)

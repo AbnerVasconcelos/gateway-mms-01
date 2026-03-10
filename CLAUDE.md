@@ -53,6 +53,7 @@ gateway/
 │   ├── config_store.py        # leitura/escrita de group_config.json e variable_overrides_{device_id}.json
 │   ├── process_manager.py     # ProcessManager — subprocessos Delfos/Atena com log capture
 │   ├── simulator_manager.py   # SimulatorManager — simuladores Modbus embarcados (LabTest)
+│   ├── scanner_manager.py     # ScannerManager — scan individual de variáveis Modbus
 │   ├── templates/
 │   │   ├── index.html         # Painel web (sidebar + AG Grid + Bootstrap 5.3 + dark mode)
 │   │   ├── labtest.html       # Painel LabTest — gerenciamento de simuladores Modbus
@@ -70,6 +71,7 @@ gateway/
 │   ├── group_config.json      # Devices com canais por device (delay_ms, history_size)
 │   ├── variable_overrides_{device_id}.json  # Overrides por device (canal, enabled)
 │   ├── simulator_config.json  # Config dos simuladores embarcados (gerado pelo Hub)
+│   ├── scan_results_{device_id}.json  # Resultados de scan por device (gerado pelo Hub)
 │   └── csv_individuais/       # Backup dos CSVs individuais originais
 │
 ├── scripts/
@@ -170,6 +172,10 @@ gateway/
 | `POST` | `/api/devices/{id}/toggle` | Alterna `enabled` — pausa/retoma leitura do device no Delfos |
 | `POST` | `/api/devices/{id}/clear` | Remove overrides de todas as tags do device; `?delete_files=true` apaga CSVs do disco |
 | `POST` | `/api/devices/{id}/upload-csv` | Salva CSV em `tables/` e adiciona a `device.csv_files` |
+| `POST` | `/api/devices/{id}/scan` | Inicia scan de variáveis. Body: `{interval_ms, retries, channel}`. 409 se Delfos rodando ou scan ativo |
+| `POST` | `/api/devices/{id}/scan/cancel` | Cancela scan em andamento |
+| `GET` | `/api/devices/{id}/scan` | Retorna sessão de scan atual com resultados |
+| `GET` | `/api/devices/{id}/scan/results` | Retorna `{tag: resultado}` para o grid |
 | `GET` | `/api/processes` | Lista processos Delfos/Atena com estado |
 | `POST` | `/api/processes/{proc_type}/start` | Inicia Delfos ou Atena (body: `{device_id}`) |
 | `POST` | `/api/processes/{proc_type}/stop` | Para o processo (body: `{device_id}`) |
@@ -185,7 +191,7 @@ gateway/
 | `GET` | `/api/simulators/{sim_id}/variables` | Lista variáveis com valores atuais e estado de lock |
 | `POST` | `/api/simulators/{sim_id}/upload-csv` | Upload CSV para o simulador |
 
-**Eventos Socket.IO (client → server):** `join`, `plc_write`, `user_status`, `config_save`, `config_get`, `history_set`, `history_get`, `sim_subscribe`, `sim_write`, `sim_lock`
+**Eventos Socket.IO (client → server):** `join`, `plc_write`, `user_status`, `config_save`, `config_get`, `history_set`, `history_get`, `sim_subscribe`, `sim_write`, `sim_lock`, `scan_subscribe`
 
 **Eventos Socket.IO (server → client):**
 - `device:data` — dados por device, payload `{channel, data}`, enviado ao room `device_id`
@@ -196,8 +202,10 @@ gateway/
 - `proc:status` — mudança de estado de processo Delfos/Atena (start/stop/crash)
 - `sim:status` — mudança de estado de simulador (start/stop/delete)
 - `sim:values` — broadcast periódico (500ms) de valores do simulador ao room `sim:{sim_id}`
+- `scan:variable` — resultado de scan por variável, enviado ao room `scan:{device_id}`
+- `scan:complete` — scan finalizado (completed/cancelled/error), enviado ao room `scan:{device_id}`
 
-**Nota de nomenclatura:** eventos client→server usam underscore (`plc_write`, `sim_write`); eventos server→client usam colon (`device:data`, `channel:data`, `proc:status`, `sim:values`).
+**Nota de nomenclatura:** eventos client→server usam underscore (`plc_write`, `sim_write`, `scan_subscribe`); eventos server→client usam colon (`device:data`, `channel:data`, `proc:status`, `sim:values`, `scan:variable`, `scan:complete`).
 
 ---
 
@@ -254,6 +262,35 @@ Substitui `tests/modbus_simulator.py` standalone — simuladores rodam dentro do
 - CRUD de simuladores com persistência em JSON
 - Inicialização via `init_from_config()` no startup do Hub
 - Reutiliza `LoggingDataBlock`, `load_csv`, `_initial_register_value` de `tests/modbus_simulator.py`
+
+---
+
+### Scanner — Leitura individual de variáveis (`Hub/scanner_manager.py`)
+
+Lê variáveis de um device uma a uma, registra quais retornam valor válido e quais dão erro. Permite identificar e desabilitar variáveis problemáticas antes de colocar em produção.
+
+- **Acesso:** botão "Scanner" no card de device em `templates/index.html` → abre modal
+- **Proteção cruzada:** scan bloqueia início do Delfos e vice-versa (409 HTTP)
+- **Persistência:** `tables/scan_results_{device_id}.json` — gravado ao finalizar scan, carregado no startup do Hub
+
+**ScanSession** — dataclass com estado de uma sessão de scan:
+- Campos: `device_id`, `status` (running/completed/cancelled/error), `config`, `total`, `scanned`, `ok_count`, `error_count`, `results`, `started_at`, `finished_at`
+- Métodos: `cancel()`, `to_dict()`, `to_summary()`
+
+**ScannerManager** — gerenciador de sessões (padrão `SimulatorManager`):
+- `start_scan(device_id, device_cfg, variables, config, progress_callback)` — inicia scan async
+- `cancel_scan(device_id)` — cancela scan em andamento
+- `get_scan(device_id)` / `is_scanning(device_id)` — consulta estado
+- `get_results_for_grid(device_id)` — retorna `{tag: {status, latency_ms, error, value}}`
+- `load_cached_results(device_id)` / `load_all_cached()` — lê JSONs persistidos
+
+**Fluxo de scan:**
+1. Cria conexão Modbus via `_create_modbus_client()` (mesma do `shared/modbus_functions.py`)
+2. Itera variáveis, lê uma por vez via `run_in_executor`
+3. Emite `scan:variable` via callback a cada variável
+4. Respeita `interval_ms` entre leituras com `asyncio.sleep()`
+5. Salva resultados em JSON ao finalizar
+6. Emite `scan:complete` ao finalizar
 
 ---
 
@@ -573,10 +610,10 @@ python -m pytest tests/test_hub.py tests/test_segmented_reading.py -v
 | `tests/test_segmented_reading.py` | Delfos — leitura segmentada por canal, delays, hot-reload | 30 |
 | `tests/test_atena.py` | Atena — loop Redis → Modbus | 6 |
 | `tests/test_full_loop.py` | Loop completo Delfos+Atena simultâneos | 7 |
-| `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping, simulators | 61 |
+| `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping, simulators, scanner | 76 |
 | `tests/test_e2e_rtu.py` | Teste end-to-end RTU over TCP (simulador + Delfos + Atena) | — |
 
-**Total unit tests (sem deps externas):** 91 (`test_hub` + `test_segmented_reading`)
+**Total unit tests (sem deps externas):** 106 (`test_hub` + `test_segmented_reading`)
 
 Para apontar Delfos/Atena ao simulador localmente:
 ```bash

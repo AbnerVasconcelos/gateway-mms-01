@@ -124,6 +124,46 @@
       background: none; border: none; cursor: pointer;
       font-size: 1.2rem; padding: 0 4px; line-height: 1;
     }
+    .theme-toggle:hover { color: #fff !important; }
+
+    /* ── Navbar unified ──────────────────────────────────────────────────── */
+    .nav-tab-device {
+      color: rgba(255,255,255,.55) !important;
+      font-size: .78rem;
+      border-radius: .25rem;
+      transition: color .15s, background .15s;
+    }
+    .nav-tab-device:hover { color: rgba(255,255,255,.85) !important; background: rgba(255,255,255,.08); }
+    .nav-tab-device.active {
+      color: #fff !important;
+      background: rgba(255,255,255,.15) !important;
+      font-weight: 600;
+    }
+    .nav-link-subtle {
+      color: rgba(255,255,255,.45) !important;
+      font-size: .76rem;
+      text-decoration: none;
+      transition: color .15s;
+      white-space: nowrap;
+    }
+    .nav-link-subtle:hover { color: rgba(255,255,255,.9) !important; }
+    .nav-link-active {
+      color: rgba(255,255,255,.95) !important;
+      font-size: .76rem; font-weight: 600;
+      text-decoration: none; white-space: nowrap;
+      background: rgba(255,255,255,.12);
+      border-radius: .25rem;
+    }
+    .nav-btn-add-device {
+      border-color: rgba(255,255,255,.25) !important;
+      color: rgba(255,255,255,.45) !important;
+      line-height: 1;
+    }
+    .nav-btn-add-device:hover {
+      border-color: rgba(255,255,255,.5) !important;
+      color: #fff !important;
+      background: rgba(255,255,255,.1) !important;
+    }
 
     /* ── System channel indicator ─────────────────────────────────────────── */
     .channel-card.system-channel {
@@ -151,34 +191,43 @@
 <body>
 
 <!-- ── Navbar ──────────────────────────────────────────────────────────────── -->
-<nav class="navbar navbar-dark bg-dark px-3 py-1" style="flex-shrink:0">
-  <div class="d-flex align-items-center gap-3">
-    <span class="navbar-brand fw-bold mb-0" style="font-size:.95rem">Gateway Config Panel</span>
-    <a href="/labtest" class="btn btn-sm btn-outline-light py-0">LabTest</a>
-    <a href="/monitor" class="btn btn-sm btn-outline-light py-0">Monitor</a>
-  </div>
-  <div class="d-flex align-items-center gap-2">
-    <span id="ws-status" class="text-white small">
-      <span class="status-dot dot-warn" id="ws-dot"></span>Conectando...
-    </span>
-    <label class="btn btn-sm btn-outline-light mb-0 py-0" title="Upload .xlsx ou .csv">
+<nav class="navbar navbar-dark bg-dark px-3 py-0" style="flex-shrink:0;min-height:40px">
+  <div class="d-flex align-items-center gap-0 w-100" style="height:40px">
+    <!-- Brand -->
+    <span class="navbar-brand fw-bold mb-0 me-3" style="font-size:.9rem;white-space:nowrap">Gateway</span>
+
+    <!-- Page nav -->
+    <div class="vr bg-secondary opacity-50 mx-2" style="height:20px"></div>
+    <span class="nav-link nav-link-active py-1 px-2">Config</span>
+    <a href="/labtest" class="nav-link nav-link-subtle py-1 px-2">LabTest</a>
+    <a href="/monitor" class="nav-link nav-link-subtle py-1 px-2">Monitor</a>
+
+    <!-- Device tabs -->
+    <div class="vr bg-secondary opacity-50 mx-2" style="height:20px"></div>
+    <ul class="nav gap-0 me-2 flex-nowrap" id="device-tabs" style="font-size:.78rem">
+      <li><a class="nav-link nav-tab-device active py-1 px-2" data-device="" href="#"
+             onclick="setActiveDevice('',this);return false">Todos</a></li>
+    </ul>
+    <button class="btn btn-sm btn-outline-light py-0 px-1 me-1 nav-btn-add-device" style="font-size:.7rem;line-height:1.4"
+            data-bs-toggle="modal" data-bs-target="#newDeviceModal" title="Adicionar device">+</button>
+
+    <!-- Spacer -->
+    <div class="flex-grow-1"></div>
+
+    <!-- Tools -->
+    <label class="nav-link nav-link-subtle py-1 px-2 mb-0" style="cursor:pointer" title="Upload .xlsx ou .csv">
       Upload
       <input type="file" id="upload-input" accept=".xlsx,.csv" class="d-none" />
     </label>
-    <button class="btn btn-sm btn-outline-light py-0" id="export-btn">Export</button>
-    <button class="theme-toggle text-white" id="theme-toggle" title="Alternar tema">&#9790;</button>
-  </div>
-</nav>
+    <button class="nav-link nav-link-subtle py-1 px-2 border-0 bg-transparent" id="export-btn">Export</button>
 
-<!-- ── Device tabs navbar ──────────────────────────────────────────────────── -->
-<nav class="navbar navbar-expand navbar-light border-bottom px-3 py-0" style="flex-shrink:0;min-height:32px">
-  <ul class="nav nav-pills gap-1" id="device-tabs" style="font-size:.8rem">
-    <li><a class="nav-link active py-1 px-2" data-device="" href="#" onclick="setActiveDevice('',this);return false">Todos</a></li>
-  </ul>
-  <button class="btn btn-sm btn-outline-primary ms-auto py-0" style="font-size:.75rem"
-          data-bs-toggle="modal" data-bs-target="#newDeviceModal">
-    + Device
-  </button>
+    <!-- Status + theme -->
+    <div class="vr bg-secondary opacity-50 mx-2" style="height:20px"></div>
+    <span id="ws-status" class="text-white-50 small me-2" style="font-size:.72rem;white-space:nowrap">
+      <span class="status-dot dot-warn" id="ws-dot"></span>Conectando...
+    </span>
+    <button class="theme-toggle text-white-50" id="theme-toggle" title="Alternar tema">&#9790;</button>
+  </div>
 </nav>
 
 <!-- ── Novo canal modal ────────────────────────────────────────────────────── -->
@@ -356,6 +405,60 @@
   </div>
 </div>
 
+<!-- ── Scanner modal ────────────────────────────────────────────────────── -->
+<div class="modal fade" id="scannerModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Scanner — <span id="scannerDeviceLabel"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Config -->
+        <div class="row g-2 mb-3">
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Intervalo (ms)</label>
+            <input type="number" id="scan-interval" class="form-control form-control-sm" value="50" min="1" />
+          </div>
+          <div class="col-3">
+            <label class="form-label small fw-semibold">Retries</label>
+            <input type="number" id="scan-retries" class="form-control form-control-sm" value="3" min="1" max="10" />
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold">Canal (opcional)</label>
+            <select id="scan-channel" class="form-select form-select-sm">
+              <option value="">Todas as variaveis</option>
+            </select>
+          </div>
+        </div>
+        <!-- Buttons -->
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <button class="btn btn-primary btn-sm" id="scan-start-btn" onclick="startScan()">Iniciar Scan</button>
+          <button class="btn btn-danger btn-sm d-none" id="scan-cancel-btn" onclick="cancelScan()">Cancelar</button>
+          <span class="text-muted small ms-auto" id="scan-status-text"></span>
+        </div>
+        <!-- Progress bar -->
+        <div class="progress mb-2" style="height:20px" id="scan-progress-wrap">
+          <div class="progress-bar progress-bar-striped progress-bar-animated" id="scan-progress-bar"
+               role="progressbar" style="width:0%">0 / 0</div>
+        </div>
+        <!-- Summary -->
+        <div class="d-flex gap-3 mb-2 small">
+          <span>OK: <strong id="scan-ok" class="text-success">0</strong></span>
+          <span>Erro: <strong id="scan-err" class="text-danger">0</strong></span>
+          <span>Lat. media: <strong id="scan-avg-lat">—</strong></span>
+        </div>
+        <!-- Log -->
+        <pre id="scan-log" style="background:#1e1e1e; color:#d4d4d4; padding:10px;
+             max-height:300px; overflow:auto; font-size:.78em; margin:0; white-space:pre-wrap;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
 <!-- ── Main layout: Sidebar + Grid ─────────────────────────────────────── -->
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
@@ -376,7 +479,8 @@
     <div class="sidebar-section-label d-flex align-items-center justify-content-between">
       <span>Canais Redis</span>
       <button class="btn btn-sm btn-outline-primary py-0 px-1" style="font-size:.65rem"
-              data-bs-toggle="modal" data-bs-target="#newChannelModal">+ Canal</button>
+              id="add-channel-btn" data-bs-toggle="modal" data-bs-target="#newChannelModal"
+              disabled title="Selecione um device primeiro">+ Canal</button>
     </div>
     <div class="card">
       <div class="card-body">
@@ -465,6 +569,11 @@ let   DEVICES_LIST  = {};          // {device_id: cfg}
 
 // Per-device process state: {proc_id: state}  e.g. {'delfos:simulador': {...}}
 const processStates = {};
+
+// Scanner state
+let scanResults     = {};   // {tag: {status, latency_ms, error, value}}
+let _scanDeviceId   = '';   // device being scanned
+let _scanLatencies  = [];   // latencies for average calculation
 
 // ── Dark mode ─────────────────────────────────────────────────────────────────
 function initTheme() {
@@ -628,14 +737,9 @@ async function loadChannels() {
   sorted.forEach((ch, i) => { CHANNEL_COLORS[ch] = i % 6; });
   CHANNELS_LIST = sorted;
 
-  // Atualiza dropdown de canal no grid
+  // Refresh grid para refletir canais atualizados (o cellEditorParams filtra por device)
   if (varGrid) {
-    const colDefs = varGrid.getColumnDefs();
-    const colCanal = colDefs.find(c => c.field === 'channel');
-    if (colCanal) {
-      colCanal.cellEditorParams = {values: CHANNELS_LIST};
-      varGrid.setGridOption('columnDefs', colDefs);
-    }
+    varGrid.refreshCells({force: true, columns: ['channel']});
   }
 
   // Reconstroi cores de linha
@@ -781,6 +885,12 @@ function setActiveDevice(id, el) {
   const sel = document.getElementById('filter-device');
   if (sel) sel.value = id;
   applyFilters();
+  // Enable/disable "+ Canal" button based on device selection
+  const addChBtn = document.getElementById('add-channel-btn');
+  if (addChBtn) {
+    addChBtn.disabled = !id;
+    addChBtn.title = id ? 'Criar canal para ' + id : 'Selecione um device primeiro';
+  }
   // Re-render sidebar sections for the active device
   renderChannelCards();
   renderProcessCards();
@@ -806,7 +916,7 @@ function renderDeviceTabs() {
   Object.entries(DEVICES_LIST).forEach(([id, cfg]) => {
     const li = document.createElement('li');
     const a  = document.createElement('a');
-    a.className   = 'nav-link py-1 px-2' + (activeDevice === id ? ' active' : '');
+    a.className   = 'nav-link nav-tab-device py-1 px-2' + (activeDevice === id ? ' active' : '');
     a.href        = '#';
     a.dataset.device = id;
     a.onclick     = (e) => { e.preventDefault(); setActiveDevice(id, a); };
@@ -924,7 +1034,9 @@ function renderDeviceCards() {
         </div>
       </div>
       <div class="mb-1">
-        <span class="text-muted" style="font-size:.65rem">CSVs: ${(cfg.csv_files||[]).join(', ') || '—'}</span>
+        <span class="text-muted" style="font-size:.65rem">CSVs: ${(cfg.csv_files||[]).length ? (cfg.csv_files||[]).map(f =>
+          `<span class="badge bg-secondary me-1" style="font-size:.6rem;font-weight:normal">${f}<a href="#" class="ms-1 text-white text-decoration-none" title="Remover ${f}" onclick="event.preventDefault();removeDeviceCsv('${id}','${f}')">&times;</a></span>`
+        ).join('') : '—'}</span>
       </div>
       <div class="d-flex align-items-center gap-1 flex-wrap">
         <button class="btn btn-outline-primary py-0 px-2" style="font-size:.65rem" onclick="saveDevice('${id}')">Salvar</button>
@@ -939,6 +1051,8 @@ function renderDeviceCards() {
                 onclick="clearDevice('${id}')">Limpar</button>
         <button class="btn btn-outline-secondary py-0 px-2" style="font-size:.65rem" id="devping-${id}"
                 onclick="pingDevice('${id}')">Ping</button>
+        <button class="btn btn-outline-info py-0 px-2" style="font-size:.65rem"
+                onclick="openScannerModal('${id}')">Scanner</button>
         <span id="devlatency-${id}" class="text-muted" style="font-size:.65rem"></span>
       </div>
       <div class="text-muted mt-1" style="font-size:.6rem" id="devstats-${id}">
@@ -1018,6 +1132,20 @@ async function uploadDeviceCsv(deviceId, input) {
     }
     const data = await resp.json();
     showToast(`"${data.filename}" adicionado ao device ${deviceId}.`);
+    loadDevices();
+    loadVariables();
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function removeDeviceCsv(deviceId, filename) {
+  if (!confirm(`Remover "${filename}" do device "${deviceId}"?\nOverrides das tags desse CSV serão limpos.`)) return;
+  try {
+    await apiFetch(`/api/devices/${encodeURIComponent(deviceId)}/csv/${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
+    });
+    showToast(`"${filename}" removido do device ${deviceId}.`);
     loadDevices();
     loadVariables();
   } catch (e) {
@@ -1130,6 +1258,9 @@ async function loadVariables() {
   populateFilters();
   applyFilters();
   updateVarCount();
+  // Load cached scan results for all devices
+  const deviceIds = [...new Set(allVariables.map(v => v.device).filter(Boolean))];
+  deviceIds.forEach(id => loadScanResults(id));
 }
 
 function populateFilters() {
@@ -1177,13 +1308,32 @@ function updateVarCount() {
 }
 
 // ── AG Grid — tabela de variaveis ─────────────────────────────────────────────
+
+function patchCsvField(e, fieldName) {
+  const val = e.newValue ?? '';
+  if (val === (e.oldValue ?? '')) return;
+  const body = {[fieldName]: val};
+  if (e.data.device) body.device_id = e.data.device;
+  // Tag rename uses 'new_tag' field
+  if (fieldName === 'tag') { delete body.tag; body.new_tag = val; }
+  const tagForUrl = fieldName === 'tag' ? e.oldValue : e.data.tag;
+  apiFetch(`/api/variables/${encodeURIComponent(tagForUrl)}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  }).then(() => { showToast(`${tagForUrl}.${fieldName} → ${val}`); loadVariables(); })
+    .catch(err => { showToast(String(err), 'danger'); loadVariables(); });
+}
+
 const varColumnDefs = [
   {
     headerName: '', checkboxSelection: true, headerCheckboxSelection: true,
     width: 40, suppressMovable: true, pinned: 'left', sortable: false,
   },
-  {headerName: 'Tag',   field: 'tag',   sortable: true, filter: true, width: 210},
-  {headerName: 'Grupo', field: 'group', sortable: true, filter: true, width: 140},
+  {headerName: 'Tag',   field: 'tag',   sortable: true, filter: true, width: 210,
+   editable: true, onCellValueChanged: e => patchCsvField(e, 'tag')},
+  {headerName: 'Grupo', field: 'group', sortable: true, filter: true, width: 140,
+   editable: true, onCellValueChanged: e => patchCsvField(e, 'group')},
   {
     headerName: 'Device', field: 'device', width: 130, sortable: true,
     sort: 'asc', sortIndex: 0,
@@ -1192,15 +1342,42 @@ const varColumnDefs = [
       : '<span style="color:#aaa">—</span>',
   },
   {
-    headerName: 'Tipo', field: 'type', width: 80, sortable: true,
-    cellStyle: p => ({color: p.value === '%MB' ? '#0d6efd' : '#6f42c1'}),
+    headerName: 'Classe', field: 'classe', width: 110, sortable: true, filter: true,
+    editable: true,
+    cellRenderer: p => {
+      if (!p.value) return '<span style="color:#aaa">—</span>';
+      const colors = {retentiva: '#dc3545', global: '#0d6efd', io_fisica: '#28a745'};
+      const bg = colors[p.value] || '#6c757d';
+      return `<span class="badge" style="background:${bg}">${p.value}</span>`;
+    },
+    onCellValueChanged: e => patchCsvField(e, 'classe'),
   },
-  {headerName: 'End.', field: 'address', width: 80, sortable: true, type: 'numericColumn'},
+  {
+    headerName: 'Tipo', field: 'type', width: 80, sortable: true,
+    editable: true,
+    cellEditor: 'agSelectCellEditor',
+    cellEditorParams: {values: ['%MB', '%MW']},
+    cellStyle: p => ({color: p.value === '%MB' ? '#0d6efd' : '#6f42c1'}),
+    onCellValueChanged: e => patchCsvField(e, 'type'),
+  },
+  {headerName: 'End.', field: 'address', width: 80, sortable: true, type: 'numericColumn',
+   editable: true, onCellValueChanged: e => patchCsvField(e, 'address')},
   {
     headerName: 'Canal', field: 'channel', sortable: true, editable: true, width: 180,
     sort: 'asc', sortIndex: 1,
     cellEditor: 'agSelectCellEditor',
-    cellEditorParams: () => ({values: ['', ...CHANNELS_LIST]}),
+    cellEditorParams: p => {
+      // Filter channels to only those belonging to the variable's device
+      const dev = p.data?.device;
+      if (dev) {
+        const devChannels = Object.entries(ALL_CHANNELS_DATA)
+          .filter(([, cfg]) => cfg.device_id === dev)
+          .map(([ch]) => ch)
+          .sort();
+        return {values: ['', ...devChannels]};
+      }
+      return {values: ['', ...CHANNELS_LIST]};
+    },
     cellRenderer: p => {
       if (!p.value) return '<span style="color:#aaa">Nao atribuida</span>';
       const idx = getChannelColorIndex(p.value);
@@ -1211,10 +1388,12 @@ const varColumnDefs = [
     onCellValueChanged: e => {
       // '' -> desatribuir; string com canal -> atribuir
       const val = e.newValue ?? '';
+      const patchBody = {channel: val};
+      if (e.data.device) patchBody.device_id = e.data.device;
       apiFetch(`/api/variables/${encodeURIComponent(e.data.tag)}`, {
         method: 'PATCH',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({channel: val}),
+        body: JSON.stringify(patchBody),
       }).then(() => { showToast(`${e.data.tag}.channel → ${val || '(removido)'}`); loadVariables(); })
         .catch(err => showToast(String(err), 'danger'));
     },
@@ -1223,6 +1402,16 @@ const varColumnDefs = [
     headerName: 'Hab.', field: 'enabled', width: 80, sortable: true, editable: true,
     cellRenderer: p =>
       `<input type="checkbox" ${p.value ? 'checked' : ''} onclick="toggleEnabled(event, '${p.data.tag}')" />`,
+  },
+  {
+    headerName: 'Scan', field: 'scan_status', width: 100, sortable: true,
+    cellRenderer: p => {
+      const sr = scanResults[p.data?.tag];
+      if (!sr) return '<span style="color:#aaa">--</span>';
+      if (sr.status === 'ok')
+        return `<span class="badge bg-success" title="Valor: ${sr.value}">OK ${sr.latency_ms}ms</span>`;
+      return `<span class="badge bg-danger" title="${sr.error}">ERRO</span>`;
+    },
   },
   {
     headerName: 'Ultimo valor', field: 'last_value', width: 180, sortable: false,
@@ -1263,11 +1452,13 @@ function initVarGrid() {
 
 async function toggleEnabled(event, tag) {
   const enabled = event.target.checked;
+  const patchBody = {enabled};
+  if (activeDevice) patchBody.device_id = activeDevice;
   try {
     await apiFetch(`/api/variables/${encodeURIComponent(tag)}`, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({enabled}),
+      body: JSON.stringify(patchBody),
     });
     showToast(`${tag}.enabled → ${enabled}`);
     loadVariables();
@@ -1286,7 +1477,7 @@ async function bulkEnable(enabled) {
     await apiFetch('/api/variables/bulk-enable', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({tags: rows.map(r => r.tag), enabled}),
+      body: JSON.stringify({tags: rows.map(r => r.tag), enabled, ...(activeDevice && {device_id: activeDevice})}),
     });
     showToast(`${rows.length} variavel(is) ${enabled ? 'habilitadas' : 'desabilitadas'}.`);
     loadVariables();
@@ -1298,9 +1489,26 @@ async function bulkEnable(enabled) {
 // ── Bulk-assign ───────────────────────────────────────────────────────────────
 function openBulkMoveModal() {
   const sel = document.getElementById('bulk-channel-select');
+  // Determine device(s) of selected rows and filter channels accordingly
+  const selected = varGrid ? varGrid.getSelectedRows() : [];
+  const devices = [...new Set(selected.map(r => r.device).filter(Boolean))];
+  let channelsToShow;
+  if (devices.length === 1) {
+    // All selected variables belong to one device — show only that device's channels
+    const dev = devices[0];
+    channelsToShow = Object.entries(ALL_CHANNELS_DATA)
+      .filter(([, cfg]) => cfg.device_id === dev)
+      .map(([ch]) => ch)
+      .sort();
+  } else if (devices.length > 1) {
+    showToast('Selecione variáveis de apenas um device por vez.', 'warning');
+    return;
+  } else {
+    channelsToShow = CHANNELS_LIST;
+  }
   sel.innerHTML =
     '<option value="">Remover atribuição</option>' +
-    CHANNELS_LIST.map(ch => `<option value="${ch}">${ch}</option>`).join('');
+    channelsToShow.map(ch => `<option value="${ch}">${ch}</option>`).join('');
   new bootstrap.Modal(document.getElementById('bulkMoveModal')).show();
 }
 
@@ -1313,7 +1521,7 @@ document.getElementById('confirm-bulk-move-btn').addEventListener('click', async
     await apiFetch('/api/variables/bulk-assign', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({tags, channel}),
+      body: JSON.stringify({tags, channel, ...(activeDevice && {device_id: activeDevice})}),
     });
     bootstrap.Modal.getInstance(document.getElementById('bulkMoveModal')).hide();
     const label = channel || '(removido)';
@@ -1383,10 +1591,9 @@ document.getElementById('confirm-new-channel-btn').addEventListener('click', asy
   const delay   = parseInt(document.getElementById('new-ch-delay').value, 10);
   const history = parseInt(document.getElementById('new-ch-history').value, 10);
   if (!suffix) { showToast('Informe o nome do canal.', 'danger'); return; }
+  if (!activeDevice) { showToast('Selecione um device antes de criar um canal.', 'warning'); return; }
   const channel = 'plc_' + suffix;
-  // Use activeDevice if set, so the channel is created inside that device
-  const payload = {channel, delay_ms: delay, history_size: history};
-  if (activeDevice) payload.device_id = activeDevice;
+  const payload = {channel, delay_ms: delay, history_size: history, device_id: activeDevice};
   try {
     await apiFetch('/api/channels', {
       method: 'POST',
@@ -1570,6 +1777,132 @@ async function _refreshProcessLogs() {
 }
 
 document.getElementById('processLogsRefresh').addEventListener('click', _refreshProcessLogs);
+
+// ── Scanner ───────────────────────────────────────────────────────────────────
+
+socket.on('scan:variable', (data) => {
+  if (!data || data.device_id !== _scanDeviceId) return;
+  const r = data.result;
+  if (r && r.tag) {
+    scanResults[r.tag] = {
+      status:     r.status,
+      latency_ms: r.latency_ms,
+      error:      r.error,
+      value:      r.value,
+    };
+    if (r.status === 'ok' && r.latency_ms != null) _scanLatencies.push(r.latency_ms);
+  }
+  // Update progress
+  const pct = data.total > 0 ? Math.round((data.scanned / data.total) * 100) : 0;
+  const bar = document.getElementById('scan-progress-bar');
+  bar.style.width = pct + '%';
+  bar.textContent = `${data.scanned} / ${data.total}`;
+  document.getElementById('scan-ok').textContent = data.ok_count;
+  document.getElementById('scan-err').textContent = data.error_count;
+  if (_scanLatencies.length > 0) {
+    const avg = (_scanLatencies.reduce((a,b) => a + b, 0) / _scanLatencies.length).toFixed(1);
+    document.getElementById('scan-avg-lat').textContent = avg + 'ms';
+  }
+  // Append to log
+  const log = document.getElementById('scan-log');
+  const color = r.status === 'ok' ? '#28a745' : '#dc3545';
+  const info = r.status === 'ok'
+    ? `OK val=${JSON.stringify(r.value)} ${r.latency_ms}ms`
+    : `ERRO: ${r.error}`;
+  log.innerHTML += `<span style="color:${color}">[${r.type}:${r.address}] ${r.tag} — ${info}</span>\n`;
+  log.scrollTop = log.scrollHeight;
+  // Refresh Scan column
+  if (varGrid) varGrid.refreshCells({columns: ['scan_status'], force: true});
+});
+
+socket.on('scan:complete', (data) => {
+  if (!data || data.device_id !== _scanDeviceId) return;
+  const bar = document.getElementById('scan-progress-bar');
+  bar.classList.remove('progress-bar-animated');
+  document.getElementById('scan-start-btn').classList.remove('d-none');
+  document.getElementById('scan-cancel-btn').classList.add('d-none');
+  document.getElementById('scan-status-text').textContent =
+    data.status === 'completed' ? 'Concluido' :
+    data.status === 'cancelled' ? 'Cancelado' :
+    `Erro: ${data.error || data.status}`;
+  if (varGrid) varGrid.refreshCells({columns: ['scan_status'], force: true});
+});
+
+function openScannerModal(deviceId) {
+  _scanDeviceId = deviceId;
+  const cfg = DEVICES_LIST[deviceId];
+  document.getElementById('scannerDeviceLabel').textContent = (cfg && cfg.label) || deviceId;
+  // Populate channel dropdown filtered by device
+  const sel = document.getElementById('scan-channel');
+  sel.innerHTML = '<option value="">Todas as variaveis</option>';
+  Object.entries(ALL_CHANNELS_DATA)
+    .filter(([, c]) => c.device_id === deviceId)
+    .forEach(([ch]) => sel.add(new Option(ch, ch)));
+  // Reset UI
+  document.getElementById('scan-progress-bar').style.width = '0%';
+  document.getElementById('scan-progress-bar').textContent = '0 / 0';
+  document.getElementById('scan-progress-bar').classList.add('progress-bar-animated');
+  document.getElementById('scan-ok').textContent = '0';
+  document.getElementById('scan-err').textContent = '0';
+  document.getElementById('scan-avg-lat').textContent = '--';
+  document.getElementById('scan-log').innerHTML = '';
+  document.getElementById('scan-status-text').textContent = '';
+  document.getElementById('scan-start-btn').classList.remove('d-none');
+  document.getElementById('scan-cancel-btn').classList.add('d-none');
+  _scanLatencies = [];
+  // Subscribe to scan room
+  socket.emit('scan_subscribe', {device_id: deviceId});
+  new bootstrap.Modal(document.getElementById('scannerModal')).show();
+}
+
+async function startScan() {
+  const deviceId = _scanDeviceId;
+  if (!deviceId) return;
+  const interval = parseInt(document.getElementById('scan-interval').value, 10) || 50;
+  const retries  = parseInt(document.getElementById('scan-retries').value, 10) || 3;
+  const channel  = document.getElementById('scan-channel').value;
+  // Reset
+  document.getElementById('scan-log').innerHTML = '';
+  document.getElementById('scan-ok').textContent = '0';
+  document.getElementById('scan-err').textContent = '0';
+  document.getElementById('scan-avg-lat').textContent = '--';
+  document.getElementById('scan-status-text').textContent = 'Escaneando...';
+  document.getElementById('scan-progress-bar').style.width = '0%';
+  document.getElementById('scan-progress-bar').classList.add('progress-bar-animated');
+  _scanLatencies = [];
+  // Clear previous results for this device
+  allVariables.filter(v => v.device === deviceId).forEach(v => delete scanResults[v.tag]);
+  try {
+    await apiFetch(`/api/devices/${encodeURIComponent(deviceId)}/scan`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({interval_ms: interval, retries, channel}),
+    });
+    document.getElementById('scan-start-btn').classList.add('d-none');
+    document.getElementById('scan-cancel-btn').classList.remove('d-none');
+  } catch (e) {
+    document.getElementById('scan-status-text').textContent = '';
+    showToast(String(e), 'danger');
+  }
+}
+
+async function cancelScan() {
+  if (!_scanDeviceId) return;
+  try {
+    await apiFetch(`/api/devices/${encodeURIComponent(_scanDeviceId)}/scan/cancel`, {method: 'POST'});
+    document.getElementById('scan-status-text').textContent = 'Cancelando...';
+  } catch (e) {
+    showToast(String(e), 'danger');
+  }
+}
+
+async function loadScanResults(deviceId) {
+  if (!deviceId) return;
+  try {
+    const data = await apiFetch(`/api/devices/${encodeURIComponent(deviceId)}/scan/results`);
+    Object.assign(scanResults, data);
+  } catch { /* no cached results */ }
+}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

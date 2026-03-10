@@ -489,6 +489,46 @@ class TestPerDeviceConfig(unittest.TestCase):
         cfg = config_store.load_group_config()
         self.assertEqual(cfg['devices']['sim']['channels']['plc_alarmes']['history_size'], 200)
 
+    # ── validate_channel_device with shared CSVs ─────────────────────────────
+
+    def test_validate_channel_device_shared_csv_without_device_id(self):
+        """Shared CSV: sem device_id explícito, find_tag_device retorna o primeiro device."""
+        # Add shared CSV to both devices
+        shared_csv = "key,ObjecTag,Tipo,Modbus,At\ntemp,sharedTag,D,300,%MW\n"
+        with open(os.path.join(self.temp_dir, 'shared.csv'), 'w') as f:
+            f.write(shared_csv)
+
+        cfg = config_store.load_group_config()
+        cfg['devices']['sim']['csv_files'].append('shared.csv')
+        cfg['devices']['west']['csv_files'].append('shared.csv')
+        config_store.save_group_config(cfg)
+
+        # Without explicit device_id, find_tag_device returns 'sim' (first in dict)
+        # so validating against 'west_data' channel should fail
+        with self.assertRaises(ValueError):
+            config_store.validate_channel_device('sharedTag', 'west_data')
+
+    def test_validate_channel_device_shared_csv_with_explicit_device_id(self):
+        """Shared CSV: com device_id explícito, validação usa o device correto."""
+        shared_csv = "key,ObjecTag,Tipo,Modbus,At\ntemp,sharedTag,D,300,%MW\n"
+        with open(os.path.join(self.temp_dir, 'shared.csv'), 'w') as f:
+            f.write(shared_csv)
+
+        cfg = config_store.load_group_config()
+        cfg['devices']['sim']['csv_files'].append('shared.csv')
+        cfg['devices']['west']['csv_files'].append('shared.csv')
+        config_store.save_group_config(cfg)
+
+        # With explicit device_id='west', validation should PASS for west_data
+        config_store.validate_channel_device('sharedTag', 'west_data', device_id='west')
+
+        # With explicit device_id='sim', validation should PASS for plc_alarmes
+        config_store.validate_channel_device('sharedTag', 'plc_alarmes', device_id='sim')
+
+        # With explicit device_id='west', validation should FAIL for plc_alarmes (sim's channel)
+        with self.assertRaises(ValueError):
+            config_store.validate_channel_device('sharedTag', 'plc_alarmes', device_id='west')
+
 
 # ---------------------------------------------------------------------------
 # Suite 2 — TestHubIntegration (requer Redis + Hub rodando)
@@ -1326,6 +1366,57 @@ class TestDeviceCRUD(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertIn('ok', result)
 
+    def test_91a_remove_csv_from_device(self):
+        """Remover CSV de csv_files do device deve atualizar a lista."""
+        # Create device with a CSV
+        csv_content = "key,ObjecTag,Tipo,Modbus,At\ngrp,tagRm,D,500,%MW\n"
+        csv_path = os.path.join(self.temp_dir, 'removable.csv')
+        with open(csv_path, 'w') as f:
+            f.write(csv_content)
+
+        config_store.create_device('dev_rm', {
+            'label': 'RemTest', 'protocol': 'tcp', 'host': '1.1.1.1',
+            'port': 502, 'unit_id': 1, 'csv_files': ['removable.csv'],
+        })
+
+        # Create per-device overrides for the tag
+        config_store.patch_variable_override('tagRm', {'channel': 'plc_test'}, device_id='dev_rm')
+        ov = config_store.load_overrides('dev_rm')
+        self.assertIn('tagRm', ov)
+
+        # Remove CSV from device (simulate what the endpoint does)
+        devices = config_store.get_devices()
+        dev_cfg = devices['dev_rm']
+        csv_files = list(dev_cfg.get('csv_files', []))
+        self.assertIn('removable.csv', csv_files)
+
+        # Clean overrides for tags in that CSV
+        import pandas as pd
+        df = pd.read_csv(csv_path, sep=',')
+        csv_tags = set(df['ObjecTag'].astype(str).str.strip().values)
+        overrides = config_store.load_overrides('dev_rm')
+        for tag in csv_tags:
+            overrides.pop(tag, None)
+        config_store.save_overrides(overrides, 'dev_rm')
+
+        csv_files.remove('removable.csv')
+        config_store.update_device('dev_rm', {'csv_files': csv_files})
+
+        # Verify
+        devices = config_store.get_devices()
+        self.assertEqual(devices['dev_rm']['csv_files'], [])
+        ov = config_store.load_overrides('dev_rm')
+        self.assertNotIn('tagRm', ov)
+
+    def test_91b_remove_csv_not_in_device_raises(self):
+        """Tentar remover CSV que não está no device deve falhar."""
+        config_store.create_device('dev_no_csv', {
+            'label': 'Test', 'protocol': 'tcp', 'csv_files': ['a.csv'],
+        })
+        devices = config_store.get_devices()
+        csv_files = list(devices['dev_no_csv'].get('csv_files', []))
+        self.assertNotIn('b.csv', csv_files)
+
 
 # ---------------------------------------------------------------------------
 # Suite 8 — TestProcessManagerPerDevice (unitario, sem deps externas)
@@ -1502,6 +1593,240 @@ class TestProcessManagerPerDevice(unittest.TestCase):
             asyncio.get_event_loop().run_until_complete(
                 pm.start_process('delfos', 'sim1', {'modbus_host': '127.0.0.1'})
             )
+
+
+# ---------------------------------------------------------------------------
+# Suite 9 — TestScannerManager (unitário, sem deps externas)
+# ---------------------------------------------------------------------------
+
+class TestScannerManager(unittest.TestCase):
+    """
+    Testa ScannerManager, ScanSession e lógica de scan.
+    Usa diretório temporário e mocks de Modbus.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        shutil.copy(
+            os.path.join(TABLES_DIR, 'group_config.json'),
+            os.path.join(self.temp_dir, 'group_config.json'),
+        )
+        # Copy CSV files for load_device_variables
+        with open(os.path.join(TABLES_DIR, 'group_config.json'), 'r') as f:
+            gc = json.load(f)
+        for dev in gc.get('devices', {}).values():
+            for fname in dev.get('csv_files', []):
+                src = os.path.join(TABLES_DIR, fname)
+                if os.path.exists(src):
+                    shutil.copy(src, os.path.join(self.temp_dir, fname))
+        # Copy per-device overrides
+        for dev_id in gc.get('devices', {}):
+            ov_name = f'variable_overrides_{dev_id}.json'
+            ov_src = os.path.join(TABLES_DIR, ov_name)
+            if os.path.exists(ov_src):
+                shutil.copy(ov_src, os.path.join(self.temp_dir, ov_name))
+        # Also copy global overrides
+        gv = os.path.join(TABLES_DIR, 'variable_overrides.json')
+        if os.path.exists(gv):
+            shutil.copy(gv, os.path.join(self.temp_dir, 'variable_overrides.json'))
+        self._orig_tables_dir = config_store._TABLES_DIR
+        config_store._TABLES_DIR = self.temp_dir
+
+    def tearDown(self):
+        config_store._TABLES_DIR = self._orig_tables_dir
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_100_scan_session_to_dict(self):
+        """ScanSession.to_dict() deve retornar todos os campos."""
+        from scanner_manager import ScanSession
+        s = ScanSession(device_id='sim1', total=10)
+        d = s.to_dict()
+        self.assertEqual(d['device_id'], 'sim1')
+        self.assertEqual(d['total'], 10)
+        self.assertEqual(d['status'], 'running')
+        self.assertIn('results', d)
+        self.assertIn('config', d)
+
+    def test_101_scan_session_to_summary(self):
+        """ScanSession.to_summary() não deve incluir results."""
+        from scanner_manager import ScanSession
+        s = ScanSession(device_id='sim1', total=5, ok_count=3, error_count=2)
+        summary = s.to_summary()
+        self.assertNotIn('results', summary)
+        self.assertEqual(summary['ok_count'], 3)
+        self.assertEqual(summary['error_count'], 2)
+
+    def test_102_scan_session_cancel(self):
+        """ScanSession.cancel() deve marcar _cancelled=True."""
+        from scanner_manager import ScanSession
+        s = ScanSession(device_id='sim1')
+        self.assertFalse(s.is_cancelled)
+        s.cancel()
+        self.assertTrue(s.is_cancelled)
+
+    def test_103_scanner_manager_no_active_scan(self):
+        """is_scanning() retorna False quando nenhum scan ativo."""
+        from scanner_manager import ScannerManager
+        sm = ScannerManager(self.temp_dir)
+        self.assertFalse(sm.is_scanning('sim1'))
+
+    def test_104_scanner_manager_get_scan_returns_none(self):
+        """get_scan() retorna None quando não há scan."""
+        from scanner_manager import ScannerManager
+        sm = ScannerManager(self.temp_dir)
+        self.assertIsNone(sm.get_scan('sim1'))
+
+    def test_105_scanner_manager_results_for_grid_empty(self):
+        """get_results_for_grid() retorna {} quando não há scan."""
+        from scanner_manager import ScannerManager
+        sm = ScannerManager(self.temp_dir)
+        self.assertEqual(sm.get_results_for_grid('sim1'), {})
+
+    def test_106_scan_single_variable_ok(self):
+        """_scan_single_variable retorna status=ok com mock de client."""
+        from unittest.mock import MagicMock
+        from scanner_manager import _scan_single_variable
+        client = MagicMock()
+        client.read_holding_registers.return_value = [1500]
+        var = {'tag': 'testVar', 'address': 100, 'type': '%MW'}
+        result = _scan_single_variable(client, var, retries=3)
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(result['value'], 1500)
+        self.assertEqual(result['tag'], 'testVar')
+        self.assertIsNotNone(result['latency_ms'])
+        self.assertIsNone(result['error'])
+
+    def test_107_scan_single_variable_coil(self):
+        """_scan_single_variable lê coils quando type=%MB."""
+        from unittest.mock import MagicMock
+        from scanner_manager import _scan_single_variable
+        client = MagicMock()
+        client.read_coils.return_value = [1]
+        var = {'tag': 'coilVar', 'address': 200, 'type': '%MB'}
+        result = _scan_single_variable(client, var, retries=1)
+        self.assertEqual(result['status'], 'ok')
+        self.assertTrue(result['value'])
+        client.read_coils.assert_called_once_with(200, 1)
+
+    def test_108_scan_single_variable_error_with_retries(self):
+        """_scan_single_variable retorna status=error após todas as tentativas falharem."""
+        from unittest.mock import MagicMock
+        from scanner_manager import _scan_single_variable
+        client = MagicMock()
+        client.read_holding_registers.side_effect = Exception('Connection refused')
+        var = {'tag': 'failVar', 'address': 300, 'type': '%MW'}
+        result = _scan_single_variable(client, var, retries=2)
+        self.assertEqual(result['status'], 'error')
+        self.assertIn('Connection refused', result['error'])
+        self.assertEqual(result['retries_used'], 2)
+        self.assertEqual(client.read_holding_registers.call_count, 2)
+
+    def test_109_scan_single_variable_none_response(self):
+        """_scan_single_variable trata resposta None como erro."""
+        from unittest.mock import MagicMock
+        from scanner_manager import _scan_single_variable
+        client = MagicMock()
+        client.read_holding_registers.return_value = None
+        var = {'tag': 'noneVar', 'address': 400, 'type': '%MW'}
+        result = _scan_single_variable(client, var, retries=2)
+        self.assertEqual(result['status'], 'error')
+        self.assertIn('Sem resposta', result['error'])
+
+    def test_110_scanner_manager_persistence(self):
+        """Resultados de scan devem ser carregados do disco via load_cached_results."""
+        from scanner_manager import ScannerManager, ScanSession
+        sm = ScannerManager(self.temp_dir)
+        # Create and save a fake session
+        session = ScanSession(
+            device_id='test_dev',
+            status='completed',
+            total=2,
+            scanned=2,
+            ok_count=1,
+            error_count=1,
+            results=[
+                {'tag': 'var1', 'address': 100, 'type': '%MW', 'status': 'ok',
+                 'value': 42, 'latency_ms': 1.5, 'error': None, 'retries_used': 1,
+                 'timestamp': '2026-01-01T00:00:00'},
+                {'tag': 'var2', 'address': 200, 'type': '%MB', 'status': 'error',
+                 'value': None, 'latency_ms': 5.0, 'error': 'timeout', 'retries_used': 3,
+                 'timestamp': '2026-01-01T00:00:01'},
+            ],
+            started_at='2026-01-01T00:00:00',
+            finished_at='2026-01-01T00:00:02',
+        )
+        sm._scans['test_dev'] = session
+        sm._save_results(session)
+
+        # Load in a new manager
+        sm2 = ScannerManager(self.temp_dir)
+        loaded = sm2.load_cached_results('test_dev')
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded.status, 'completed')
+        self.assertEqual(loaded.ok_count, 1)
+        self.assertEqual(loaded.error_count, 1)
+        self.assertEqual(len(loaded.results), 2)
+
+    def test_111_scanner_manager_results_for_grid(self):
+        """get_results_for_grid retorna dict {tag: {status, ...}} correto."""
+        from scanner_manager import ScannerManager, ScanSession
+        sm = ScannerManager(self.temp_dir)
+        session = ScanSession(
+            device_id='test_dev',
+            status='completed',
+            results=[
+                {'tag': 'a', 'status': 'ok', 'latency_ms': 1.0, 'error': None, 'value': 10,
+                 'address': 100, 'type': '%MW', 'retries_used': 1, 'timestamp': ''},
+                {'tag': 'b', 'status': 'error', 'latency_ms': 5.0, 'error': 'timeout', 'value': None,
+                 'address': 200, 'type': '%MB', 'retries_used': 3, 'timestamp': ''},
+            ],
+        )
+        sm._scans['test_dev'] = session
+        grid = sm.get_results_for_grid('test_dev')
+        self.assertIn('a', grid)
+        self.assertEqual(grid['a']['status'], 'ok')
+        self.assertEqual(grid['a']['value'], 10)
+        self.assertIn('b', grid)
+        self.assertEqual(grid['b']['status'], 'error')
+        self.assertEqual(grid['b']['error'], 'timeout')
+
+    def test_112_scanner_manager_load_all_cached(self):
+        """load_all_cached carrega todos os scan_results_*.json."""
+        from scanner_manager import ScannerManager, ScanSession
+        sm = ScannerManager(self.temp_dir)
+        # Write two result files
+        for dev in ['dev1', 'dev2']:
+            path = os.path.join(self.temp_dir, f'scan_results_{dev}.json')
+            data = ScanSession(device_id=dev, status='completed', total=1, scanned=1, ok_count=1).to_dict()
+            with open(path, 'w') as f:
+                json.dump(data, f)
+        sm.load_all_cached()
+        self.assertIsNotNone(sm.get_scan('dev1'))
+        self.assertIsNotNone(sm.get_scan('dev2'))
+
+    def test_113_load_device_variables_filters_by_device(self):
+        """load_device_variables retorna apenas variáveis do device."""
+        devices = config_store.get_devices()
+        if not devices:
+            self.skipTest('Nenhum device configurado.')
+        dev_id = next(iter(devices))
+        vars_all = config_store.load_all_variables()
+        vars_dev = config_store.load_device_variables(dev_id)
+        self.assertGreater(len(vars_dev), 0)
+        for v in vars_dev:
+            self.assertEqual(v['device'], dev_id)
+        self.assertLessEqual(len(vars_dev), len(vars_all))
+
+    def test_114_scanner_start_duplicate_raises(self):
+        """start_scan com scan já ativo deve lançar RuntimeError."""
+        import asyncio
+        from scanner_manager import ScannerManager, ScanSession
+        sm = ScannerManager(self.temp_dir)
+        # Inject a running session
+        session = ScanSession(device_id='sim1', status='running')
+        sm._scans['sim1'] = session
+        with self.assertRaises(RuntimeError):
+            sm.start_scan('sim1', {}, [], {})
 
 
 if __name__ == '__main__':

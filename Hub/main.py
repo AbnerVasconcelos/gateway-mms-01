@@ -38,6 +38,7 @@ import config_store          # noqa: E402  (Hub/config_store.py)
 from redis_bridge import start_bridge  # noqa: E402  (Hub/redis_bridge.py)
 from process_manager import ProcessManager      # noqa: E402
 from simulator_manager import SimulatorManager  # noqa: E402
+from scanner_manager import ScannerManager      # noqa: E402
 
 load_dotenv(os.path.join(_HUB_DIR, '.env'))
 
@@ -57,6 +58,9 @@ sim_manager: SimulatorManager | None = None
 
 # ProcessManager — subprocessos Delfos/Atena
 proc_manager: ProcessManager | None = None
+
+# ScannerManager — scanner de variáveis Modbus
+scan_manager: ScannerManager | None = None
 
 def _derive_rooms() -> list[str]:
     """Deriva rooms Socket.IO a partir dos canais configurados.
@@ -95,11 +99,25 @@ asgi_app = socketio.ASGIApp(sio, other_asgi_app=app)
 redis_pub: aioredis.Redis | None = None
 
 
+async def _publish_config_reload(device_id: str | None = None) -> None:
+    """Publica config_reload nos canais corretos (per-device) + _bridge_reload."""
+    if not redis_pub:
+        return
+    payload = json.dumps({'reload': True})
+    if device_id:
+        await redis_pub.publish(f'config_reload_{device_id}', payload)
+    else:
+        # Broadcast para todos os devices
+        for dev_id in config_store.get_devices():
+            await redis_pub.publish(f'config_reload_{dev_id}', payload)
+    await redis_pub.publish('_bridge_reload', '1')
+
+
 # ── Ciclo de vida ─────────────────────────────────────────────────────────────
 
 @app.on_event('startup')
 async def on_startup():
-    global redis_pub, sim_manager, proc_manager
+    global redis_pub, sim_manager, proc_manager, scan_manager
     redis_pub = aioredis.Redis(host=_REDIS_HOST, port=_REDIS_PORT, db=0)
     logger.info('Hub: Redis publisher pronto em %s:%s', _REDIS_HOST, _REDIS_PORT)
     def _get_channel_map():
@@ -119,11 +137,17 @@ async def on_startup():
     proc_manager = ProcessManager(_GATEWAY_DIR)
     proc_manager.set_status_callback(_proc_status_broadcast)
 
+    # Inicializa ScannerManager
+    scan_manager = ScannerManager(config_store._TABLES_DIR)
+    scan_manager.load_all_cached()
+
     logger.info('Hub iniciado.')
 
 
 @app.on_event('shutdown')
 async def on_shutdown():
+    if scan_manager:
+        await scan_manager.shutdown()
     if proc_manager:
         await proc_manager.shutdown_all()
     if sim_manager:
@@ -180,6 +204,10 @@ async def start_process(proc_type: str, body: ProcessStartBody):
     if not proc_manager:
         raise HTTPException(status_code=503, detail='ProcessManager nao inicializado.')
 
+    # Verifica se scan está rodando para o device (proteção cruzada)
+    if proc_type == 'delfos' and scan_manager and scan_manager.is_scanning(body.device_id):
+        raise HTTPException(status_code=409, detail=f"Scan em andamento para device '{body.device_id}'. Cancele o scan primeiro.")
+
     # Busca config do device
     devices = config_store.get_devices()
     if body.device_id not in devices:
@@ -194,6 +222,8 @@ async def start_process(proc_type: str, body: ProcessStartBody):
         'redis_host': _REDIS_HOST,
         'redis_port': _REDIS_PORT,
         'tables_dir': os.path.abspath(config_store._TABLES_DIR),
+        'command_channel': dev.get('command_channel', f'{body.device_id}_commands'),
+        'config_reload_channel': f'config_reload_{body.device_id}',
     }
 
     try:
@@ -262,16 +292,32 @@ async def index():
 
 @app.get('/api/variables')
 async def get_variables():
-    """Retorna todas as variáveis com configuração mesclada + overrides brutos."""
+    """Retorna todas as variáveis com configuração mesclada + overrides brutos (mesclados de todos os devices)."""
+    # Merge all per-device overrides into a single dict for the frontend
+    merged_overrides: dict = {}
+    devices = config_store.get_devices()
+    if devices:
+        for dev_id in devices:
+            dev_ov = config_store.load_overrides(dev_id)
+            merged_overrides.update(dev_ov)
+    else:
+        merged_overrides = config_store.load_overrides()
     return {
         'variables': config_store.load_all_variables(),
-        'overrides': config_store.load_overrides(),
+        'overrides': merged_overrides,
     }
 
 
 class VariablePatch(BaseModel):
-    enabled: Optional[bool] = None
-    channel: Optional[str]  = None
+    enabled:   Optional[bool] = None
+    channel:   Optional[str]  = None
+    device_id: Optional[str]  = None
+    # CSV-editable fields
+    group:     Optional[str]  = None
+    type:      Optional[str]  = None
+    address:   Optional[int]  = None
+    classe:    Optional[str]  = None
+    new_tag:   Optional[str]  = None   # rename tag
 
 
 @app.patch('/api/variables/{tag}')
@@ -279,24 +325,59 @@ async def patch_variable(tag: str, body: VariablePatch):
     """
     Atualiza (ou cria) o override de uma variável individual.
     channel=null ou channel="" → desatribui o canal da variável.
+    Campos CSV (group, type, address, classe, new_tag) são escritos no CSV fonte.
     """
-    # exclude_unset evita sobrescrever campos não fornecidos;
-    # inclui campos explicitamente definidos (mesmo como None).
-    fields = {k: v for k, v in body.model_dump(exclude_unset=True).items()}
-    # Fallback: se exclude_unset não capturou null, usa model_fields_set
-    if not fields and hasattr(body, 'model_fields_set'):
-        fields = {k: getattr(body, k) for k in body.model_fields_set}
-    if not fields:
+    explicit_device = body.device_id
+    all_fields = {k: v for k, v in body.model_dump(exclude_unset=True).items() if k != 'device_id'}
+    if not all_fields and hasattr(body, 'model_fields_set'):
+        all_fields = {k: getattr(body, k) for k in body.model_fields_set if k != 'device_id'}
+    if not all_fields:
         raise HTTPException(status_code=422, detail='Nenhum campo fornecido.')
-    config_store.patch_variable_override(tag, fields)
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
-    return {'tag': tag, 'updated': fields}
+
+    tag_device = explicit_device or config_store.find_tag_device(tag)
+
+    # Separate CSV fields from override fields
+    csv_field_names = {'group', 'type', 'address', 'classe', 'new_tag'}
+    csv_fields = {k: v for k, v in all_fields.items() if k in csv_field_names}
+    override_fields = {k: v for k, v in all_fields.items() if k not in csv_field_names}
+
+    # Handle tag rename: map new_tag → tag for CSV update
+    if 'new_tag' in csv_fields:
+        csv_fields['tag'] = csv_fields.pop('new_tag')
+
+    # Write CSV fields to source file
+    if csv_fields:
+        updated = config_store.update_csv_variable(tag, csv_fields, device_id=tag_device)
+        if not updated:
+            raise HTTPException(status_code=404, detail=f"Tag '{tag}' não encontrada nos CSVs do device.")
+
+        # If tag was renamed, update overrides key too
+        if 'tag' in csv_fields:
+            new_tag = csv_fields['tag']
+            overrides = config_store.load_overrides(tag_device)
+            if tag in overrides:
+                overrides[new_tag] = overrides.pop(tag)
+                config_store.save_overrides(overrides, tag_device)
+
+    # Validate cross-device channel assignment
+    if 'channel' in override_fields and override_fields['channel']:
+        try:
+            config_store.validate_channel_device(tag, override_fields['channel'], device_id=explicit_device)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+
+    # Write override fields (channel, enabled)
+    if override_fields:
+        config_store.patch_variable_override(tag, override_fields, device_id=tag_device)
+
+    await _publish_config_reload(tag_device)
+    return {'tag': tag, 'updated': all_fields}
 
 
 class BulkAssignBody(BaseModel):
-    tags:    list[str]
-    channel: str = ''   # '' = remover atribuição; 'plc_xxx' = atribuir
+    tags:      list[str]
+    channel:   str = ''   # '' = remover atribuição; 'plc_xxx' = atribuir
+    device_id: Optional[str] = None
 
 
 @app.post('/api/variables/bulk-assign')
@@ -305,16 +386,33 @@ async def bulk_assign_channel(body: BulkAssignBody):
     Move uma lista de variáveis para um canal.
     channel='' → remove atribuição (variáveis ficam não-atribuídas).
     """
+    # Validate cross-device channel assignment for all tags
+    if body.channel:
+        for tag in body.tags:
+            try:
+                config_store.validate_channel_device(tag, body.channel, device_id=body.device_id)
+            except ValueError as e:
+                raise HTTPException(status_code=422, detail=str(e))
+
+    # Apply overrides per-device (use explicit device_id if provided)
+    affected_devices: set[str] = set()
     for tag in body.tags:
-        config_store.patch_variable_override(tag, {'channel': body.channel})
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+        tag_device = body.device_id or config_store.find_tag_device(tag)
+        config_store.patch_variable_override(tag, {'channel': body.channel}, device_id=tag_device)
+        if tag_device:
+            affected_devices.add(tag_device)
+
+    for dev_id in affected_devices:
+        await _publish_config_reload(dev_id)
+    if not affected_devices:
+        await _publish_config_reload()
     return {'assigned': len(body.tags), 'channel': body.channel}
 
 
 class BulkEnableBody(BaseModel):
-    tags:    list[str]
-    enabled: bool
+    tags:      list[str]
+    enabled:   bool
+    device_id: Optional[str] = None
 
 
 @app.post('/api/variables/bulk-enable')
@@ -322,10 +420,17 @@ async def bulk_enable(body: BulkEnableBody):
     """
     Habilita ou desabilita uma lista de variáveis.
     """
+    affected_devices: set[str] = set()
     for tag in body.tags:
-        config_store.patch_variable_override(tag, {'enabled': body.enabled})
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+        tag_device = body.device_id or config_store.find_tag_device(tag)
+        config_store.patch_variable_override(tag, {'enabled': body.enabled}, device_id=tag_device)
+        if tag_device:
+            affected_devices.add(tag_device)
+
+    for dev_id in affected_devices:
+        await _publish_config_reload(dev_id)
+    if not affected_devices:
+        await _publish_config_reload()
     return {'updated': len(body.tags), 'enabled': body.enabled}
 
 
@@ -348,8 +453,7 @@ class UploadConfirmBody(BaseModel):
 async def confirm_upload(body: UploadConfirmBody):
     """Aplica configuração parsed de um upload ao group_config + overrides."""
     config_store.apply_upload_config(body.rows)
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    await _publish_config_reload()
     return {'applied': len(body.rows)}
 
 
@@ -373,15 +477,18 @@ class ChannelCreate(BaseModel):
 
 @app.post('/api/channels', status_code=201)
 async def create_channel(body: ChannelCreate):
-    """Cria um novo canal Redis com prefixo plc_."""
+    """Cria um novo canal Redis com prefixo plc_ dentro de um device."""
+    if not body.device_id:
+        raise HTTPException(status_code=422, detail="device_id obrigatorio para criar canal.")
     if not body.channel.startswith('plc_') or len(body.channel) <= len('plc_'):
         raise HTTPException(status_code=422, detail="Canal deve ter prefixo 'plc_' seguido de um nome.")
     if body.delay_ms < 1 or body.history_size < 1:
         raise HTTPException(status_code=422, detail='delay_ms e history_size devem ser >= 1.')
-    config_store.create_channel(body.channel, body.delay_ms, body.history_size, device_id=body.device_id)
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
-        await redis_pub.publish('_bridge_reload', '1')
+    try:
+        config_store.create_channel(body.channel, body.delay_ms, body.history_size, device_id=body.device_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    await _publish_config_reload(body.device_id)
     return {'channel': body.channel, 'delay_ms': body.delay_ms, 'history_size': body.history_size,
             'device_id': body.device_id}
 
@@ -395,9 +502,7 @@ async def delete_channel(channel: str, device_id: Optional[str] = None):
         raise HTTPException(status_code=403, detail=str(e))
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
-        await redis_pub.publish('_bridge_reload', '1')
+    await _publish_config_reload(device_id)
     return {'deleted': channel}
 
 
@@ -417,8 +522,7 @@ async def set_channel_delay(channel: str, body: DelayPatch, device_id: Optional[
     if body.delay_ms < 1:
         raise HTTPException(status_code=422, detail='delay_ms deve ser >= 1')
     config_store.update_channel_delay(channel, body.delay_ms, device_id=device_id)
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    await _publish_config_reload()
     return {'channel': channel, 'delay_ms': body.delay_ms}
 
 
@@ -440,8 +544,8 @@ async def set_channel_history(channel: str, body: HistoryPatch, device_id: Optio
     if redis_pub:
         # Trunca imediatamente o histórico existente no Redis
         await redis_pub.ltrim(f'history:{channel}', 0, body.history_size - 1)
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
 
+    await _publish_config_reload(device_id)
     return {'channel': channel, 'history_size': body.history_size}
 
 
@@ -584,8 +688,7 @@ async def toggle_device(device_id: str):
     current_enabled = devices[device_id].get('enabled', True)
     new_enabled = not current_enabled
     config_store.update_device(device_id, {'enabled': new_enabled})
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    await _publish_config_reload()
     return {'device_id': device_id, 'enabled': new_enabled}
 
 
@@ -602,14 +705,10 @@ async def clear_device(device_id: str, delete_files: bool = False):
 
     dev_cfg = devices[device_id]
 
-    # Determina quais tags pertencem a este device e remove seus overrides
-    variables     = config_store.load_all_variables()
-    tags_to_clear = [v['tag'] for v in variables if v.get('device') == device_id]
-
-    overrides = config_store.load_overrides()
-    for tag in tags_to_clear:
-        overrides.pop(tag, None)
-    config_store.save_overrides(overrides)
+    # Remove per-device overrides file (reset to empty)
+    overrides = config_store.load_overrides(device_id)
+    tags_to_clear = list(overrides.keys())
+    config_store.save_overrides({}, device_id)
     logger.info("Overrides de %d tag(s) do device '%s' removidos.", len(tags_to_clear), device_id)
 
     files_deleted = []
@@ -624,8 +723,7 @@ async def clear_device(device_id: str, delete_files: bool = False):
                 pass
         config_store.update_device(device_id, {'csv_files': []})
 
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    await _publish_config_reload()
 
     return {
         'device_id':     device_id,
@@ -664,10 +762,151 @@ async def upload_device_csv(device_id: str, file: UploadFile = File(...)):
         csv_files.append(filename)
         config_store.update_device(device_id, {'csv_files': csv_files})
 
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    await _publish_config_reload()
 
     return {'device_id': device_id, 'filename': filename, 'csv_files': csv_files}
+
+
+@app.delete('/api/devices/{device_id}/csv/{filename:path}')
+async def remove_device_csv(device_id: str, filename: str, delete_file: bool = False):
+    """
+    Remove um CSV da lista csv_files do device.
+    Remove overrides de tags que pertenciam exclusivamente a esse CSV.
+    delete_file=true → apaga o arquivo do disco.
+    Publica config_reload para que Delfos recarregue.
+    """
+    devices = config_store.get_devices()
+    if device_id not in devices:
+        raise HTTPException(status_code=404, detail=f"Device '{device_id}' não encontrado.")
+
+    dev_cfg = devices[device_id]
+    csv_files = list(dev_cfg.get('csv_files', []))
+    # Sanitiza — impede path traversal
+    safe_name = os.path.basename(filename)
+    if safe_name not in csv_files:
+        raise HTTPException(status_code=404, detail=f"CSV '{safe_name}' não está associado ao device '{device_id}'.")
+
+    # Coleta tags do CSV a ser removido para limpar overrides
+    csv_path = os.path.join(config_store._TABLES_DIR, safe_name)
+    tags_removed = []
+    if os.path.exists(csv_path):
+        try:
+            import pandas as pd
+            df = pd.read_csv(csv_path, sep=',')
+            if 'ObjecTag' in df.columns:
+                csv_tags = set(df['ObjecTag'].astype(str).str.strip().values)
+                overrides = config_store.load_overrides(device_id)
+                tags_to_clean = [t for t in csv_tags if t in overrides]
+                for tag in tags_to_clean:
+                    del overrides[tag]
+                    tags_removed.append(tag)
+                if tags_to_clean:
+                    config_store.save_overrides(overrides, device_id)
+        except Exception:
+            pass  # CSV ilegível — prossegue sem limpar overrides
+
+    csv_files.remove(safe_name)
+    config_store.update_device(device_id, {'csv_files': csv_files})
+
+    file_deleted = False
+    if delete_file and os.path.exists(csv_path):
+        os.remove(csv_path)
+        file_deleted = True
+        logger.info("CSV '%s' removido do disco.", csv_path)
+
+    await _publish_config_reload(device_id)
+
+    return {
+        'device_id': device_id,
+        'removed': safe_name,
+        'csv_files': csv_files,
+        'tags_cleaned': len(tags_removed),
+        'file_deleted': file_deleted,
+    }
+
+
+# ── Scanner — Leitura individual de variáveis ─────────────────────────────────
+
+class ScanStartBody(BaseModel):
+    interval_ms: int = 50
+    retries: int = 3
+    channel: Optional[str] = None
+
+
+@app.post('/api/devices/{device_id}/scan')
+async def start_scan(device_id: str, body: ScanStartBody):
+    """Inicia scan de variáveis do device. 409 se Delfos rodando ou scan ativo."""
+    if not scan_manager:
+        raise HTTPException(status_code=503, detail='ScannerManager não inicializado.')
+
+    devices = config_store.get_devices()
+    if device_id not in devices:
+        raise HTTPException(status_code=404, detail=f"Device '{device_id}' não encontrado.")
+
+    # Verifica se Delfos está rodando para este device
+    if proc_manager:
+        proc_id = f"delfos:{device_id}"
+        proc = proc_manager.get_process(proc_id)
+        if proc and proc.running:
+            raise HTTPException(status_code=409, detail=f"Delfos rodando para device '{device_id}'. Pare o Delfos primeiro.")
+
+    # Verifica scan já em andamento
+    if scan_manager.is_scanning(device_id):
+        raise HTTPException(status_code=409, detail=f"Scan já em andamento para device '{device_id}'.")
+
+    dev_cfg = devices[device_id]
+    variables = config_store.load_device_variables(device_id, channel_filter=body.channel or None)
+
+    if not variables:
+        raise HTTPException(status_code=422, detail='Nenhuma variável encontrada para este device/canal.')
+
+    scan_config = {
+        'interval_ms': body.interval_ms,
+        'retries': body.retries,
+        'channel_filter': body.channel,
+    }
+
+    async def _progress_cb(event: str, data: dict) -> None:
+        await sio.emit(event, data, room=f'scan:{device_id}')
+
+    session = scan_manager.start_scan(
+        device_id=device_id,
+        device_cfg=dev_cfg,
+        variables=variables,
+        config=scan_config,
+        progress_callback=_progress_cb,
+    )
+    return session.to_summary()
+
+
+@app.post('/api/devices/{device_id}/scan/cancel')
+async def cancel_scan(device_id: str):
+    """Cancela scan em andamento."""
+    if not scan_manager:
+        raise HTTPException(status_code=503, detail='ScannerManager não inicializado.')
+    session = scan_manager.cancel_scan(device_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Nenhum scan encontrado para device '{device_id}'.")
+    return session.to_summary()
+
+
+@app.get('/api/devices/{device_id}/scan')
+async def get_scan(device_id: str):
+    """Retorna sessão de scan atual/última com resultados."""
+    if not scan_manager:
+        raise HTTPException(status_code=503, detail='ScannerManager não inicializado.')
+    session = scan_manager.get_scan(device_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Nenhum scan encontrado para device '{device_id}'.")
+    return session.to_dict()
+
+
+@app.get('/api/devices/{device_id}/scan/results')
+async def get_scan_results(device_id: str):
+    """Retorna {tag: {status, latency_ms, error, value}} para o AG Grid."""
+    if not scan_manager:
+        return {}
+    return scan_manager.get_results_for_grid(device_id)
 
 
 # ── LabTest — Simuladores embarcados ──────────────────────────────────────────
@@ -904,8 +1143,7 @@ async def config_save(sid, data):
     Payload: conteúdo completo de group_config.json
     """
     config_store.save_group_config(data)
-    if redis_pub:
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
+    await _publish_config_reload()
     await sio.emit('config:updated', data)
     logger.info("config:save de %s — group_config.json atualizado.", sid)
 
@@ -934,8 +1172,8 @@ async def history_set(sid, data):
 
     if redis_pub:
         await redis_pub.ltrim(f'history:{channel}', 0, size - 1)
-        await redis_pub.publish('config_reload', json.dumps({'reload': True}))
 
+    await _publish_config_reload()
     updated_cfg = config_store.load_group_config()
     await sio.emit('config:updated', updated_cfg)
     logger.info("history_set: canal='%s' size=%d — broadcast enviado.", channel, size)
@@ -990,3 +1228,14 @@ async def sim_lock(sid, data):
             sim.lock_tag(tag)
         else:
             sim.unlock_tag(tag)
+
+
+# ── Eventos Socket.IO — Scanner ──────────────────────────────────────────────
+
+@sio.event
+async def scan_subscribe(sid, data):
+    """Cliente entra no room scan:{device_id} para receber progresso do scan."""
+    device_id = data.get('device_id') if isinstance(data, dict) else None
+    if device_id:
+        await sio.enter_room(sid, f'scan:{device_id}')
+        logger.info("Cliente %s entrou no room scan:%s", sid, device_id)

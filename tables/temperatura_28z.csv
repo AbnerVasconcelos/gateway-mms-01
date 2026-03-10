@@ -21,7 +21,7 @@ setpoint_corrente_baixa,correnteBaixaSetZona28,28z_write_27,D,,1819,%MW,Valor da
 corrente_zona_pressao,correnteZonaPressao1,28z_read_28,D,,1564,%MW,Corrente Zona Pressão 1,temperatura
 corrente_zona_pressao,correnteZonaPressao2,28z_read_29,D,,1565,%MW,Corrente Zona Pressão 2,temperatura
 corrente_zona_pressao,correnteZonaPressao3,28z_read_30,D,,1566,%MW,Corrente Zona Pressão 3,temperatura
-alarme_temp_nao_atingida,tempNaoAtingidaZona25,28z_read_48,D,,1584,%MW,Temperatura Não Atingida Zona 25,temperatura
+alarme_temp_nao_atingida,tempNaoAtingidaZona25,28z_read_48,D,,1584,%MB,Temperatura Não Atingida Zona 25,temperatura
 liga_desliga_zona,ligaDesligaZona25,28z_write_48,D,,1840,%MW,Liga / Desliga Zona 25,temperatura
 alarme_temp_nao_atingida,tempNaoAtingidaZona26,28z_read_48.1,M,48.1,1584,%MB,Temperatura Não Atingida Zona 26 (bit 48.1 do registro 1584),temperatura
 liga_desliga_zona,ligaDesligaZona26,28z_write_48.1,M,48.1,1840,%MB,Liga / Desliga Zona 26 (bit 48.1 do registro 1840),temperatura
@@ -48,7 +48,7 @@ alarme_alto_sensor,alarmeAltoSensor3,28z_write_53,D,,1845,%MW,Alarme Alto Sensor
 alarme_alto_alto_pressao,alarmeAltoAltoPressao2,28z_read_49.5,M,49.5,1585,%MB,Alarme Alto Alto Pressão 2 (bit 49.5 do registro 1585),temperatura
 alarme_alto_alto_sensor,alarmeAltoAltoSensor3,28z_write_54,D,,1846,%MW,Alarme Alto Alto Sensor 3,temperatura
 alarme_alto_alto_pressao,alarmeAltoAltoPressao3,28z_read_49.6,M,49.6,1585,%MB,Alarme Alto Alto Pressão 3 (bit 49.6 do registro 1585),temperatura
-alarme_corrente_baixa,correnteBaixaZona25,28z_read_51,D,,1587,%MW,Corrente Baixa Zona 25,temperatura
+alarme_corrente_baixa,correnteBaixaZona25,28z_read_51,D,,1587,%MB,Corrente Baixa Zona 25,temperatura
 alarme_corrente_baixa,correnteBaixaZona26,28z_read_51.1,M,51.1,1587,%MB,Corrente Baixa Zona 26 (bit 51.1 do registro 1587),temperatura
 alarme_corrente_baixa,correnteBaixaZona27,28z_read_51.2,M,51.2,1587,%MB,Corrente Baixa Zona 27 (bit 51.2 do registro 1587),temperatura
 alarme_corrente_baixa,correnteBaixaZona28,28z_read_51.3,M,51.3,1587,%MB,Corrente Baixa Zona 28 (bit 51.3 do registro 1587),temperatura

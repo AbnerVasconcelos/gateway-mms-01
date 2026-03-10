@@ -1,1 +1,689 @@
-{}
+{
+  "tempZona1": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona2": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona3": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona4": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona5": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona6": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona7": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona8": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona9": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona10": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona11": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona12": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona13": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona14": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona15": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona16": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona17": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona18": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona19": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona20": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona21": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona22": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona23": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona24": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona25": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona26": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona27": {
+    "channel": "plc_temperatura"
+  },
+  "tempZona28": {
+    "channel": "plc_temperatura"
+  },
+  "correnteBaixaSetZona1": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona2": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona3": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona4": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona5": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona6": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona7": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona8": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona9": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona10": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona11": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona12": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona13": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona14": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona15": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona16": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona17": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona18": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona19": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona20": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona21": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona22": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona23": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona24": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona25": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona26": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona27": {
+    "channel": "plc_correnteBaixa"
+  },
+  "correnteBaixaSetZona28": {
+    "channel": "plc_correnteBaixa"
+  },
+  "setpointZona1": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona2": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona3": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona4": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona5": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona6": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona7": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona8": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona9": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona10": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona11": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona12": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona13": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona14": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona15": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona16": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona17": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona18": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona19": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona20": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona21": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona22": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona23": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona24": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona25": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona26": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona27": {
+    "channel": "plc_setPoint"
+  },
+  "setpointZona28": {
+    "channel": "plc_setPoint"
+  },
+  "pressaoSensor1": {
+    "channel": "plc_pressoes"
+  },
+  "pressaoSensor2": {
+    "channel": "plc_pressoes"
+  },
+  "pressaoSensor3": {
+    "channel": "plc_pressoes"
+  },
+  "ligaDesligaZona1": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona2": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona3": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona4": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona5": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona6": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona7": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona8": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona9": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona10": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona11": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona12": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona13": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona14": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona15": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona16": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona17": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona18": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona19": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona20": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona21": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona22": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona23": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona24": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona25": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona26": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona27": {
+    "channel": "plc_ligDeslZona"
+  },
+  "ligaDesligaZona28": {
+    "channel": "plc_ligDeslZona"
+  },
+  "correnteZona1": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona2": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona3": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona4": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona5": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona6": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona7": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona8": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona9": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona10": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona11": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona12": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona13": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona14": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona15": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona16": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona17": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona18": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona19": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona20": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona21": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona22": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona23": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona24": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona25": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona26": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona27": {
+    "channel": "plc_corrente"
+  },
+  "correnteZona28": {
+    "channel": "plc_corrente"
+  },
+  "tempNaoAtingidaZona1": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona2": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona3": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona4": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona5": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona6": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona7": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona8": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona9": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona10": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona11": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona12": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona13": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona14": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona15": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona16": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona17": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona18": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona19": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona20": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona21": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona22": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona23": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona24": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona25": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona26": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona27": {
+    "channel": "plc_alertas"
+  },
+  "tempNaoAtingidaZona28": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaPressao1": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaPressao2": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaPressao3": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona1": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona2": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona3": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona4": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona5": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona6": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona7": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona8": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona10": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona11": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona12": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona13": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona14": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona15": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona16": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona17": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona18": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona19": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona20": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona21": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona22": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona23": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona24": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona26": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona27": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona28": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona2": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona3": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona4": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona5": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona6": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona7": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona8": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona9": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona10": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona11": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona12": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona13": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona14": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona15": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona16": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona17": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona18": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona19": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona20": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona21": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona22": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona23": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona24": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona25": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona26": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona27": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona28": {
+    "channel": "plc_alertas"
+  },
+  "correnteBaixaZona1": {
+    "channel": "plc_alertas"
+  },
+  "tempBaixaZona9": {
+    "channel": "plc_alertas"
+  }
+}

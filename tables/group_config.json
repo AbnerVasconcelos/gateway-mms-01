@@ -15,28 +15,9 @@
       "parity": "N",
       "stopbits": 1,
       "csv_files": [
-        "mapeamento_clp.csv",
-        "temperatura_24z.csv",
-        "temperatura_28z.csv"
+        "mapeamento_clp.csv"
       ],
-      "channels": {
-        "plc_alarmes": {
-          "delay_ms": 200,
-          "history_size": 55
-        },
-        "plc_process": {
-          "delay_ms": 500,
-          "history_size": 100
-        },
-        "plc_visual": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_config": {
-          "delay_ms": 1000,
-          "history_size": 100
-        }
-      },
+      "channels": {},
       "command_channel": "simulador_commands"
     },
     "west": {
@@ -55,19 +36,31 @@
       ],
       "enabled": true,
       "channels": {
-        "plc_alarmes": {
-          "delay_ms": 200,
-          "history_size": 55
-        },
-        "plc_process": {
-          "delay_ms": 500,
-          "history_size": 100
-        },
-        "plc_visual": {
+        "plc_temperatura": {
           "delay_ms": 1000,
           "history_size": 100
         },
-        "plc_config": {
+        "plc_correnteBaixa": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_setPoint": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_pressoes": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_ligDeslZona": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_corrente": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_alertas": {
           "delay_ms": 1000,
           "history_size": 100
         }

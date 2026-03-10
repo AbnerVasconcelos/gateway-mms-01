@@ -114,6 +114,17 @@ def main():
         'channels': device_cfg.get('channels', {}),
     }
 
+    # Redis (antes de channel_data para poder aguardar config_reload)
+    redis_result = retry_on_failure(setup_redis)
+    if redis_result is None:
+        return
+    r, pubsub = redis_result
+    if r is None or pubsub is None:
+        return
+
+    config_reload_channel = os.environ.get('CONFIG_RELOAD_CHANNEL', f'config_reload_{device_id}')
+    subscribe_to_channels(pubsub, ['user_status', config_reload_channel])
+
     # Carrega mapeamento CSV por canal
     try:
         channel_data = extract_parameters_by_channel(
@@ -126,27 +137,15 @@ def main():
         return
 
     if not channel_data:
-        logger.critical("Nenhum canal carregado dos CSVs. Encerrando.")
-        return
+        logger.warning("Nenhum canal carregado dos CSVs. Aguardando config_reload...")
 
-    logger.info("Canais ativos: %s", list(channel_data.keys()))
-
-    # Redis
-    redis_result = retry_on_failure(setup_redis)
-    if redis_result is None:
-        return
-    r, pubsub = redis_result
-    if r is None or pubsub is None:
-        return
-
-    config_reload_channel = os.environ.get('CONFIG_RELOAD_CHANNEL', f'config_reload_{device_id}')
-    subscribe_to_channels(pubsub, ['user_status', config_reload_channel])
-
-    # Modbus
+    # Modbus (lazy — só conecta quando ha canais para ler)
     _modbus_protocol = os.environ.get('MODBUS_PROTOCOL', 'tcp')
-    client = retry_on_failure(lambda: setup_modbus(protocol=_modbus_protocol))
-    if client is None:
-        return
+    client = None
+    if channel_data:
+        client = retry_on_failure(lambda: setup_modbus(protocol=_modbus_protocol))
+        if client is None:
+            return
 
     # Estado inicial
     user_state = True
@@ -206,8 +205,19 @@ def main():
                     channel_cfg  = new_channel_cfg
                     last_read    = new_last_read
                     logger.info("Config recarregada. Canais ativos: %s", list(channel_data.keys()))
+
+                    # Conecta Modbus se ainda nao conectado (primeira atribuicao de canais)
+                    if channel_data and client is None:
+                        client = retry_on_failure(lambda: setup_modbus(protocol=_modbus_protocol))
+                        if client:
+                            logger.info("Modbus conectado apos config_reload.")
                 except Exception as e:
                     logger.error("Erro ao recarregar channel_data: %s", e)
+
+        # ── Sem canais ou sem conexao Modbus: aguarda config_reload ────────
+        if not channel_data or client is None:
+            sleep(0.5)
+            continue
 
         # ── Sem usuario conectado: aguarda sem ler CLP ──────────────────────
         if not user_state:

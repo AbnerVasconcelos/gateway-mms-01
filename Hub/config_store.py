@@ -187,20 +187,15 @@ def get_channel_history_sizes() -> dict:
 def create_channel(channel: str, delay_ms: int = 1000, history_size: int = 100, device_id: str | None = None) -> None:
     """Cria ou atualiza um canal. Se device_id for informado, cria dentro de devices[device_id].channels."""
     config = load_group_config()
-    if device_id:
-        dev = config.get('devices', {}).get(device_id)
-        if not dev:
-            raise KeyError(f"Device '{device_id}' nao encontrado.")
-        dev.setdefault('channels', {})[channel] = {
-            'delay_ms': delay_ms,
-            'history_size': history_size,
-        }
-    else:
-        # Legacy fallback: global channels section
-        config.setdefault('channels', {})[channel] = {
-            'delay_ms': delay_ms,
-            'history_size': history_size,
-        }
+    if not device_id:
+        raise ValueError("device_id obrigatorio para criar canal.")
+    dev = config.get('devices', {}).get(device_id)
+    if not dev:
+        raise KeyError(f"Device '{device_id}' nao encontrado.")
+    dev.setdefault('channels', {})[channel] = {
+        'delay_ms': delay_ms,
+        'history_size': history_size,
+    }
     save_group_config(config)
     logger.info("Canal '%s' criado (delay_ms=%d, history_size=%d, device=%s).", channel, delay_ms, history_size, device_id)
 
@@ -259,6 +254,41 @@ def update_channel_history_size(channel: str, size: int, device_id: str | None =
         config.setdefault('channels', {}).setdefault(channel, {})['history_size'] = size
     save_group_config(config)
     logger.info("history_size=%d aplicado ao canal '%s' (device=%s).", size, channel, device_id)
+
+
+def find_tag_device(tag: str) -> str | None:
+    """Retorna o device_id que contém a tag (via CSVs), ou None se não encontrada."""
+    cfg = load_group_config()
+    for dev_id, dev_cfg in cfg.get('devices', {}).items():
+        for csv_name in dev_cfg.get('csv_files', []):
+            csv_path = os.path.join(_TABLES_DIR, csv_name)
+            if not os.path.exists(csv_path):
+                continue
+            try:
+                df = pd.read_csv(csv_path, sep=',')
+                if 'ObjecTag' in df.columns and tag in df['ObjecTag'].astype(str).str.strip().values:
+                    return dev_id
+            except Exception:
+                continue
+    return None
+
+
+def validate_channel_device(tag: str, channel: str | None, device_id: str | None = None) -> None:
+    """Valida que o canal pertence ao mesmo device da tag. Lança ValueError se inválido.
+    Se device_id for informado, usa-o diretamente em vez de adivinhar via CSV."""
+    if not channel:
+        return  # Removing channel is always allowed
+    tag_device = device_id or find_tag_device(tag)
+    if not tag_device:
+        return  # Tag not found in any device CSV — allow (backward compat)
+    cfg = load_group_config()
+    dev = cfg.get('devices', {}).get(tag_device, {})
+    dev_channels = set(dev.get('channels', {}).keys())
+    if channel not in dev_channels:
+        raise ValueError(
+            f"Canal '{channel}' nao pertence ao device '{tag_device}' da tag '{tag}'. "
+            f"Canais disponiveis: {sorted(dev_channels)}"
+        )
 
 
 def patch_variable_override(tag: str, fields: dict, device_id: str | None = None) -> None:
@@ -371,6 +401,19 @@ def load_all_variables() -> list:
         _read_csv_files(['operacao.csv', 'configuracao.csv'], None, global_overrides, {})
 
     return variables
+
+
+def load_device_variables(device_id: str, channel_filter: str | None = None) -> list[dict]:
+    """
+    Retorna variáveis de um device específico.
+    Se channel_filter, filtra também por overrides com channel == channel_filter.
+    Cada item: {tag, address, type, group, ...}
+    """
+    all_vars = load_all_variables()
+    result = [v for v in all_vars if v.get('device') == device_id]
+    if channel_filter:
+        result = [v for v in result if v.get('channel') == channel_filter]
+    return result
 
 
 # ── Export / Import ───────────────────────────────────────────────────────────
@@ -523,3 +566,75 @@ def apply_upload_config(rows: list) -> None:
 
     save_overrides(overrides)
     logger.info("apply_upload_config: %d linhas aplicadas.", len(rows))
+
+
+# ── Edição de variável no CSV ─────────────────────────────────────────────
+
+# Mapa: campo da API → coluna do CSV
+_FIELD_TO_CSV_COL = {
+    'tag':     'ObjecTag',
+    'group':   'key',
+    'type':    'At',
+    'address': 'Modbus',
+    'classe':  'Classe',
+}
+
+
+def update_csv_variable(tag: str, fields: dict, device_id: str | None = None) -> bool:
+    """
+    Atualiza campos de uma variável diretamente no CSV fonte.
+
+    Localiza o CSV que contém a tag (restrito aos csv_files do device se informado),
+    modifica a linha correspondente e reescreve o arquivo.
+
+    Campos aceitos: tag, group, type, address, classe (mapeados para colunas CSV).
+    Retorna True se a variável foi encontrada e atualizada, False caso contrário.
+    """
+    csv_fields = {_FIELD_TO_CSV_COL[k]: v for k, v in fields.items() if k in _FIELD_TO_CSV_COL}
+    if not csv_fields:
+        return False
+
+    cfg = load_group_config()
+
+    # Determina lista de CSVs a buscar
+    if device_id:
+        dev = cfg.get('devices', {}).get(device_id, {})
+        csv_files = dev.get('csv_files', [])
+    else:
+        csv_files = []
+        for dev_cfg in cfg.get('devices', {}).values():
+            csv_files.extend(dev_cfg.get('csv_files', []))
+
+    for csv_name in csv_files:
+        csv_path = os.path.join(_TABLES_DIR, csv_name)
+        if not os.path.exists(csv_path):
+            continue
+        try:
+            df = pd.read_csv(csv_path, sep=',')
+        except Exception:
+            continue
+        if 'ObjecTag' not in df.columns:
+            continue
+
+        mask = df['ObjecTag'].astype(str).str.strip() == tag
+        if not mask.any():
+            continue
+
+        # Aplica alterações
+        for col, val in csv_fields.items():
+            if col in df.columns:
+                df.loc[mask, col] = val
+            elif col == 'Classe':
+                # Classe pode não existir no CSV — adiciona coluna
+                df[col] = ''
+                df.loc[mask, col] = val
+
+        # Se o tag foi renomeado, atualizar a coluna ObjecTag
+        if 'ObjecTag' in csv_fields:
+            df.loc[mask, 'ObjecTag'] = csv_fields['ObjecTag']
+
+        df.to_csv(csv_path, index=False)
+        logger.info("CSV '%s': tag '%s' atualizada — %s", csv_name, tag, csv_fields)
+        return True
+
+    return False

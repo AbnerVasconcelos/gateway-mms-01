@@ -81,22 +81,37 @@
       background: none; border: none; cursor: pointer;
       font-size: 1.2rem; padding: 0 4px; line-height: 1;
     }
+    .theme-toggle:hover { color: #fff !important; }
+    .nav-link-subtle {
+      color: rgba(255,255,255,.45) !important;
+      font-size: .76rem; text-decoration: none;
+      transition: color .15s; white-space: nowrap;
+    }
+    .nav-link-subtle:hover { color: rgba(255,255,255,.9) !important; }
+    .nav-link-active {
+      color: rgba(255,255,255,.95) !important;
+      font-size: .76rem; font-weight: 600;
+      text-decoration: none; white-space: nowrap;
+      background: rgba(255,255,255,.12);
+      border-radius: .25rem;
+    }
   </style>
 </head>
 <body>
 
 <!-- Navbar -->
-<nav class="navbar navbar-dark bg-dark px-3 py-1" style="flex-shrink:0">
-  <div class="d-flex align-items-center gap-3">
-    <a href="/" class="navbar-brand fw-bold mb-0 text-decoration-none" style="font-size:.95rem">Gateway Config Panel</a>
-    <a href="/labtest" class="btn btn-sm btn-outline-light py-0">LabTest</a>
-    <span class="badge bg-info">Monitor</span>
-  </div>
-  <div class="d-flex align-items-center gap-2">
-    <span id="ws-status" class="text-white small">
+<nav class="navbar navbar-dark bg-dark px-3 py-0" style="flex-shrink:0;min-height:40px">
+  <div class="d-flex align-items-center gap-0 w-100" style="height:40px">
+    <a href="/" class="navbar-brand fw-bold mb-0 text-decoration-none me-3" style="font-size:.9rem;white-space:nowrap">Gateway</a>
+    <div class="vr bg-secondary opacity-50 mx-2" style="height:20px"></div>
+    <a href="/" class="nav-link nav-link-subtle py-1 px-2">Config</a>
+    <a href="/labtest" class="nav-link nav-link-subtle py-1 px-2">LabTest</a>
+    <span class="nav-link nav-link-active py-1 px-2">Monitor</span>
+    <div class="flex-grow-1"></div>
+    <span id="ws-status" class="text-white-50 small me-2" style="font-size:.72rem;white-space:nowrap">
       <span class="status-dot dot-warn" id="ws-dot"></span>Conectando...
     </span>
-    <button class="theme-toggle text-white" id="theme-toggle" title="Alternar tema">&#9790;</button>
+    <button class="theme-toggle text-white-50" id="theme-toggle" title="Alternar tema">&#9790;</button>
   </div>
 </nav>
 
