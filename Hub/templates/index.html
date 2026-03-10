@@ -1021,8 +1021,17 @@ function renderDeviceCards() {
 
   Object.entries(devicesToRender).forEach(([id, cfg]) => {
     const stats     = deviceStats[id] || {};
-    const dotCls    = stats.hasOwnProperty('ok')
-      ? (stats.ok ? 'dot-ok' : 'dot-err') : 'dot-grey';
+    const delfosProc = processStates[`delfos:${id}`];
+    const atenaProc  = processStates[`atena:${id}`];
+    const anyRunning = (delfosProc && delfosProc.running) || (atenaProc && atenaProc.running);
+    let dotCls;
+    if (stats.hasOwnProperty('ok')) {
+      dotCls = stats.ok ? 'dot-ok' : 'dot-err';
+    } else if (anyRunning) {
+      dotCls = 'dot-ok';
+    } else {
+      dotCls = 'dot-grey';
+    }
     const isTcp     = (cfg.protocol || 'tcp') === 'tcp';
     const isEnabled = cfg.enabled !== false;
 
@@ -1708,6 +1717,8 @@ socket.on('proc:status', (state) => {
     processStates[state.proc_id] = state;
   }
   renderProcessCards();
+  renderDeviceTabs();
+  renderDeviceCards();
 });
 
 async function loadProcesses() {
