@@ -35,6 +35,7 @@ sys.path.insert(0, _HUB_DIR)
 sys.path.insert(0, _GATEWAY_DIR)
 
 import config_store          # noqa: E402  (Hub/config_store.py)
+import grafana_api           # noqa: E402  (Hub/grafana_api.py)
 from redis_bridge import start_bridge  # noqa: E402  (Hub/redis_bridge.py)
 from process_manager import ProcessManager      # noqa: E402
 from simulator_manager import SimulatorManager  # noqa: E402
@@ -91,6 +92,7 @@ sio = socketio.AsyncServer(
     engineio_logger=False,
 )
 app = FastAPI(title='Gateway Hub', version='2.0.0')
+app.include_router(grafana_api.router)
 
 # ASGI app: Socket.IO roteia WebSockets; FastAPI roteia HTTP
 asgi_app = socketio.ASGIApp(sio, other_asgi_app=app)
@@ -143,6 +145,9 @@ async def on_startup():
     # Inicializa ScannerManager
     scan_manager = ScannerManager(config_store._TABLES_DIR)
     scan_manager.load_all_cached()
+
+    # Inicializa Grafana API
+    grafana_api.init(redis_pub, config_store.get_channels, config_store.load_all_variables)
 
     logger.info('Hub iniciado.')
 
@@ -353,7 +358,7 @@ class VariablePatch(BaseModel):
     # CSV-editable fields
     group:     Optional[str]  = None
     type:      Optional[str]  = None
-    address:   Optional[int]  = None
+    address:   Optional[str]  = None
     classe:    Optional[str]  = None
     new_tag:   Optional[str]  = None   # rename tag
 

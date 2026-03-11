@@ -53,6 +53,7 @@ gateway/
 │   ├── process_manager.py     # ProcessManager — subprocessos Delfos/Atena com log capture
 │   ├── simulator_manager.py   # SimulatorManager — simuladores Modbus embarcados (LabTest)
 │   ├── scanner_manager.py     # ScannerManager — scan individual de variáveis Modbus
+│   ├── grafana_api.py         # Grafana SimpleJSON-compatible API (/api/grafana/)
 │   ├── templates/
 │   │   ├── index.html         # Painel web (sidebar + AG Grid + Bootstrap 5.3 + dark mode)
 │   │   ├── labtest.html       # Painel LabTest — gerenciamento de simuladores Modbus
@@ -79,6 +80,16 @@ gateway/
 │   └── migrate_bit_addressing.py  # Migração: corrige coluna Modbus nos CSVs de temperatura com bit addressing
 │
 ├── .gitignore
+├── docs/
+│   ├── integration-guide.md   # Guia de integração para sistemas externos (EN)
+│   ├── grafana-setup.md       # Guia de setup do Grafana (EN)
+│   └── examples/              # Exemplos de código para integração
+│       ├── python_socketio_client.py
+│       ├── python_redis_subscriber.py
+│       ├── javascript_socketio_client.js
+│       ├── python_history_reader.py
+│       └── python_grafana_query.py
+│
 ├── requirements.txt
 ├── notas.txt                  # Comandos de setup (Windows e Linux)
 └── CLAUDE.md                  # Este arquivo
@@ -196,6 +207,9 @@ gateway/
 | `POST` | `/api/simulators/{sim_id}/stop` | Para servidor Modbus TCP |
 | `GET` | `/api/simulators/{sim_id}/variables` | Lista variáveis com valores atuais e estado de lock |
 | `POST` | `/api/simulators/{sim_id}/upload-csv` | Upload CSV para o simulador |
+| `GET` | `/api/grafana/` | Health check (teste de datasource Grafana) |
+| `POST` | `/api/grafana/search` | Lista métricas disponíveis (dropdown Grafana) |
+| `POST` | `/api/grafana/query` | Retorna time-series ou table data do histórico Redis |
 
 **Eventos Socket.IO (client → server):** `join`, `plc_write`, `user_status`, `config_save`, `config_get`, `history_set`, `history_get`, `sim_subscribe`, `sim_write`, `sim_lock`, `scan_subscribe`
 
@@ -298,6 +312,33 @@ Lê variáveis de um device uma a uma, registra quais retornam valor válido e q
 4. Respeita `interval_ms` entre leituras com `asyncio.sleep()`
 5. Salva resultados em JSON ao finalizar
 6. Emite `scan:complete` ao finalizar
+
+---
+
+### Grafana API — Endpoints SimpleJSON (`Hub/grafana_api.py`)
+
+API compatível com o datasource SimpleJSON do Grafana, permitindo visualizar dados do gateway em dashboards Grafana.
+
+- **Mount:** `APIRouter` montado em `/api/grafana/` via `app.include_router()`
+- **Init:** `grafana_api.init(redis_conn, get_channels_fn, get_variables_fn)` chamado no `on_startup()` do Hub
+
+**Nomenclatura de métricas:** `{device_id}.{channel}.{group}.{tag}`
+- Exemplo: `simulador.plc_operacao.controle_extrusora.extrusoraFeedBackSpeed`
+- Coils booleanos → convertidos para 0/1 em time-series numérico
+
+**Endpoints:**
+
+| Endpoint | Função |
+|----------|--------|
+| `GET /api/grafana/` | Health check — Grafana usa para testar conexão do datasource |
+| `POST /api/grafana/search` | Retorna lista de métricas disponíveis (com filtro opcional via `target`) |
+| `POST /api/grafana/query` | Retorna dados time-series ou table do histórico Redis |
+
+**`/search`:** lê o item mais recente do histórico de cada canal (`LINDEX history:{channel} 0`), parseia JSON aninhado, extrai paths `group.tag`. Fallback para `load_all_variables()` em canais sem histórico. Cache TTL: 30s.
+
+**`/query`:** agrupa targets por canal (uma leitura Redis por canal), lê `history:{channel}` via `LRANGE`, filtra por time range, converte para datapoints `[[value, timestamp_ms], ...]`. Suporta formatos `timeserie` e `table`. Cache TTL: 2s por canal. Reverte ordem (histórico newest-first, Grafana espera oldest-first). Suporta `maxDataPoints` para downsampling.
+
+**Documentação completa:** `docs/grafana-setup.md` (setup do Grafana) e `docs/integration-guide.md` (integração geral).
 
 ---
 
@@ -700,9 +741,10 @@ python -m pytest tests/test_hub.py tests/test_segmented_reading.py tests/test_bi
 | `tests/test_atena.py` | Atena — loop Redis → Modbus | 6 |
 | `tests/test_full_loop.py` | Loop completo Delfos+Atena simultâneos | 7 |
 | `tests/test_hub.py` | Hub — bridge, endpoints REST, upload/export, device CRUD, ping, simulators, scanner, bit addressing | 112 |
+| `tests/test_grafana_api.py` | Grafana API — helpers, timeserie, table, endpoints, cache | 19 |
 | `tests/test_e2e_rtu.py` | Teste end-to-end RTU over TCP (simulador + Delfos + Atena) | — |
 
-**Total unit tests (sem deps externas):** 172 (`test_hub` + `test_segmented_reading` + `test_bit_addressing`)
+**Total unit tests (sem deps externas):** 191 (`test_hub` + `test_segmented_reading` + `test_bit_addressing` + `test_grafana_api`)
 
 Para apontar Delfos/Atena ao simulador localmente:
 ```bash
