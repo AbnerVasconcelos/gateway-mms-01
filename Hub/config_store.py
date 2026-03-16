@@ -407,6 +407,7 @@ def load_all_variables() -> list:
                     'group':        group,
                     'type':         var_at,
                     'address':      address,
+                    'address_raw':  modbus_raw,
                     'bit_index':    bit_index,
                     'channel':      channel,
                     'history_size': hist,

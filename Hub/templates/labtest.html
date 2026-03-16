@@ -323,9 +323,32 @@ function initSocket() {
 
     gridApi.forEachNode(node => {
       const tag = node.data.tag;
-      if (tag in values && node.data.value !== values[tag]) {
+      if (!(tag in values)) return;
+      if (node.data.value !== values[tag]) {
         node.data.value = values[tag];
         gridApi.refreshCells({ rowNodes: [node], columns: ['value'], force: true });
+      }
+    });
+  });
+
+  // Write acknowledgment — auto-lock + visual feedback
+  socket.on('sim:write_ack', (data) => {
+    if (data.sim_id !== selectedSimId || !gridApi) return;
+    gridApi.forEachNode(node => {
+      if (node.data.tag === data.tag) {
+        node.data.locked = true;
+        node.data.value = data.value;
+        gridApi.redrawRows({ rowNodes: [node] });
+        // Re-enable Send button immediately
+        const btn = document.querySelector(`#write-${data.tag}`)?.nextElementSibling;
+        if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+        // Flash confirmation on the row
+        const rowEl = document.querySelector(`[row-id="${data.tag}"]`);
+        if (rowEl) {
+          rowEl.style.transition = 'background-color 0.3s';
+          rowEl.style.backgroundColor = 'rgba(25,135,84,.25)';
+          setTimeout(() => { rowEl.style.backgroundColor = ''; }, 1200);
+        }
       }
     });
   });
@@ -702,7 +725,12 @@ function writeValue(tag) {
   if (!input) return;
   const value = parseFloat(input.value);
   if (isNaN(value)) { alert('Valor invalido'); return; }
+  // Disable button while writing
+  const btn = input.nextElementSibling;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
   socket.emit('sim_write', { sim_id: selectedSimId, tag, value });
+  // Re-enable after ack or timeout
+  setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = 'Send'; } }, 2000);
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────

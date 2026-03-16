@@ -1,9 +1,9 @@
+import csv
 import logging
 import itertools
 import os
 import sys
 import time
-import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.bit_addressing import parse_modbus_address, is_bit_addressed
@@ -19,31 +19,65 @@ def _find_contiguous(lst):
     return groups
 
 
-def find_contiguous_groups(file_path, attempts=5, pause=5):
+def _read_csv(file_path, attempts=5, pause=5):
+    """Lê um CSV e retorna lista de dicts (via csv.DictReader) com retry."""
     for _ in range(attempts):
         try:
-            df = pd.read_csv(file_path, sep=',')
-            break
+            with open(file_path, newline='', encoding='utf-8-sig') as f:
+                return list(csv.DictReader(f))
         except Exception as e:
             logger.error("Erro ao tentar ler o arquivo .csv: %s", e)
             logger.info("Tentando novamente em %s segundos.", pause)
             time.sleep(pause)
-    else:
-        logger.critical("Não foi possível ler o arquivo após %s tentativas.", attempts)
+    logger.critical("Não foi possível ler o arquivo após %s tentativas.", attempts)
+    return None
+
+
+def find_contiguous_groups(file_path, attempts=5, pause=5):
+    rows = _read_csv(file_path, attempts, pause)
+    if rows is None:
         return None, None, None, None, None, None
 
-    df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
+    coil_addrs, coil_tags_flat, coil_keys_flat = [], [], []
+    reg_addrs, reg_tags_flat, reg_keys_flat = [], [], []
 
-    df_coils     = df[df['At'] == '%MB']
-    df_registers = df[df['At'] != '%MB']
+    for row in rows:
+        modbus = (row.get('Modbus') or '').strip()
+        key = (row.get('key') or '').strip()
+        tag = (row.get('ObjecTag') or '').strip()
+        at = (row.get('At') or '').strip()
+        if not modbus or not key or not tag:
+            continue
+        try:
+            addr = int(modbus)
+        except (ValueError, TypeError):
+            continue
+        if at == '%MB':
+            coil_addrs.append(addr)
+            coil_tags_flat.append(tag)
+            coil_keys_flat.append(key)
+        else:
+            reg_addrs.append(addr)
+            reg_tags_flat.append(tag)
+            reg_keys_flat.append(key)
 
-    coils_groups     = _find_contiguous(df_coils['Modbus'].tolist())
-    registers_groups = _find_contiguous(df_registers['Modbus'].tolist())
+    coils_groups = _find_contiguous(coil_addrs)
+    registers_groups = _find_contiguous(reg_addrs)
 
-    coils_tags     = [df_coils.loc[df_coils['Modbus'].isin(g)]['ObjecTag'].tolist()     for g in coils_groups]
-    registers_tags = [df_registers.loc[df_registers['Modbus'].isin(g)]['ObjecTag'].tolist() for g in registers_groups]
-    coils_keys     = [df_coils.loc[df_coils['Modbus'].isin(g)]['key'].tolist()         for g in coils_groups]
-    registers_keys = [df_registers.loc[df_registers['Modbus'].isin(g)]['key'].tolist()     for g in registers_groups]
+    # Map addresses back to tags/keys per contiguous group
+    idx = 0
+    coils_tags, coils_keys = [], []
+    for g in coils_groups:
+        coils_tags.append(coil_tags_flat[idx:idx + len(g)])
+        coils_keys.append(coil_keys_flat[idx:idx + len(g)])
+        idx += len(g)
+
+    idx = 0
+    registers_tags, registers_keys = [], []
+    for g in registers_groups:
+        registers_tags.append(reg_tags_flat[idx:idx + len(g)])
+        registers_keys.append(reg_keys_flat[idx:idx + len(g)])
+        idx += len(g)
 
     return coils_groups, registers_groups, coils_tags, registers_tags, coils_keys, registers_keys
 
@@ -72,36 +106,48 @@ def extract_parameters_by_group(csv_file, attempts=5, pause=5):
             ...
         }
     """
-    for _ in range(attempts):
-        try:
-            df = pd.read_csv(csv_file, sep=',')
-            break
-        except Exception as e:
-            logger.error("Erro ao tentar ler o arquivo .csv: %s", e)
-            logger.info("Tentando novamente em %s segundos.", pause)
-            time.sleep(pause)
-    else:
-        logger.critical("Não foi possível ler o arquivo após %s tentativas.", attempts)
+    rows = _read_csv(csv_file, attempts, pause)
+    if rows is None:
         return {}
 
-    df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
-    df['Modbus'] = pd.to_numeric(df['Modbus'], errors='coerce')
-    df = df.dropna(subset=['Modbus'])
-    df['Modbus'] = df['Modbus'].astype(int)
+    # Group rows by key, preserving insertion order
+    groups_by_key: dict[str, list] = {}
+    for row in rows:
+        modbus = (row.get('Modbus') or '').strip()
+        key = (row.get('key') or '').strip()
+        tag = (row.get('ObjecTag') or '').strip()
+        if not modbus or not key or not tag:
+            continue
+        try:
+            addr = int(modbus)
+        except (ValueError, TypeError):
+            continue
+        groups_by_key.setdefault(key, []).append({
+            'addr': addr, 'tag': tag, 'key': key,
+            'at': (row.get('At') or '').strip(),
+        })
 
     result = {}
+    for group_name, group_rows in groups_by_key.items():
+        coils = [(r['addr'], r['tag'], r['key']) for r in group_rows if r['at'] == '%MB']
+        regs = [(r['addr'], r['tag'], r['key']) for r in group_rows if r['at'] != '%MB']
 
-    for group_name, group_df in df.groupby('key', sort=False):
-        df_coils = group_df[group_df['At'] == '%MB'].copy()
-        df_regs  = group_df[group_df['At'] != '%MB'].copy()
+        coil_groups = _find_contiguous([a for a, _, _ in coils])
+        reg_groups = _find_contiguous([a for a, _, _ in regs])
 
-        coil_groups = _find_contiguous(df_coils['Modbus'].tolist())
-        reg_groups  = _find_contiguous(df_regs['Modbus'].tolist())
+        idx = 0
+        coil_tags, coil_keys = [], []
+        for g in coil_groups:
+            coil_tags.append([coils[idx + i][1] for i in range(len(g))])
+            coil_keys.append([coils[idx + i][2] for i in range(len(g))])
+            idx += len(g)
 
-        coil_tags = [df_coils.loc[df_coils['Modbus'].isin(g)]['ObjecTag'].tolist() for g in coil_groups]
-        reg_tags  = [df_regs.loc[df_regs['Modbus'].isin(g)]['ObjecTag'].tolist()   for g in reg_groups]
-        coil_keys = [df_coils.loc[df_coils['Modbus'].isin(g)]['key'].tolist()       for g in coil_groups]
-        reg_keys  = [df_regs.loc[df_regs['Modbus'].isin(g)]['key'].tolist()         for g in reg_groups]
+        idx = 0
+        reg_tags, reg_keys = [], []
+        for g in reg_groups:
+            reg_tags.append([regs[idx + i][1] for i in range(len(g))])
+            reg_keys.append([regs[idx + i][2] for i in range(len(g))])
+            idx += len(g)
 
         result[group_name] = {
             'coil_groups': coil_groups,
@@ -158,21 +204,17 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
     for csv_path in csv_paths:
         source = os.path.splitext(os.path.basename(csv_path))[0]
 
-        for attempt in range(attempts):
-            try:
-                df = pd.read_csv(csv_path, sep=',', dtype={'Modbus': str})
-                break
-            except Exception as e:
-                logger.error("Erro ao ler '%s': %s", csv_path, e)
-                time.sleep(pause)
-        else:
-            logger.critical("Não foi possível ler '%s' após %d tentativas.", csv_path, attempts)
+        csv_rows = _read_csv(csv_path, attempts, pause)
+        if csv_rows is None:
             continue
 
-        df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
+        for row in csv_rows:
+            modbus_raw = (row.get('Modbus') or '').strip()
+            key = (row.get('key') or '').strip()
+            tag = (row.get('ObjecTag') or '').strip()
+            if not modbus_raw or not key or not tag:
+                continue
 
-        for _, row in df.iterrows():
-            modbus_raw = str(row['Modbus']).strip()
             try:
                 register_addr, bit_index = parse_modbus_address(modbus_raw)
             except (ValueError, TypeError):
@@ -180,9 +222,9 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
                 continue
 
             all_rows.append({
-                'key':       str(row['key']).strip(),
-                'tag':       str(row['ObjecTag']).strip(),
-                'at':        str(row.get('At', '')).strip(),
+                'key':       key,
+                'tag':       tag,
+                'at':        (row.get('At') or '').strip(),
                 'modbus':    register_addr,
                 'bit_index': bit_index,
                 'source':    source,

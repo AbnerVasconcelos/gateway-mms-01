@@ -1,20 +1,4 @@
 {
-  "WEST": {
-    "label": "WEST",
-    "protocol": "tcp",
-    "port": 5021,
-    "unit_id": 1,
-    "csv_files": [
-      "temperatura_24z.csv",
-      "temperatura_28z.csv"
-    ],
-    "simulate": true,
-    "auto_start": true,
-    "sim_interval": 1.0,
-    "sim_registers": 0,
-    "sim_coils": 0,
-    "sim_coil_prob": 0.3
-  },
   "PLC_300": {
     "label": "",
     "protocol": "tcp",

@@ -1305,7 +1305,7 @@ async def sim_subscribe(sid, data):
 
 @sio.event
 async def sim_write(sid, data):
-    """Escreve valor direto no data store do simulador."""
+    """Escreve valor no data store do simulador e trava a tag automaticamente."""
     if not sim_manager or not isinstance(data, dict):
         return
     sim_id = data.get('sim_id')
@@ -1314,8 +1314,18 @@ async def sim_write(sid, data):
     if not sim_id or not tag or value is None:
         return
     sim = sim_manager.get_simulator(sim_id)
-    if sim:
-        sim.write_value(tag, value)
+    if not sim:
+        return
+    result = sim.write_value(tag, value)
+    if result:
+        # Confirma escrita e lock ao client que solicitou
+        await sio.emit('sim:write_ack', {
+            'sim_id': sim_id,
+            'tag': tag,
+            'value': result['value'],
+            'address': result['address'],
+            'locked': True,
+        }, to=sid)
 
 
 @sio.event

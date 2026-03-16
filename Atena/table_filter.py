@@ -1,7 +1,6 @@
+import csv
 import os
 import sys
-
-import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.bit_addressing import parse_modbus_address
@@ -21,15 +20,18 @@ def extract_deep_keys(obj):
 
 def find_values_by_object_tag(file_path, json_object):
     # Carregar arquivo .csv e filtrar as linhas
-    df = pd.read_csv(file_path, sep=',', dtype={'Modbus': str})
-    df = df.dropna(subset=['Modbus', 'key', 'ObjecTag'])
+    with open(file_path, newline='', encoding='utf-8-sig') as f:
+        rows = list(csv.DictReader(f))
 
     # Parse endereços Modbus com suporte a bit addressing
     parsed = []
-    for _, row in df.iterrows():
-        tag = str(row['ObjecTag']).strip()
-        at = str(row.get('At', '')).strip()
-        modbus_raw = str(row['Modbus']).strip()
+    for row in rows:
+        tag = (row.get('ObjecTag') or '').strip()
+        modbus_raw = (row.get('Modbus') or '').strip()
+        key = (row.get('key') or '').strip()
+        if not tag or not modbus_raw or not key:
+            continue
+        at = (row.get('At') or '').strip()
         try:
             register_addr, bit_index = parse_modbus_address(modbus_raw)
         except (ValueError, TypeError):

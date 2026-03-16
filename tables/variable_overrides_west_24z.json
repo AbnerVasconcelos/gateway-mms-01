@@ -288,76 +288,76 @@
     "channel": "plc_west1LigDeslZona"
   },
   "correnteZona1": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona2": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona3": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona4": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona5": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona6": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona7": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona8": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona9": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona10": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona11": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona12": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona13": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona14": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona15": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona16": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona17": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona18": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona19": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona20": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona21": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona22": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona23": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "correnteZona24": {
-    "channel": "plc_west1Corrente"
+    "channel": "west1Corrente"
   },
   "tempNaoAtingidaZona1": {
     "channel": "plc_west1Alertas"

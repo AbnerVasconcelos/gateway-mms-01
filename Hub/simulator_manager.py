@@ -60,6 +60,7 @@ class SimulatorInstance:
         self.running = False
 
         self._locked_tags: set[str] = set()
+        self._locked_addresses: set[int] = set()  # addresses locked (mirrors _locked_tags)
         self._variables: list[dict] = []       # [{tag, group, type, address}]
         self._reg_addresses: list[int] = []    # endereços de registers para simulate
         self._coil_addresses: list[int] = []   # endereços de coils para simulate
@@ -207,24 +208,41 @@ class SimulatorInstance:
     def lock_tag(self, tag: str) -> None:
         """Trava tag — simulação não sobrescreve."""
         self._locked_tags.add(tag)
+        info = self._tag_to_address.get(tag)
+        if info:
+            self._locked_addresses.add(info['address'])
         logger.info("[%s] Tag '%s' travada.", self.sim_id, tag)
 
     def unlock_tag(self, tag: str) -> None:
         """Destrava tag — simulação volta a sobrescrever."""
         self._locked_tags.discard(tag)
+        info = self._tag_to_address.get(tag)
+        if info:
+            addr = info['address']
+            # Only unlock address if no other locked tag uses it
+            still_locked = any(
+                t != tag and t in self._locked_tags
+                and self._tag_to_address.get(t, {}).get('address') == addr
+                for t in self._locked_tags
+            )
+            if not still_locked:
+                self._locked_addresses.discard(addr)
         logger.info("[%s] Tag '%s' destravada.", self.sim_id, tag)
 
     def is_locked(self, tag: str) -> bool:
         return tag in self._locked_tags
 
-    def write_value(self, tag: str, value) -> bool:
-        """Escreve valor direto no data store do simulador."""
+    def write_value(self, tag: str, value) -> dict | None:
+        """Escreve valor no data store do simulador e trava a tag automaticamente.
+
+        Retorna dict com detalhes da escrita ou None em caso de falha.
+        """
         if not self.context:
-            return False
+            return None
         info = self._tag_to_address.get(tag)
         if not info:
             logger.warning("[%s] Tag '%s' não encontrada.", self.sim_id, tag)
-            return False
+            return None
 
         slave = self.context[0x00]
         addr = info['address']
@@ -237,8 +255,12 @@ class SimulatorInstance:
             val = int(value) & 0xFFFF
             slave.setValues(fc, addr, [val])
 
+        # Auto-lock: garante que a simulação não sobrescreva o valor escrito
+        if tag not in self._locked_tags:
+            self.lock_tag(tag)
+
         logger.info("[%s] Escrita manual: %s = %s (addr=%d, fc=%d)", self.sim_id, tag, val, addr, fc)
-        return True
+        return {'tag': tag, 'address': addr, 'value': val, 'fc': fc}
 
     def read_all_values(self) -> dict[str, int | bool]:
         """Lê todos os valores atuais do data store."""
@@ -285,7 +307,7 @@ class SimulatorInstance:
         }
 
     async def _simulate_values(self) -> None:
-        """Varia valores de registers e coils, pulando tags travadas.
+        """Varia valores de registers e coils, pulando endereços travados.
 
         Parâmetros lidos de self.config (atualizáveis em runtime):
           sim_interval   — segundos entre ciclos (default 2.0)
@@ -296,26 +318,18 @@ class SimulatorInstance:
         slave = self.context[0x00]
         step = 0
 
-        # Mapa reverso: address → tag (para checar locks)
-        addr_to_tag_reg: dict[int, str] = {}
-        addr_to_tag_coil: dict[int, str] = {}
-        for var in self._variables:
-            if var['fc'] == 3:
-                addr_to_tag_reg[var['address']] = var['tag']
-            elif var['fc'] == 1:
-                addr_to_tag_coil[var['address']] = var['tag']
-
         while True:
             interval = self.config.get('sim_interval', 2.0)
             await asyncio.sleep(max(0.1, interval))
             step += 1
 
+            locked = self._locked_addresses
+
             # Simula registers
             max_reg = self.config.get('sim_registers', 8)
             n_reg = len(self._reg_addresses) if max_reg == 0 else min(max_reg, len(self._reg_addresses))
             for addr in self._reg_addresses[:n_reg]:
-                tag = addr_to_tag_reg.get(addr)
-                if tag and tag in self._locked_tags:
+                if addr in locked:
                     continue
                 try:
                     vals = slave.getValues(3, addr, 1)
@@ -331,8 +345,7 @@ class SimulatorInstance:
             max_coil = self.config.get('sim_coils', 12)
             n_coil = len(self._coil_addresses) if max_coil == 0 else min(max_coil, len(self._coil_addresses))
             for addr in self._coil_addresses[:n_coil]:
-                tag = addr_to_tag_coil.get(addr)
-                if tag and tag in self._locked_tags:
+                if addr in locked:
                     continue
                 if random.random() < self.config.get('sim_coil_prob', 0.3):
                     try:

@@ -27,7 +27,7 @@
           "history_size": 55
         },
         "plc_operacao": {
-          "delay_ms": 1000,
+          "delay_ms": 3000,
           "history_size": 100
         },
         "plc_redeCan": {
@@ -60,19 +60,19 @@
           "delay_ms": 1000,
           "history_size": 100
         },
-        "plc_west1SetPoint": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west1Corrente": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
         "plc_west1LigDeslZona": {
           "delay_ms": 1000,
           "history_size": 100
         },
         "plc_west1Alertas": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "west1Corrente": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_west1SetPoint": {
           "delay_ms": 1000,
           "history_size": 100
         }
