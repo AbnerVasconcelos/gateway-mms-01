@@ -416,6 +416,81 @@
   </div>
 </div>
 
+<!-- ── Edit device modal ───────────────────────────────────────────────── -->
+<div class="modal fade" id="editDeviceModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar device: <span id="edit-dev-title"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-dev-id" />
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Label</label>
+          <input type="text" id="edit-dev-label" class="form-control form-control-sm" />
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold">Protocolo</label>
+          <select id="edit-dev-protocol" class="form-select form-select-sm"
+                  onchange="toggleEditDevProtocol()">
+            <option value="tcp">TCP</option>
+            <option value="rtu">RTU (Serial)</option>
+          </select>
+        </div>
+        <!-- TCP fields -->
+        <div id="edit-dev-tcp">
+          <div class="row g-2 mb-2">
+            <div class="col-7">
+              <label class="form-label small fw-semibold">Host</label>
+              <input type="text" id="edit-dev-host" class="form-control form-control-sm" placeholder="192.168.1.3" />
+            </div>
+            <div class="col-3">
+              <label class="form-label small fw-semibold">Port</label>
+              <input type="number" id="edit-dev-port" class="form-control form-control-sm" />
+            </div>
+            <div class="col-2">
+              <label class="form-label small fw-semibold">Unit</label>
+              <input type="number" id="edit-dev-unit" class="form-control form-control-sm" />
+            </div>
+          </div>
+        </div>
+        <!-- RTU fields -->
+        <div id="edit-dev-rtu" class="d-none">
+          <div class="row g-2 mb-2">
+            <div class="col-5">
+              <label class="form-label small fw-semibold">Serial port</label>
+              <input type="text" id="edit-dev-serial" class="form-control form-control-sm" placeholder="COM3" />
+            </div>
+            <div class="col-3">
+              <label class="form-label small fw-semibold">Baud</label>
+              <input type="number" id="edit-dev-baud" class="form-control form-control-sm" />
+            </div>
+            <div class="col-2">
+              <label class="form-label small fw-semibold">Par.</label>
+              <select id="edit-dev-parity" class="form-select form-select-sm">
+                <option>N</option><option>E</option><option>O</option>
+              </select>
+            </div>
+            <div class="col-2">
+              <label class="form-label small fw-semibold">Stop</label>
+              <input type="number" id="edit-dev-stop" class="form-control form-control-sm" min="1" max="2" />
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Unit ID</label>
+            <input type="number" id="edit-dev-unit-rtu" class="form-control form-control-sm" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="confirm-edit-device-btn">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Modal de logs de processo ────────────────────────────────────────── -->
 <div class="modal fade" id="processLogsModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -1072,13 +1147,15 @@ function renderDeviceCards() {
     const card = document.createElement('div');
     card.className = 'device-card p-2';
     card.id        = 'devcard-' + id;
+    const connInfo = isTcp
+      ? `${cfg.host||'—'}:${cfg.port||502} (unit ${cfg.unit_id||1})`
+      : `${cfg.serial_port||'—'} ${cfg.baudrate||9600} ${cfg.parity||'N'}${cfg.stopbits||1} (unit ${cfg.unit_id||1})`;
+
     card.innerHTML = `
       <div class="d-flex align-items-center mb-1">
         <span class="status-dot ${dotCls}" id="devdot-${id}" style="width:10px;height:10px"></span>
         <span class="fw-semibold small flex-grow-1">
           <span id="devlabel-${id}" style="cursor:default">${cfg.label || id}</span>
-          <a href="#" class="text-muted ms-1" style="font-size:.7rem;text-decoration:none"
-             onclick="event.preventDefault();event.stopPropagation();editDeviceLabel('${id}')" title="Renomear">&#9998;</a>
           <small class="text-muted">(${id})</small>
         </span>
         <span class="badge ${isEnabled ? 'bg-success' : 'bg-secondary'} me-1" style="font-size:.6em"
@@ -1086,59 +1163,9 @@ function renderDeviceCards() {
         <button class="btn btn-sm btn-outline-danger py-0 px-1" style="font-size:.6rem"
                 onclick="removeDevice('${id}')">✕</button>
       </div>
-      <div class="d-flex align-items-center gap-1 mb-1">
-        <label class="text-muted mb-0" style="font-size:.7rem">Proto:</label>
-        <select class="form-select form-select-sm py-0" style="width:72px;font-size:.75rem"
-                id="devproto-${id}" onchange="toggleDevProtocol('${id}')">
-          <option value="tcp" ${isTcp?'selected':''}>TCP</option>
-          <option value="rtu" ${!isTcp?'selected':''}>RTU</option>
-        </select>
-        <span class="small ms-auto">
-          <span class="status-dot ${dotCls}" id="devstatus-${id}" style="display:inline-block;width:8px;height:8px;border-radius:50%"></span>
-        </span>
-      </div>
-      <!-- TCP fields -->
-      <div id="devtcp-${id}" class="${isTcp?'':'d-none'}">
-        <div class="row g-1 mb-1">
-          <div class="col-6">
-            <input type="text" class="form-control form-control-sm py-0" style="font-size:.75rem"
-                   id="devhost-${id}" value="${cfg.host||''}" placeholder="Host" />
-          </div>
-          <div class="col-3">
-            <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
-                   id="devport-${id}" value="${cfg.port||502}" placeholder="Port" />
-          </div>
-          <div class="col-3">
-            <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
-                   id="devunit-${id}" value="${cfg.unit_id||1}" placeholder="Unit" />
-          </div>
-        </div>
-      </div>
-      <!-- RTU fields -->
-      <div id="devrtu-${id}" class="${!isTcp?'':'d-none'}">
-        <div class="row g-1 mb-1">
-          <div class="col-5">
-            <input type="text" class="form-control form-control-sm py-0" style="font-size:.75rem"
-                   id="devserial-${id}" value="${cfg.serial_port||''}" placeholder="Serial" />
-          </div>
-          <div class="col-3">
-            <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
-                   id="devbaud-${id}" value="${cfg.baudrate||9600}" placeholder="Baud" />
-          </div>
-          <div class="col-2">
-            <select class="form-select form-select-sm py-0" style="font-size:.75rem" id="devparity-${id}">
-              ${['N','E','O'].map(p=>`<option ${p===cfg.parity?'selected':''}>${p}</option>`).join('')}
-            </select>
-          </div>
-          <div class="col-2">
-            <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
-                   id="devstop-${id}" value="${cfg.stopbits||1}" min="1" max="2" placeholder="Stop" />
-          </div>
-        </div>
-        <div class="mb-1">
-          <input type="number" class="form-control form-control-sm py-0" style="font-size:.75rem"
-                 id="devunit-rtu-${id}" value="${cfg.unit_id||1}" placeholder="Unit ID" />
-        </div>
+      <div class="text-muted mb-1" style="font-size:.7rem">
+        <span class="badge bg-light text-dark" style="font-size:.7rem">${(cfg.protocol||'tcp').toUpperCase()}</span>
+        ${connInfo}
       </div>
       <div class="mb-1">
         <span class="text-muted" style="font-size:.65rem">CSVs: ${(cfg.csv_files||[]).length ? (cfg.csv_files||[]).map(f =>
@@ -1146,7 +1173,7 @@ function renderDeviceCards() {
         ).join('') : '—'}</span>
       </div>
       <div class="d-flex align-items-center gap-1 flex-wrap">
-        <button class="btn btn-outline-primary py-0 px-2" style="font-size:.65rem" onclick="saveDevice('${id}')">Salvar</button>
+        <button class="btn btn-outline-primary py-0 px-2" style="font-size:.65rem" onclick="openEditDeviceModal('${id}')">Editar</button>
         <button class="btn ${isEnabled ? 'btn-outline-danger' : 'btn-outline-success'} py-0 px-2" style="font-size:.65rem"
                 id="devtoggle-${id}" onclick="toggleDeviceEnabled('${id}')">
           ${isEnabled ? 'Pausar' : 'Iniciar'}
@@ -1170,31 +1197,59 @@ function renderDeviceCards() {
   });
 }
 
-function toggleDevProtocol(id) {
-  const proto = document.getElementById('devproto-' + id).value;
-  document.getElementById('devtcp-' + id).classList.toggle('d-none', proto !== 'tcp');
-  document.getElementById('devrtu-' + id).classList.toggle('d-none', proto === 'tcp');
-}
-
 function toggleNewDevProtocol() {
   const proto = document.getElementById('new-dev-protocol').value;
   document.getElementById('new-dev-tcp').classList.toggle('d-none', proto !== 'tcp');
   document.getElementById('new-dev-rtu').classList.toggle('d-none', proto === 'tcp');
 }
 
-async function saveDevice(id) {
-  const proto = document.getElementById('devproto-' + id).value;
-  const fields = {protocol: proto};
+function toggleEditDevProtocol() {
+  const proto = document.getElementById('edit-dev-protocol').value;
+  document.getElementById('edit-dev-tcp').classList.toggle('d-none', proto !== 'tcp');
+  document.getElementById('edit-dev-rtu').classList.toggle('d-none', proto === 'tcp');
+}
+
+function openEditDeviceModal(id) {
+  const cfg = DEVICES_LIST[id];
+  if (!cfg) return;
+  const isTcp = (cfg.protocol || 'tcp') === 'tcp';
+  document.getElementById('edit-dev-id').value       = id;
+  document.getElementById('edit-dev-title').textContent = cfg.label || id;
+  document.getElementById('edit-dev-label').value    = cfg.label || '';
+  document.getElementById('edit-dev-protocol').value = cfg.protocol || 'tcp';
+  // TCP
+  document.getElementById('edit-dev-host').value     = cfg.host || '';
+  document.getElementById('edit-dev-port').value     = cfg.port || 502;
+  document.getElementById('edit-dev-unit').value     = cfg.unit_id || 1;
+  // RTU
+  document.getElementById('edit-dev-serial').value   = cfg.serial_port || '';
+  document.getElementById('edit-dev-baud').value     = cfg.baudrate || 9600;
+  document.getElementById('edit-dev-parity').value   = cfg.parity || 'N';
+  document.getElementById('edit-dev-stop').value     = cfg.stopbits || 1;
+  document.getElementById('edit-dev-unit-rtu').value = cfg.unit_id || 1;
+  // Show/hide protocol sections
+  document.getElementById('edit-dev-tcp').classList.toggle('d-none', !isTcp);
+  document.getElementById('edit-dev-rtu').classList.toggle('d-none', isTcp);
+  new bootstrap.Modal(document.getElementById('editDeviceModal')).show();
+}
+
+document.getElementById('confirm-edit-device-btn').addEventListener('click', async () => {
+  const id    = document.getElementById('edit-dev-id').value;
+  const proto = document.getElementById('edit-dev-protocol').value;
+  const fields = {
+    label: document.getElementById('edit-dev-label').value.trim(),
+    protocol: proto,
+  };
   if (proto === 'tcp') {
-    fields.host    = document.getElementById('devhost-' + id).value;
-    fields.port    = parseInt(document.getElementById('devport-' + id).value, 10);
-    fields.unit_id = parseInt(document.getElementById('devunit-' + id).value, 10);
+    fields.host    = document.getElementById('edit-dev-host').value.trim();
+    fields.port    = parseInt(document.getElementById('edit-dev-port').value, 10);
+    fields.unit_id = parseInt(document.getElementById('edit-dev-unit').value, 10);
   } else {
-    fields.serial_port = document.getElementById('devserial-' + id).value;
-    fields.baudrate    = parseInt(document.getElementById('devbaud-' + id).value, 10);
-    fields.parity      = document.getElementById('devparity-' + id).value;
-    fields.stopbits    = parseInt(document.getElementById('devstop-' + id).value, 10);
-    fields.unit_id     = parseInt(document.getElementById('devunit-rtu-' + id).value, 10);
+    fields.serial_port = document.getElementById('edit-dev-serial').value.trim();
+    fields.baudrate    = parseInt(document.getElementById('edit-dev-baud').value, 10);
+    fields.parity      = document.getElementById('edit-dev-parity').value;
+    fields.stopbits    = parseInt(document.getElementById('edit-dev-stop').value, 10);
+    fields.unit_id     = parseInt(document.getElementById('edit-dev-unit-rtu').value, 10);
   }
   try {
     await apiFetch(`/api/devices/${encodeURIComponent(id)}`, {
@@ -1202,12 +1257,13 @@ async function saveDevice(id) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(fields),
     });
-    showToast(`Device ${id} salvo.`);
+    bootstrap.Modal.getInstance(document.getElementById('editDeviceModal')).hide();
+    showToast(`Device ${id} atualizado.`);
     loadDevices();
   } catch (e) {
     showToast(String(e), 'danger');
   }
-}
+});
 
 async function removeDevice(id) {
   if (!confirm(`Remover device "${id}"?`)) return;
@@ -2120,35 +2176,7 @@ document.getElementById('confirm-add-variable-btn').addEventListener('click', as
   }
 });
 
-// ── Inline edit: device label ─────────────────────────────────────────────────
-function editDeviceLabel(id) {
-  const span = document.getElementById('devlabel-' + id);
-  if (!span) return;
-  const current = span.textContent;
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = current;
-  input.className = 'form-control form-control-sm py-0 d-inline-block';
-  input.style.cssText = 'width:120px;font-size:.8rem';
-  const save = () => {
-    const val = input.value.trim();
-    if (val && val !== current) {
-      apiFetch(`/api/devices/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({label: val}),
-      }).then(() => { showToast(`Label de ${id} atualizado.`); loadDevices(); })
-        .catch(err => { showToast(String(err), 'danger'); loadDevices(); });
-    } else {
-      loadDevices();  // revert
-    }
-  };
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') loadDevices(); });
-  input.addEventListener('blur', save);
-  span.replaceWith(input);
-  input.focus();
-  input.select();
-}
+// editDeviceLabel is now handled by the Edit Device modal (openEditDeviceModal)
 
 // ── Inline edit: channel name ─────────────────────────────────────────────────
 function editChannelName(ch, devId) {
