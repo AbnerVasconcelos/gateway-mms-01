@@ -22,7 +22,7 @@ CLP (Modbus TCP/RTU)  [múltiplos devices]
 Cada instância Delfos/Atena opera sobre **um único device** (`DEVICE_ID` obrigatório). Canais são definidos dentro de cada device em `group_config.json`.
 
 **Módulos compartilhados (`shared/`):**
-- `modbus_functions.py` — `ModbusClientWrapper` unifica `pyModbusTCP` (TCP) e `pymodbus` (RTU over TCP)
+- `modbus_functions.py` — `ModbusClientWrapper` unifica `pyModbusTCP` (TCP), `pymodbus` (RTU over TCP), `RawRtuClient` (RTU serial) e `SnifferClient` (RS485 passivo hibrido)
 - `redis_config_functions.py` — setup Redis, pub/sub helpers
 - `bit_addressing.py` — parsing de endereços com bit (ex: `1584.01` = register 1584, bit 1)
 
@@ -62,6 +62,67 @@ Afeta: `temperatura_24z.csv`, `temperatura_28z.csv`. Demais CSVs são backward c
 - `last_message:{channel}` / `history:{channel}` — persistência Redis (Delfos)
 
 **Socket.IO:** client→server usa underscore (`plc_write`), server→client usa colon (`device:data`).
+
+---
+
+## Protocolo Sniff — RS485 Passivo Hibrido
+
+### Conceito
+
+O protocolo `sniff` le dados do barramento RS485 **sem transmitir**, capturando o trafego entre o outro mestre (HMI/supervisorio) e os slaves. Para registros que o outro mestre nao pola, faz leitura ativa automatica via `RawRtuClient`.
+
+### Componentes (`shared/modbus_functions.py`)
+
+| Classe | Funcao |
+|--------|--------|
+| `SnifferClient` | Cliente passivo hibrido — thread daemon de escuta + cache + fallback ativo |
+| `RawRtuClient` | Cliente RTU serial ativo — escritas e leituras de fallback |
+| `ModbusClientWrapper` | Wrapper unificado que encapsula qualquer client |
+
+### Fluxo de dados
+
+```
+Barramento RS485
+    |
+    |-- Thread listener (daemon) --> Decodifica FC01/FC03 --> Cache {(tipo, slave, addr): valor}
+    |
+    |-- read_holding_registers() --> Cache hit? -> retorna do cache
+    |                              -> Cache miss? -> leitura ativa via RawRtuClient -> atualiza cache
+    |
+    +-- write_coil/register() --> Delega direto ao RawRtuClient (transmissao ativa)
+```
+
+### Cache
+
+- Chave: `(key_prefix, slave, address)` onde `key_prefix` = `'reg'` ou `'coil'`
+- Valor: `{'value': int/bool, 'ts': float}` (monotonic clock)
+- `stale_timeout`: tempo maximo antes de considerar dado obsoleto (default: 10s)
+- Thread-safe via `threading.Lock`
+
+### Protocolos disponiveis em `setup_modbus()`
+
+| Protocolo | Classe | Transporte |
+|-----------|--------|------------|
+| `tcp` | `ModbusClient` (pyModbusTCP) | Ethernet |
+| `rtu_tcp` | `ModbusSerialClient` (pymodbus) | RTU over TCP |
+| `rtu` | `RawRtuClient` | Serial RS485 direto |
+| `sniff` | `SnifferClient` | Serial RS485 passivo + fallback ativo |
+
+### Configuracao
+
+No `group_config.json`, device com protocolo sniff:
+```json
+{
+  "protocol": "sniff",
+  "serial_port": "/dev/ttyUSB0",
+  "baudrate": 19200,
+  "parity": "N",
+  "stopbits": 1,
+  "unit_id": 1
+}
+```
+
+O Hub frontend oferece "Sniff (RS485 Passivo)" como opcao de protocolo ao criar/editar device.
 
 ---
 
@@ -113,3 +174,22 @@ python -m pytest tests/ -v
 - `handle_ia_data_message` é stub (IA não implementada)
 - Redis sem replicação (ponto único de falha)
 - ProcessManager sem reinício automático de processos crashados
+
+
+---
+
+## Deploy — Host Delfos (192.168.196.46)
+
+| Servico | Host | Porta |
+|---------|------|-------|
+| **Hub (FastAPI + Socket.IO)** | `0.0.0.0` | `4567` |
+| **Simulador PLC_300** | `0.0.0.0` | `5020` |
+| **Simulador west_24_zonas** | `0.0.0.0` | `5021` |
+| **Simulador west28zonas** | `0.0.0.0` | `5022` |
+| **Redis** | `localhost` | `6379` |
+
+- **Usuario:** `delfos`
+- **Caminho do projeto:** `/home/delfos/gateway-modbus`
+- **Python venv:** `/home/delfos/gateway-modbus/.venv`
+- **Cloudflare Tunnel:** `cloudflared.service` ativo (versao 2026.2.0)
+- **Painel web:** `http://192.168.196.46:4567`
