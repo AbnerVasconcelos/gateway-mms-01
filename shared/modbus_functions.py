@@ -402,35 +402,72 @@ class SnifferClient:
             slave = self._unit_id
         now = time.monotonic()
         regs = []
+        missing = []
         with self._cache_lock:
             for i in range(count):
                 entry = self._cache.get(('reg', slave, address + i))
-                if entry is None:
+                if entry is None or (now - entry['ts'] > self._stale_timeout):
+                    missing.append(i)
+                else:
+                    regs.append((i, entry['value']))
+
+        # If we have missing registers, try active read via RawRtuClient
+        if missing:
+            logger.debug("SnifferClient: %d regs missing, active fill addr=0x%04X count=%d slave=%d",
+                         len(missing), address, count, slave)
+            active_result = self._rtu_writer.read_holding_registers(address, count, slave=slave)
+            if hasattr(active_result, 'registers'):
+                # Update cache with active read results
+                now2 = time.monotonic()
+                with self._cache_lock:
+                    for i, val in enumerate(active_result.registers):
+                        self._cache[('reg', slave, address + i)] = {'value': val, 'ts': now2}
+                return active_result
+            else:
+                # Active read also failed — return what we have from cache or error
+                if not regs:
                     return _RtuError(
-                        "Sniff: sem dados em cache para reg %d slave %d" % (address + i, slave))
-                if now - entry['ts'] > self._stale_timeout:
-                    return _RtuError(
-                        "Sniff: dados obsoletos para reg %d (age=%.1fs > %.1fs)" % (
-                            address + i, now - entry['ts'], self._stale_timeout))
-                regs.append(entry['value'])
-        return _RtuResult(regs)
+                        "Sniff: sem dados em cache e leitura ativa falhou para reg %d slave %d" % (
+                            address + missing[0], slave))
+                # Return partial from cache (fill missing with 0)
+                logger.warning("SnifferClient: leitura ativa falhou, retornando cache parcial")
+                result_regs = [0] * count
+                for i, val in regs:
+                    result_regs[i] = val
+                return _RtuResult(result_regs)
+
+        return _RtuResult([val for _, val in sorted(regs)])
 
     def read_coils(self, address, count, slave=None):
         if slave is None:
             slave = self._unit_id
         now = time.monotonic()
         bits = []
+        missing = []
         with self._cache_lock:
             for i in range(count):
                 entry = self._cache.get(('coil', slave, address + i))
-                if entry is None:
-                    return _RtuError(
-                        "Sniff: sem dados em cache para coil %d slave %d" % (address + i, slave))
-                if now - entry['ts'] > self._stale_timeout:
-                    return _RtuError(
-                        "Sniff: dados obsoletos para coil %d" % (address + i,))
-                bits.append(entry['value'])
-        return _RtuResult(bits)
+                if entry is None or (now - entry['ts'] > self._stale_timeout):
+                    missing.append(i)
+                else:
+                    bits.append((i, entry['value']))
+
+        if missing:
+            logger.debug("SnifferClient: %d coils missing, active fill addr=0x%04X count=%d slave=%d",
+                         len(missing), address, count, slave)
+            active_result = self._rtu_writer.read_coils(address, count, slave=slave)
+            if hasattr(active_result, 'bits'):
+                now2 = time.monotonic()
+                with self._cache_lock:
+                    for i, val in enumerate(active_result.bits):
+                        self._cache[('coil', slave, address + i)] = {'value': val, 'ts': now2}
+                return active_result
+            elif not bits:
+                return _RtuError(
+                    "Sniff: sem dados em cache e leitura ativa falhou para coil %d slave %d" % (
+                        address + missing[0], slave))
+
+        return _RtuResult([val for _, val in sorted(bits)])
 
     def write_coil(self, address, value, slave=None):
         if slave is None:
