@@ -25,6 +25,7 @@ import redis.asyncio as aioredis
 import socketio
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
@@ -92,6 +93,13 @@ sio = socketio.AsyncServer(
     engineio_logger=False,
 )
 app = FastAPI(title='Gateway Hub', version='2.0.0')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(grafana_api.router)
 
 # ASGI app: Socket.IO roteia WebSockets; FastAPI roteia HTTP
@@ -227,6 +235,10 @@ async def start_process(proc_type: str, body: ProcessStartBody):
         'modbus_port': dev.get('port', 502),
         'modbus_unit_id': dev.get('unit_id', 1),
         'modbus_protocol': dev.get('protocol', 'tcp'),
+        'serial_port': dev.get('serial_port', ''),
+        'serial_baudrate': dev.get('baudrate', 19200),
+        'serial_parity': dev.get('parity', 'N'),
+        'serial_stopbits': dev.get('stopbits', 1),
         'redis_host': _REDIS_HOST,
         'redis_port': _REDIS_PORT,
         'tables_dir': os.path.abspath(config_store._TABLES_DIR),
@@ -747,6 +759,26 @@ def _do_ping(cfg: dict) -> dict:
                 return {'ok': False, 'latency_ms': None, 'error': 'Falha ao conectar (RTU)'}
             result = client.read_holding_registers(0, 1, slave=cfg.get('unit_id', 1))
             client.close()
+        elif protocol == 'sniff':
+            # Sniff mode: just check if serial port is accessible
+            import serial as _serial
+            ser = _serial.Serial(
+                port=cfg.get('serial_port', ''),
+                baudrate=cfg.get('baudrate', 19200),
+                parity=cfg.get('parity', 'N'),
+                stopbits=cfg.get('stopbits', 1),
+                timeout=0.5,
+            )
+            # Read a few bytes to confirm bus activity
+            data = ser.read(64)
+            ser.close()
+            latency = round((time.monotonic() - t0) * 1000, 2)
+            if data:
+                return {'ok': True, 'latency_ms': latency,
+                        'error': None}
+            else:
+                return {'ok': True, 'latency_ms': latency,
+                        'error': 'Porta aberta mas sem trafego detectado'}
         else:
             from pyModbusTCP.client import ModbusClient
             client = ModbusClient(

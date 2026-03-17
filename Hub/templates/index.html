@@ -356,6 +356,7 @@
                   onchange="toggleNewDevProtocol()">
             <option value="tcp">TCP</option>
             <option value="rtu">RTU (Serial)</option>
+            <option value="sniff">Sniff (RS485 Passivo)</option>
           </select>
         </div>
         <!-- TCP fields -->
@@ -436,6 +437,7 @@
                   onchange="toggleEditDevProtocol()">
             <option value="tcp">TCP</option>
             <option value="rtu">RTU (Serial)</option>
+            <option value="sniff">Sniff (RS485 Passivo)</option>
           </select>
         </div>
         <!-- TCP fields -->
@@ -1199,20 +1201,22 @@ function renderDeviceCards() {
 
 function toggleNewDevProtocol() {
   const proto = document.getElementById('new-dev-protocol').value;
-  document.getElementById('new-dev-tcp').classList.toggle('d-none', proto !== 'tcp');
-  document.getElementById('new-dev-rtu').classList.toggle('d-none', proto === 'tcp');
+  const isSerial = (proto === 'rtu' || proto === 'sniff');
+  document.getElementById('new-dev-tcp').classList.toggle('d-none', isSerial);
+  document.getElementById('new-dev-rtu').classList.toggle('d-none', !isSerial);
 }
 
 function toggleEditDevProtocol() {
   const proto = document.getElementById('edit-dev-protocol').value;
-  document.getElementById('edit-dev-tcp').classList.toggle('d-none', proto !== 'tcp');
-  document.getElementById('edit-dev-rtu').classList.toggle('d-none', proto === 'tcp');
+  const isSerial = (proto === 'rtu' || proto === 'sniff');
+  document.getElementById('edit-dev-tcp').classList.toggle('d-none', isSerial);
+  document.getElementById('edit-dev-rtu').classList.toggle('d-none', !isSerial);
 }
 
 function openEditDeviceModal(id) {
   const cfg = DEVICES_LIST[id];
   if (!cfg) return;
-  const isTcp = (cfg.protocol || 'tcp') === 'tcp';
+  const isTcp = !['rtu', 'sniff'].includes(cfg.protocol || 'tcp');
   document.getElementById('edit-dev-id').value       = id;
   document.getElementById('edit-dev-title').textContent = cfg.label || id;
   document.getElementById('edit-dev-label').value    = cfg.label || '';
