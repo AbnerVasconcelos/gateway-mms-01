@@ -7,9 +7,9 @@
     "simulador": {
       "label": "CLP Principal",
       "protocol": "tcp",
-      "host": "localhost",
-      "port": 5020,
-      "unit_id": 1,
+      "host": "192.168.0.10",
+      "port": 502,
+      "unit_id": 255,
       "serial_port": "",
       "baudrate": 9600,
       "parity": "N",
@@ -19,37 +19,37 @@
       ],
       "channels": {
         "plc_retentivas": {
-          "delay_ms": 1000,
+          "delay_ms": 60000,
           "history_size": 100
         },
         "plc_alarmes": {
-          "delay_ms": 1000,
-          "history_size": 55
+          "delay_ms": 2000,
+          "history_size": 100
         },
         "plc_operacao": {
-          "delay_ms": 3000,
+          "delay_ms": 10000,
           "history_size": 100
         },
         "plc_redeCan": {
-          "delay_ms": 1000,
+          "delay_ms": 2000,
           "history_size": 100
         },
         "plc_preArraste": {
-          "delay_ms": 1000,
+          "delay_ms": 2000,
           "history_size": 100
         }
       },
       "command_channel": "simulador_commands",
-      "enabled": true
+      "enabled": false
     },
     "west_24z": {
       "label": "West 24 Zonas",
-      "protocol": "tcp",
-      "host": "localhost",
-      "port": 5021,
+      "protocol": "sniff",
+      "host": "",
+      "port": 0,
       "unit_id": 1,
-      "serial_port": "",
-      "baudrate": 9600,
+      "serial_port": "/dev/ttyUSB0",
+      "baudrate": 19200,
       "parity": "N",
       "stopbits": 1,
       "csv_files": [
@@ -77,7 +77,8 @@
           "history_size": 100
         }
       },
-      "command_channel": "west_24z_commands"
+      "command_channel": "west_24z_commands",
+      "enabled": true
     },
     "west_28z": {
       "label": "West 28 Zonas",
