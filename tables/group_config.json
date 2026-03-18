@@ -1,158 +1,158 @@
 {
-  "_meta": {
-    "default_delay_ms": 1000,
-    "default_history_size": 100
-  },
-  "devices": {
-    "simulador": {
-      "label": "CLP Principal",
-      "protocol": "tcp",
-      "host": "192.168.0.10",
-      "port": 502,
-      "unit_id": 255,
-      "serial_port": "",
-      "baudrate": 9600,
-      "parity": "N",
-      "stopbits": 1,
-      "csv_files": [
-        "mapeamento_clp.csv"
-      ],
-      "channels": {
-        "plc_retentivas": {
-          "delay_ms": 60000,
-          "history_size": 100
+    "_meta": {
+        "default_delay_ms": 1000,
+        "default_history_size": 100
+    },
+    "devices": {
+        "simulador": {
+            "label": "CLP Principal",
+            "protocol": "tcp",
+            "host": "192.168.0.10",
+            "port": 502,
+            "unit_id": 255,
+            "serial_port": "",
+            "baudrate": 9600,
+            "parity": "N",
+            "stopbits": 1,
+            "csv_files": [
+                "mapeamento_clp.csv"
+            ],
+            "channels": {
+                "plc_retentivas": {
+                    "delay_ms": 180000,
+                    "history_size": 100
+                },
+                "plc_alarmes": {
+                    "delay_ms": 180000,
+                    "history_size": 100
+                },
+                "plc_operacao": {
+                    "delay_ms": 2000,
+                    "history_size": 100
+                },
+                "plc_redeCan": {
+                    "delay_ms": 180000,
+                    "history_size": 100
+                },
+                "plc_preArraste": {
+                    "delay_ms": 2000,
+                    "history_size": 100
+                }
+            },
+            "command_channel": "simulador_commands",
+            "enabled": true
         },
+        "west_24z": {
+            "label": "West 24 Zonas",
+            "protocol": "sniff",
+            "host": "",
+            "port": 0,
+            "unit_id": 1,
+            "serial_port": "/dev/ttyUSB0",
+            "baudrate": 19200,
+            "parity": "N",
+            "stopbits": 1,
+            "csv_files": [
+                "temperatura_24z.csv",
+                "temperatura_28z.csv"
+            ],
+            "channels": {
+                "plc_west1Temperatura": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west1LigDeslZona": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west1Alertas": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "west1Corrente": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west1SetPoint": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2SetPoint": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2pressoes": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2alertas": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2ligDeslZona": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2corrente": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_wes2temperatura": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                }
+            },
+            "command_channel": "west_24z_commands",
+            "enabled": true,
+            "extra_command_channels": [
+                "west_28z_commands"
+            ]
+        },
+        "west_28z": {
+            "label": "West 28 Zonas",
+            "protocol": "sniff",
+            "host": "",
+            "port": 0,
+            "unit_id": 20,
+            "serial_port": "/dev/ttyUSB0",
+            "baudrate": 19200,
+            "parity": "N",
+            "stopbits": 1,
+            "csv_files": [],
+            "channels": {
+                "plc_west2SetPoint": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2pressoes": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2alertas": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2ligDeslZona": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_west2corrente": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                },
+                "plc_wes2temperatura": {
+                    "delay_ms": 1000,
+                    "history_size": 100
+                }
+            },
+            "command_channel": "west_28z_commands",
+            "enabled": true,
+            "managed_by": "west_24z"
+        }
+    },
+    "channels": {
         "plc_alarmes": {
-          "delay_ms": 2000,
-          "history_size": 100
-        },
-        "plc_operacao": {
-          "delay_ms": 10000,
-          "history_size": 100
-        },
-        "plc_redeCan": {
-          "delay_ms": 2000,
-          "history_size": 100
-        },
-        "plc_preArraste": {
-          "delay_ms": 2000,
-          "history_size": 100
+            "history_size": 55
         }
-      },
-      "command_channel": "simulador_commands",
-      "enabled": true
-    },
-    "west_24z": {
-      "label": "West 24 Zonas",
-      "protocol": "sniff",
-      "host": "",
-      "port": 0,
-      "unit_id": 1,
-      "serial_port": "/dev/ttyUSB0",
-      "baudrate": 19200,
-      "parity": "N",
-      "stopbits": 1,
-      "csv_files": [
-        "temperatura_24z.csv",
-        "temperatura_28z.csv"
-      ],
-      "channels": {
-        "plc_west1Temperatura": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west1LigDeslZona": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west1Alertas": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "west1Corrente": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west1SetPoint": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2SetPoint": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2pressoes": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2alertas": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2ligDeslZona": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2corrente": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_wes2temperatura": {
-          "delay_ms": 1000,
-          "history_size": 100
-        }
-      },
-      "command_channel": "west_24z_commands",
-      "enabled": true,
-      "extra_command_channels": [
-        "west_28z_commands"
-      ]
-    },
-    "west_28z": {
-      "label": "West 28 Zonas",
-      "protocol": "sniff",
-      "host": "",
-      "port": 0,
-      "unit_id": 20,
-      "serial_port": "/dev/ttyUSB0",
-      "baudrate": 19200,
-      "parity": "N",
-      "stopbits": 1,
-      "csv_files": [],
-      "channels": {
-        "plc_west2SetPoint": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2pressoes": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2alertas": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2ligDeslZona": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_west2corrente": {
-          "delay_ms": 1000,
-          "history_size": 100
-        },
-        "plc_wes2temperatura": {
-          "delay_ms": 1000,
-          "history_size": 100
-        }
-      },
-      "command_channel": "west_28z_commands",
-      "enabled": true,
-      "managed_by": "west_24z"
     }
-  },
-  "channels": {
-    "plc_alarmes": {
-      "history_size": 55
-    }
-  }
 }
