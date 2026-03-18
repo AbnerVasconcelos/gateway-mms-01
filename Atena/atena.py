@@ -50,7 +50,16 @@ def main():
     if not csv_paths:
         logger.warning("Device '%s' nao tem csv_files configurados.", device_id)
 
-    channels = ['user_status', command_channel, 'ia_status', 'ia_data']
+    # Build list of command channels to listen to
+    # Primary command channel + any extra channels (for multi-slave devices)
+    command_channels = [command_channel]
+    extra_channels = device_cfg.get('extra_command_channels', [])
+    for extra_ch in extra_channels:
+        if extra_ch and extra_ch not in command_channels:
+            command_channels.append(extra_ch)
+            logger.info("Atena: escutando command channel extra '%s'", extra_ch)
+
+    channels = ['user_status'] + command_channels + ['ia_status', 'ia_data']
     r, pubsub = setup_redis()
     if r is None or pubsub is None:
         logger.critical("Falha ao conectar ao Redis. Encerrando.")
@@ -64,7 +73,7 @@ def main():
         logger.critical("Falha ao conectar ao Modbus. Encerrando.")
         return
 
-    logger.info("Atena iniciado para device '%s'. Command channel: '%s'", device_id, command_channel)
+    logger.info("Atena iniciado para device '%s'. Command channels: %s", device_id, command_channels)
 
     ia_mode    = False
     user_state = False
@@ -73,7 +82,7 @@ def main():
         if message and message['type'] == 'message':
             channel = message['channel'].decode()
 
-            if channel == command_channel:
+            if channel in command_channels:
                 handle_plc_commands_message(message, user_state, client, csv_paths)
 
             elif channel == 'user_status':

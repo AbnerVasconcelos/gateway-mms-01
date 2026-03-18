@@ -242,6 +242,7 @@ def main():
                     ch_data['coil_groups'],
                     ch_data['coil_tags'],
                     ch_data['coil_keys'],
+                    coil_slaves=ch_data.get('coil_slaves'),
                 )
                 successful_reads += 1
             except Exception as e:
@@ -257,6 +258,7 @@ def main():
                     ch_data['reg_tags'],
                     ch_data['reg_keys'],
                     ch_data.get('bit_vars'),
+                    group_slaves=ch_data.get('group_slaves'),
                 )
                 successful_reads += 1
             except Exception as e:

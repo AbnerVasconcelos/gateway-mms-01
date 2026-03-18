@@ -13,7 +13,7 @@ from table_filter import find_values_by_object_tag
 logger = logging.getLogger(__name__)
 
 
-def _write_bit_to_register(client, addr, bit_index, bit_value):
+def _write_bit_to_register(client, addr, bit_index, bit_value, slave=None):
     """Escreve um bit individual em um holding register via read-modify-write.
 
     1. Lê o valor atual do registrador
@@ -25,21 +25,22 @@ def _write_bit_to_register(client, addr, bit_index, bit_value):
 
     for _ in range(attempts):
         try:
-            current = client.read_holding_registers(addr, 1)
+            current = client.read_holding_registers(addr, 1, slave=slave)
             if current is None:
                 raise Exception(f"Sem resposta ao ler registrador {addr}")
             current_val = current[0]
             new_val = set_bit(current_val, bit_index, bit_value)
-            client.write_single_register(addr, new_val)
-            logger.debug("Bit write: addr=%d bit=%d val=%s (reg: %d -> %d)",
-                         addr, bit_index, bit_value, current_val, new_val)
+            client.write_single_register(addr, new_val, slave=slave)
+            logger.debug("Bit write: addr=%d bit=%d val=%s slave=%s (reg: %d -> %d)",
+                         addr, bit_index, bit_value, slave, current_val, new_val)
             return
         except Exception as e:
-            logger.error("Erro no bit write addr=%d bit=%d: %s, nova tentativa em %ss.",
-                         addr, bit_index, e, delay)
+            logger.error("Erro no bit write addr=%d bit=%d slave=%s: %s, nova tentativa em %ss.",
+                         addr, bit_index, slave, e, delay)
             sleep(delay)
 
-    logger.error("Falha no bit write addr=%d bit=%d após %d tentativas.", addr, bit_index, attempts)
+    logger.error("Falha no bit write addr=%d bit=%d slave=%s após %d tentativas.",
+                 addr, bit_index, slave, attempts)
 
 
 def handle_plc_commands_message(message, user_state, client, csv_paths):
@@ -47,8 +48,8 @@ def handle_plc_commands_message(message, user_state, client, csv_paths):
     if user_state:
         write_data, timestamp = get_write_data(message)
 
-        all_coils_addr, all_coils_vals = [], []
-        all_regs_addr, all_regs_vals = [], []
+        all_coils_addr, all_coils_vals, all_coil_slaves = [], [], []
+        all_regs_addr, all_regs_vals, all_reg_slaves = [], [], []
         all_bit_writes = []
 
         # Support both single path (backward compat) and list
@@ -57,11 +58,15 @@ def handle_plc_commands_message(message, user_state, client, csv_paths):
 
         for csv_path in csv_paths:
             try:
-                c_addr, c_vals, r_addr, r_vals, bit_writes = find_values_by_object_tag(csv_path, write_data)
+                (c_addr, c_vals, c_slaves,
+                 r_addr, r_vals, r_slaves,
+                 bit_writes) = find_values_by_object_tag(csv_path, write_data)
                 all_coils_addr.extend(c_addr)
                 all_coils_vals.extend(c_vals)
+                all_coil_slaves.extend(c_slaves)
                 all_regs_addr.extend(r_addr)
                 all_regs_vals.extend(r_vals)
+                all_reg_slaves.extend(r_slaves)
                 all_bit_writes.extend(bit_writes)
             except Exception as e:
                 logger.error("Erro ao buscar tags em '%s': %s", csv_path, e)
@@ -71,12 +76,18 @@ def handle_plc_commands_message(message, user_state, client, csv_paths):
         if all_bit_writes:
             logger.info("Bit writes -- %d operações", len(all_bit_writes))
 
-        write_coils_to_device(client, all_coils_addr, all_coils_vals)
-        write_registers_to_device(client, all_regs_addr, all_regs_vals)
+        # Pass slaves for multi-slave support (None entries = use device default)
+        coil_slaves = all_coil_slaves if any(s is not None for s in all_coil_slaves) else None
+        reg_slaves = all_reg_slaves if any(s is not None for s in all_reg_slaves) else None
 
-        # Bit writes via read-modify-write
-        for addr, bit_index, bit_value in all_bit_writes:
-            _write_bit_to_register(client, addr, bit_index, bit_value)
+        write_coils_to_device(client, all_coils_addr, all_coils_vals, slaves=coil_slaves)
+        write_registers_to_device(client, all_regs_addr, all_regs_vals, slaves=reg_slaves)
+
+        # Bit writes via read-modify-write (with per-tag slave)
+        for entry in all_bit_writes:
+            addr, bit_index, bit_value = entry[0], entry[1], entry[2]
+            slave = entry[3] if len(entry) > 3 else None
+            _write_bit_to_register(client, addr, bit_index, bit_value, slave=slave)
 
         logger.info("Dados escritos com sucesso no CLP.")
 

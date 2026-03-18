@@ -4,6 +4,7 @@ import itertools
 import os
 import sys
 import time
+from collections import OrderedDict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.bit_addressing import parse_modbus_address, is_bit_addressed
@@ -165,6 +166,31 @@ def extract_parameters_by_group(csv_file, attempts=5, pause=5):
 
 # ── Leitura por canal ─────────────────────────────────────────────────────────
 
+def _group_by_slave(rows):
+    """Agrupa rows por unit_id, calcula contiguos por slave, retorna grupos + slaves.
+
+    Enderecos de slaves diferentes NAO podem ser agrupados em blocos contiguos
+    (mesmos enderecos numericos pertencem a slaves distintos).
+    """
+    by_uid = OrderedDict()
+    for r in sorted(rows, key=lambda r: (r.get('unit_id') or 0, r['modbus'])):
+        uid = r.get('unit_id')
+        by_uid.setdefault(uid, []).append(r)
+
+    all_groups, all_tags, all_keys, all_slaves = [], [], [], []
+    for uid, uid_rows in by_uid.items():
+        addrs = [r['modbus'] for r in uid_rows]
+        addr_tag = {r['modbus']: r['tag'] for r in uid_rows}
+        addr_key = {r['modbus']: r['key'] for r in uid_rows}
+        groups = _find_contiguous(addrs)
+        for g in groups:
+            all_groups.append(g)
+            all_tags.append([addr_tag[a] for a in g])
+            all_keys.append([addr_key[a] for a in g])
+            all_slaves.append(uid)
+    return all_groups, all_tags, all_keys, all_slaves
+
+
 def extract_parameters_by_channel(csv_paths, group_config, overrides,
                                    attempts=5, pause=5) -> dict:
     """
@@ -179,6 +205,9 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
     como bit 1 do registrador 1584. Essas variáveis são reclassificadas como leituras
     de holding register (não coils) e agrupadas em 'bit_vars'.
 
+    Suporta multi-slave: coluna 'unit_id' no CSV identifica qual slave Modbus
+    cada tag pertence. Enderecos de slaves diferentes sao agrupados separadamente.
+
     Retorno por canal:
         {
             'coil_groups': [[addr, ...], ...],
@@ -187,13 +216,15 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
             'reg_tags':    [[tag, ...], ...],
             'coil_keys':   [[group, ...], ...],
             'reg_keys':    [[group, ...], ...],
-            'bit_vars':    {1584: [{'tag': ..., 'key': ..., 'bit': 0}, ...], ...},
+            'bit_vars':    {1584: [{'tag': ..., 'key': ..., 'bit': 0, 'unit_id': 20}, ...], ...},
+            'group_slaves': [1, 1, 20, ...],   # unit_id por grupo reg (mesma ordem que reg_groups)
+            'coil_slaves':  [1, 1, ...],        # unit_id por grupo coil
             'history_size': int,
             'sources':     set{'operacao', 'configuracao'},
         }
 
     Endereços contíguos são calculados através de TODOS os grupos do canal
-    (pool cross-group), reduzindo roundtrips Modbus.
+    (pool cross-group), reduzindo roundtrips Modbus — mas separados por unit_id.
     """
     channels_cfg = group_config.get('channels', {})
     meta         = group_config.get('_meta', {})
@@ -221,6 +252,10 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
                 logger.warning("Endereço Modbus inválido '%s' no CSV '%s', ignorando.", modbus_raw, csv_path)
                 continue
 
+            # Parse unit_id (only relevant for serial/sniff protocols)
+            uid_raw = (row.get('unit_id') or '').strip()
+            unit_id = int(uid_raw) if uid_raw else None
+
             all_rows.append({
                 'key':       key,
                 'tag':       tag,
@@ -228,6 +263,7 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
                 'modbus':    register_addr,
                 'bit_index': bit_index,
                 'source':    source,
+                'unit_id':   unit_id,
             })
 
     # Acumula linhas por canal efetivo (somente variáveis com canal explícito)
@@ -259,7 +295,7 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
         # Separa variáveis normais de bit-addressed
         coil_rows = []     # coils genuínos (At=%MB sem bit addressing)
         reg_rows  = []     # registers normais (At=%MW, sem bit addressing)
-        bit_vars: dict[int, list] = {}  # register_addr → [{tag, key, bit}]
+        bit_vars: dict[int, list] = {}  # register_addr → [{tag, key, bit, unit_id}]
 
         # Primeiro passo: coletar todos os registradores que têm variáveis bit-addressed
         bit_addressed_registers: set[int] = set()
@@ -278,6 +314,7 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
                     'tag': row['tag'],
                     'key': row['key'],
                     'bit': bit_index,
+                    'unit_id': row.get('unit_id'),
                 })
             elif at == '%MB' and addr in bit_addressed_registers:
                 # Bit 0 implícito: At=%MB sem sufixo, mas o registro tem siblings bit-addressed
@@ -285,6 +322,7 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
                     'tag': row['tag'],
                     'key': row['key'],
                     'bit': 0,
+                    'unit_id': row.get('unit_id'),
                 })
             elif at == '%MB':
                 # Coil genuíno (não compartilha registro com bit-addressed)
@@ -299,40 +337,25 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
             # Usa o primeiro tag do grupo como placeholder
             first = bvars[0]
             reg_rows.append({
-                'key':    first['key'],
-                'tag':    first['tag'],
-                'modbus': addr,
+                'key':     first['key'],
+                'tag':     first['tag'],
+                'modbus':  addr,
+                'unit_id': first.get('unit_id'),
             })
 
-        # Ordena e constrói grupos contíguos
-        coil_rows.sort(key=lambda r: r['modbus'])
-        reg_rows.sort(key=lambda r: r['modbus'])
-
-        # Deduplica reg_rows por endereço (pode haver registros duplicados via bit_vars + normal)
-        seen_reg_addrs: set[int] = set()
+        # Agrupa por slave e calcula contiguos separadamente por unit_id
+        # Deduplica reg_rows por (unit_id, endereco)
+        seen_reg_keys: set[tuple] = set()
         deduped_reg_rows: list = []
         for r in reg_rows:
-            if r['modbus'] not in seen_reg_addrs:
-                seen_reg_addrs.add(r['modbus'])
+            rk = (r.get('unit_id'), r['modbus'])
+            if rk not in seen_reg_keys:
+                seen_reg_keys.add(rk)
                 deduped_reg_rows.append(r)
         reg_rows = deduped_reg_rows
 
-        coil_addrs = [r['modbus'] for r in coil_rows]
-        reg_addrs  = [r['modbus'] for r in reg_rows]
-
-        coil_groups = _find_contiguous(coil_addrs)
-        reg_groups  = _find_contiguous(reg_addrs)
-
-        # Mapeia endereços de volta para tags/keys
-        coil_addr_tag = {r['modbus']: r['tag'] for r in coil_rows}
-        coil_addr_key = {r['modbus']: r['key'] for r in coil_rows}
-        reg_addr_tag  = {r['modbus']: r['tag'] for r in reg_rows}
-        reg_addr_key  = {r['modbus']: r['key'] for r in reg_rows}
-
-        coil_tags = [[coil_addr_tag[a] for a in g] for g in coil_groups]
-        coil_keys = [[coil_addr_key[a] for a in g] for g in coil_groups]
-        reg_tags  = [[reg_addr_tag[a] for a in g]  for g in reg_groups]
-        reg_keys  = [[reg_addr_key[a] for a in g]  for g in reg_groups]
+        coil_groups, coil_tags, coil_keys, coil_slaves = _group_by_slave(coil_rows)
+        reg_groups, reg_tags, reg_keys, reg_slaves = _group_by_slave(reg_rows)
 
         ch_cfg       = channels_cfg.get(channel, {})
         history_size = ch_cfg.get('history_size', default_hist)
@@ -345,6 +368,8 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
             'coil_keys':    coil_keys,
             'reg_keys':     reg_keys,
             'bit_vars':     bit_vars if bit_vars else None,
+            'group_slaves': reg_slaves if any(s is not None for s in reg_slaves) else None,
+            'coil_slaves':  coil_slaves if any(s is not None for s in coil_slaves) else None,
             'history_size': history_size,
             'sources':      channel_sources[channel],
         }

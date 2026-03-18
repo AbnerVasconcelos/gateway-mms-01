@@ -488,36 +488,40 @@ class ModbusClientWrapper:
         self._protocol = protocol
         self._unit_id = unit_id
 
-    def read_coils(self, address, count):
+    def read_coils(self, address, count, slave=None):
         if self._protocol == 'tcp':
             return self._client.read_coils(address, count)
-        result = self._client.read_coils(address, count, slave=self._unit_id)
+        unit = slave if slave is not None else self._unit_id
+        result = self._client.read_coils(address, count, slave=unit)
         if result.isError():
-            raise Exception(f"Modbus RTU error (read_coils addr={address}): {result}")
+            raise Exception(f"Modbus RTU error (read_coils addr={address} slave={unit}): {result}")
         return result.bits[:count]
 
-    def read_holding_registers(self, address, count):
+    def read_holding_registers(self, address, count, slave=None):
         if self._protocol == 'tcp':
             return self._client.read_holding_registers(address, count)
-        result = self._client.read_holding_registers(address, count, slave=self._unit_id)
+        unit = slave if slave is not None else self._unit_id
+        result = self._client.read_holding_registers(address, count, slave=unit)
         if result.isError():
-            raise Exception(f"Modbus RTU error (read_holding_registers addr={address}): {result}")
+            raise Exception(f"Modbus RTU error (read_holding_registers addr={address} slave={unit}): {result}")
         return result.registers[:count]
 
-    def write_single_coil(self, address, value):
+    def write_single_coil(self, address, value, slave=None):
         if self._protocol == 'tcp':
             return self._client.write_single_coil(address, value)
-        result = self._client.write_coil(address, bool(value), slave=self._unit_id)
+        unit = slave if slave is not None else self._unit_id
+        result = self._client.write_coil(address, bool(value), slave=unit)
         if result.isError():
-            raise Exception(f"Modbus RTU error (write_coil addr={address}): {result}")
+            raise Exception(f"Modbus RTU error (write_coil addr={address} slave={unit}): {result}")
         return result
 
-    def write_single_register(self, address, value):
+    def write_single_register(self, address, value, slave=None):
         if self._protocol == 'tcp':
             return self._client.write_single_register(address, value)
-        result = self._client.write_register(address, int(value), slave=self._unit_id)
+        unit = slave if slave is not None else self._unit_id
+        result = self._client.write_register(address, int(value), slave=unit)
         if result.isError():
-            raise Exception(f"Modbus RTU error (write_register addr={address}): {result}")
+            raise Exception(f"Modbus RTU error (write_register addr={address} slave={unit}): {result}")
         return result
 
     def open(self):
@@ -596,61 +600,67 @@ def setup_modbus(protocol=None):
     logger.critical("Falha ao configurar Modbus apos %s tentativas.", attempts)
     return None
 
-def read_coils(client, groups, tags, keys):
+def read_coils(client, groups, tags, keys, coil_slaves=None):
     devices_data = defaultdict(dict)
     total_coils_read = 0
 
-    for group, tags, keys in zip(groups, tags, keys):
+    for idx, (group, tags, keys) in enumerate(zip(groups, tags, keys)):
+        slave = coil_slaves[idx] if coil_slaves else None
         try:
             first_address = group[0]
             num_addresses = len(group)
-            result = client.read_coils(first_address, num_addresses)
+            result = client.read_coils(first_address, num_addresses, slave=slave)
 
             for key, tag, value in zip(keys, tags, result):
                 devices_data[key][tag] = bool(value)
 
             total_coils_read += num_addresses
         except Exception as e:
-            logger.error("Erro ao ler bobinas no endereço %s: %s", group[0] if group else '?', e)
+            logger.error("Erro ao ler bobinas no endereço %s (slave=%s): %s",
+                         group[0] if group else '?', slave, e)
 
     return devices_data, total_coils_read
 
 
-def read_registers(client, groups, tags, keys):
+def read_registers(client, groups, tags, keys, group_slaves=None):
     devices_data = defaultdict(dict)
     total_registers_read = 0
 
-    for group, tags, keys in zip(groups, tags, keys):
+    for idx, (group, tags, keys) in enumerate(zip(groups, tags, keys)):
+        slave = group_slaves[idx] if group_slaves else None
         try:
             first_address = group[0]
             num_addresses = len(group)
-            result = client.read_holding_registers(first_address, num_addresses)
+            result = client.read_holding_registers(first_address, num_addresses, slave=slave)
 
             for key, tag, value in zip(keys, tags, result):
                 devices_data[key][tag] = value
 
             total_registers_read += num_addresses
         except Exception as e:
-            logger.error("Erro ao ler registros no endereço %s: %s", group[0] if group else '?', e)
+            logger.error("Erro ao ler registros no endereço %s (slave=%s): %s",
+                         group[0] if group else '?', slave, e)
 
     return devices_data, total_registers_read
 
 
-def read_registers_with_bits(client, groups, tags, keys, bit_vars=None):
+def read_registers_with_bits(client, groups, tags, keys, bit_vars=None, group_slaves=None):
     """Lê holding registers e extrai bits quando bit_vars indica.
 
     bit_vars: {register_addr: [{'tag': str, 'key': str, 'bit': int}, ...]}
+    group_slaves: lista de unit_id por grupo (mesma ordem que groups).
     Quando um endereço está em bit_vars, o valor do registrador é decomposto
     em bits individuais. Caso contrário, comportamento idêntico a read_registers().
     """
     devices_data = defaultdict(dict)
     total_registers_read = 0
 
-    for group, g_tags, g_keys in zip(groups, tags, keys):
+    for idx, (group, g_tags, g_keys) in enumerate(zip(groups, tags, keys)):
+        slave = group_slaves[idx] if group_slaves else None
         try:
             first_address = group[0]
             num_addresses = len(group)
-            result = client.read_holding_registers(first_address, num_addresses)
+            result = client.read_holding_registers(first_address, num_addresses, slave=slave)
 
             for addr, key, tag, value in zip(group, g_keys, g_tags, result):
                 if bit_vars and addr in bit_vars:
@@ -661,38 +671,43 @@ def read_registers_with_bits(client, groups, tags, keys, bit_vars=None):
 
             total_registers_read += num_addresses
         except Exception as e:
-            logger.error("Erro ao ler registros no endereço %s: %s", group[0] if group else '?', e)
+            logger.error("Erro ao ler registros no endereço %s (slave=%s): %s",
+                         group[0] if group else '?', slave, e)
 
     return devices_data, total_registers_read
 
 
-def write_coils_to_device(client, modbus, values):
+def write_coils_to_device(client, modbus, values, slaves=None):
     attempts = 3
     delay = 0.2
 
-    for address, value in zip(modbus, values):
+    for i, (address, value) in enumerate(zip(modbus, values)):
+        slave = slaves[i] if slaves else None
         for _ in range(attempts):
             try:
-                client.write_single_coil(address, int(value))
+                client.write_single_coil(address, int(value), slave=slave)
                 break
             except Exception as e:
-                logger.error("Erro ao escrever coil no endereço %s: %s, nova tentativa em %ss.", address, e, delay)
+                logger.error("Erro ao escrever coil no endereço %s (slave=%s): %s, nova tentativa em %ss.",
+                             address, slave, e, delay)
                 sleep(delay)
         else:
             logger.error("Falha ao escrever coil no endereço %s após %s tentativas.", address, attempts)
 
 
-def write_registers_to_device(client, modbus, values):
+def write_registers_to_device(client, modbus, values, slaves=None):
     attempts = 3
     delay = 0.2
 
-    for address, value in zip(modbus, values):
+    for i, (address, value) in enumerate(zip(modbus, values)):
+        slave = slaves[i] if slaves else None
         for _ in range(attempts):
             try:
-                client.write_single_register(address, int(value))
+                client.write_single_register(address, int(value), slave=slave)
                 break
             except Exception as e:
-                logger.error("Erro ao escrever registro no endereço %s: %s, nova tentativa em %ss.", address, e, delay)
+                logger.error("Erro ao escrever registro no endereço %s (slave=%s): %s, nova tentativa em %ss.",
+                             address, slave, e, delay)
                 sleep(delay)
         else:
             logger.error("Falha ao escrever registro no endereço %s após %s tentativas.", address, attempts)

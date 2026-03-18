@@ -40,7 +40,7 @@
         }
       },
       "command_channel": "simulador_commands",
-      "enabled": false
+      "enabled": true
     },
     "west_24z": {
       "label": "West 24 Zonas",
@@ -53,7 +53,8 @@
       "parity": "N",
       "stopbits": 1,
       "csv_files": [
-        "temperatura_24z.csv"
+        "temperatura_24z.csv",
+        "temperatura_28z.csv"
       ],
       "channels": {
         "plc_west1Temperatura": {
@@ -75,24 +76,49 @@
         "plc_west1SetPoint": {
           "delay_ms": 1000,
           "history_size": 100
+        },
+        "plc_west2SetPoint": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_west2pressoes": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_west2alertas": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_west2ligDeslZona": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_west2corrente": {
+          "delay_ms": 1000,
+          "history_size": 100
+        },
+        "plc_wes2temperatura": {
+          "delay_ms": 1000,
+          "history_size": 100
         }
       },
       "command_channel": "west_24z_commands",
-      "enabled": true
+      "enabled": true,
+      "extra_command_channels": [
+        "west_28z_commands"
+      ]
     },
     "west_28z": {
       "label": "West 28 Zonas",
-      "protocol": "tcp",
-      "host": "localhost",
-      "port": 5022,
-      "unit_id": 1,
-      "serial_port": "",
-      "baudrate": 9600,
+      "protocol": "sniff",
+      "host": "",
+      "port": 0,
+      "unit_id": 20,
+      "serial_port": "/dev/ttyUSB0",
+      "baudrate": 19200,
       "parity": "N",
       "stopbits": 1,
-      "csv_files": [
-        "temperatura_28z.csv"
-      ],
+      "csv_files": [],
       "channels": {
         "plc_west2SetPoint": {
           "delay_ms": 1000,
@@ -119,7 +145,9 @@
           "history_size": 100
         }
       },
-      "command_channel": "west_28z_commands"
+      "command_channel": "west_28z_commands",
+      "enabled": true,
+      "managed_by": "west_24z"
     }
   },
   "channels": {
