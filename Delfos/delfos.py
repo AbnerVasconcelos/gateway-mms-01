@@ -70,6 +70,32 @@ def _apply_overrides(data, overrides):
     return result
 
 
+def _apply_scale(data, scale_factors):
+    """Aplica fatores de escala aos valores antes de publicar no Redis.
+
+    Multiplica cada valor pelo fator correspondente em scale_factors.
+    Tags sem fator definido (ou fator=1.0) nao sao alteradas.
+    Nao afeta leitura/escrita Modbus — apenas a publicacao Redis.
+    """
+    if not scale_factors:
+        return data
+    result = {}
+    for key, tags in data.items():
+        scaled = {}
+        for tag, val in tags.items():
+            factor = scale_factors.get(tag)
+            if factor is not None and val is not None:
+                try:
+                    scaled[tag] = round(val * factor, 4)
+                except (TypeError, ValueError):
+                    scaled[tag] = val
+            else:
+                scaled[tag] = val
+        if scaled:
+            result[key] = scaled
+    return result
+
+
 def main():
     # ── DEVICE_ID obrigatorio ────────────────────────────────────────────────
     device_id = os.environ.get('DEVICE_ID')
@@ -269,6 +295,11 @@ def main():
             # Aplica overrides (enabled=False em runtime, seguranca extra)
             coil_data = _apply_overrides(dict(coil_data), overrides)
             reg_data  = _apply_overrides(dict(reg_data),  overrides)
+
+            # Aplica fatores de escala (ex: 0.1 para temperaturas WEST)
+            scale_factors = ch_data.get('scale_factors')
+            coil_data = _apply_scale(coil_data, scale_factors)
+            reg_data  = _apply_scale(reg_data,  scale_factors)
 
             history_size = ch_data.get('history_size', cfg.get('history_size', default_history))
             payload = {

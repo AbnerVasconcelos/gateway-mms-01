@@ -1,217 +1,217 @@
-key,ObjecTag,Identifiers,Tipo,Delta Adress,Modbus,At,comentarios,Classe,unit_id
-temperatura,tempZona1,24z_read_0,D,,1536,%MW,Temperatura Zona 1,temperatura,1
-setpoint,setpointZona1,24z_write_0,D,,1792,%MW,Setpoint Zona 1,temperatura,1
-temperatura,tempZona2,24z_read_1,D,,1537,%MW,Temperatura Zona 2,temperatura,1
-setpoint,setpointZona2,24z_write_1,D,,1793,%MW,Setpoint Zona 2,temperatura,1
-temperatura,tempZona3,24z_read_2,D,,1538,%MW,Temperatura Zona 3,temperatura,1
-setpoint,setpointZona3,24z_write_2,D,,1794,%MW,Setpoint Zona 3,temperatura,1
-temperatura,tempZona4,24z_read_3,D,,1539,%MW,Temperatura Zona 4,temperatura,1
-setpoint,setpointZona4,24z_write_3,D,,1795,%MW,Setpoint Zona 4,temperatura,1
-temperatura,tempZona5,24z_read_4,D,,1540,%MW,Temperatura Zona 5,temperatura,1
-setpoint,setpointZona5,24z_write_4,D,,1796,%MW,Setpoint Zona 5,temperatura,1
-temperatura,tempZona6,24z_read_5,D,,1541,%MW,Temperatura Zona 6,temperatura,1
-setpoint,setpointZona6,24z_write_5,D,,1797,%MW,Setpoint Zona 6,temperatura,1
-temperatura,tempZona7,24z_read_6,D,,1542,%MW,Temperatura Zona 7,temperatura,1
-setpoint,setpointZona7,24z_write_6,D,,1798,%MW,Setpoint Zona 7,temperatura,1
-temperatura,tempZona8,24z_read_7,D,,1543,%MW,Temperatura Zona 8,temperatura,1
-setpoint,setpointZona8,24z_write_7,D,,1799,%MW,Setpoint Zona 8,temperatura,1
-temperatura,tempZona9,24z_read_8,D,,1544,%MW,Temperatura Zona 9,temperatura,1
-setpoint,setpointZona9,24z_write_8,D,,1800,%MW,Setpoint Zona 9,temperatura,1
-temperatura,tempZona10,24z_read_9,D,,1545,%MW,Temperatura Zona 10,temperatura,1
-setpoint,setpointZona10,24z_write_9,D,,1801,%MW,Setpoint Zona 10,temperatura,1
-temperatura,tempZona11,24z_read_10,D,,1546,%MW,Temperatura Zona 11,temperatura,1
-setpoint,setpointZona11,24z_write_10,D,,1802,%MW,Setpoint Zona 11,temperatura,1
-temperatura,tempZona12,24z_read_11,D,,1547,%MW,Temperatura Zona 12,temperatura,1
-setpoint,setpointZona12,24z_write_11,D,,1803,%MW,Setpoint Zona 12,temperatura,1
-temperatura,tempZona13,24z_read_12,D,,1548,%MW,Temperatura Zona 13,temperatura,1
-setpoint,setpointZona13,24z_write_12,D,,1804,%MW,Setpoint Zona 13,temperatura,1
-temperatura,tempZona14,24z_read_13,D,,1549,%MW,Temperatura Zona 14,temperatura,1
-setpoint,setpointZona14,24z_write_13,D,,1805,%MW,Setpoint Zona 14,temperatura,1
-temperatura,tempZona15,24z_read_14,D,,1550,%MW,Temperatura Zona 15,temperatura,1
-setpoint,setpointZona15,24z_write_14,D,,1806,%MW,Setpoint Zona 15,temperatura,1
-temperatura,tempZona16,24z_read_15,D,,1551,%MW,Temperatura Zona 16,temperatura,1
-setpoint,setpointZona16,24z_write_15,D,,1807,%MW,Setpoint Zona 16,temperatura,1
-temperatura,tempZona17,24z_read_16,D,,1552,%MW,Temperatura Zona 17,temperatura,1
-setpoint,setpointZona17,24z_write_16,D,,1808,%MW,Setpoint Zona 17,temperatura,1
-temperatura,tempZona18,24z_read_17,D,,1553,%MW,Temperatura Zona 18,temperatura,1
-setpoint,setpointZona18,24z_write_17,D,,1809,%MW,Setpoint Zona 18,temperatura,1
-temperatura,tempZona19,24z_read_18,D,,1554,%MW,Temperatura Zona 19,temperatura,1
-setpoint,setpointZona19,24z_write_18,D,,1810,%MW,Setpoint Zona 19,temperatura,1
-temperatura,tempZona20,24z_read_19,D,,1555,%MW,Temperatura Zona 20,temperatura,1
-setpoint,setpointZona20,24z_write_19,D,,1811,%MW,Setpoint Zona 20,temperatura,1
-temperatura,tempZona21,24z_read_20,D,,1556,%MW,Temperatura Zona 21,temperatura,1
-setpoint,setpointZona21,24z_write_20,D,,1812,%MW,Setpoint Zona 21,temperatura,1
-temperatura,tempZona22,24z_read_21,D,,1557,%MW,Temperatura Zona 22,temperatura,1
-setpoint,setpointZona22,24z_write_21,D,,1813,%MW,Setpoint Zona 22,temperatura,1
-temperatura,tempZona23,24z_read_22,D,,1558,%MW,Temperatura Zona 23,temperatura,1
-setpoint,setpointZona23,24z_write_22,D,,1814,%MW,Setpoint Zona 23,temperatura,1
-temperatura,tempZona24,24z_read_23,D,,1559,%MW,Temperatura Zona 24,temperatura,1
-setpoint,setpointZona24,24z_write_23,D,,1815,%MW,Setpoint Zona 24,temperatura,1
-corrente_zona,correnteZona1,24z_read_24,D,,1560,%MW,Corrente Zona 1,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona1,24z_write_24,D,,1816,%MW,Valor da Corrente Baixa Zona 1,temperatura,1
-corrente_zona,correnteZona2,24z_read_25,D,,1561,%MW,Corrente Zona 2,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona2,24z_write_25,D,,1817,%MW,Valor da Corrente Baixa Zona 2,temperatura,1
-corrente_zona,correnteZona3,24z_read_26,D,,1562,%MW,Corrente Zona 3,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona3,24z_write_26,D,,1818,%MW,Valor da Corrente Baixa Zona 3,temperatura,1
-corrente_zona,correnteZona4,24z_read_27,D,,1563,%MW,Corrente Zona 4,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona4,24z_write_27,D,,1819,%MW,Valor da Corrente Baixa Zona 4,temperatura,1
-corrente_zona,correnteZona5,24z_read_28,D,,1564,%MW,Corrente Zona 5,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona5,24z_write_28,D,,1820,%MW,Valor da Corrente Baixa Zona 5,temperatura,1
-corrente_zona,correnteZona6,24z_read_29,D,,1565,%MW,Corrente Zona 6,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona6,24z_write_29,D,,1821,%MW,Valor da Corrente Baixa Zona 6,temperatura,1
-corrente_zona,correnteZona7,24z_read_30,D,,1566,%MW,Corrente Zona 7,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona7,24z_write_30,D,,1822,%MW,Valor da Corrente Baixa Zona 7,temperatura,1
-corrente_zona,correnteZona8,24z_read_31,D,,1567,%MW,Corrente Zona 8,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona8,24z_write_31,D,,1823,%MW,Valor da Corrente Baixa Zona 8,temperatura,1
-corrente_zona,correnteZona9,24z_read_32,D,,1568,%MW,Corrente Zona 9,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona9,24z_write_32,D,,1824,%MW,Valor da Corrente Baixa Zona 9,temperatura,1
-corrente_zona,correnteZona10,24z_read_33,D,,1569,%MW,Corrente Zona 10,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona10,24z_write_33,D,,1825,%MW,Valor da Corrente Baixa Zona 10,temperatura,1
-corrente_zona,correnteZona11,24z_read_34,D,,1570,%MW,Corrente Zona 11,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona11,24z_write_34,D,,1826,%MW,Valor da Corrente Baixa Zona 11,temperatura,1
-corrente_zona,correnteZona12,24z_read_35,D,,1571,%MW,Corrente Zona 12,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona12,24z_write_35,D,,1827,%MW,Valor da Corrente Baixa Zona 12,temperatura,1
-corrente_zona,correnteZona13,24z_read_36,D,,1572,%MW,Corrente Zona 13,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona13,24z_write_36,D,,1828,%MW,Valor da Corrente Baixa Zona 13,temperatura,1
-corrente_zona,correnteZona14,24z_read_37,D,,1573,%MW,Corrente Zona 14,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona14,24z_write_37,D,,1829,%MW,Valor da Corrente Baixa Zona 14,temperatura,1
-corrente_zona,correnteZona15,24z_read_38,D,,1574,%MW,Corrente Zona 15,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona15,24z_write_38,D,,1830,%MW,Valor da Corrente Baixa Zona 15,temperatura,1
-corrente_zona,correnteZona16,24z_read_39,D,,1575,%MW,Corrente Zona 16,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona16,24z_write_39,D,,1831,%MW,Valor da Corrente Baixa Zona 16,temperatura,1
-corrente_zona,correnteZona17,24z_read_40,D,,1576,%MW,Corrente Zona 17,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona17,24z_write_40,D,,1832,%MW,Valor da Corrente Baixa Zona 17,temperatura,1
-corrente_zona,correnteZona18,24z_read_41,D,,1577,%MW,Corrente Zona 18,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona18,24z_write_41,D,,1833,%MW,Valor da Corrente Baixa Zona 18,temperatura,1
-corrente_zona,correnteZona19,24z_read_42,D,,1578,%MW,Corrente Zona 19,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona19,24z_write_42,D,,1834,%MW,Valor da Corrente Baixa Zona 19,temperatura,1
-corrente_zona,correnteZona20,24z_read_43,D,,1579,%MW,Corrente Zona 20,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona20,24z_write_43,D,,1835,%MW,Valor da Corrente Baixa Zona 20,temperatura,1
-corrente_zona,correnteZona21,24z_read_44,D,,1580,%MW,Corrente Zona 21,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona21,24z_write_44,D,,1836,%MW,Valor da Corrente Baixa Zona 21,temperatura,1
-corrente_zona,correnteZona22,24z_read_45,D,,1581,%MW,Corrente Zona 22,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona22,24z_write_45,D,,1837,%MW,Valor da Corrente Baixa Zona 22,temperatura,1
-corrente_zona,correnteZona23,24z_read_46,D,,1582,%MW,Corrente Zona 23,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona23,24z_write_46,D,,1838,%MW,Valor da Corrente Baixa Zona 23,temperatura,1
-corrente_zona,correnteZona24,24z_read_47,D,,1583,%MW,Corrente Zona 24,temperatura,1
-setpoint_corrente_baixa,correnteBaixaSetZona24,24z_write_47,D,,1839,%MW,Valor da Corrente Baixa Zona 24,temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona1,24z_read_48,D,,1584,%MW,Temperatura Não Atingida Zona 1,temperatura,1
-liga_desliga_zona,ligaDesligaZona1,24z_write_48,D,,1840,%MW,Liga / Desliga Zona 1,temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona2,24z_read_48.1,M,48.1,1584.01,%MB,Temperatura Não Atingida Zona 2 (bit 48.1 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona2,24z_write_48.1,M,48.1,1840.01,%MB,Liga / Desliga Zona 2 (bit 48.1 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona3,24z_read_48.2,M,48.2,1584.02,%MB,Temperatura Não Atingida Zona 3 (bit 48.2 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona3,24z_write_48.2,M,48.2,1840.02,%MB,Liga / Desliga Zona 3 (bit 48.2 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona4,24z_read_48.3,M,48.3,1584.03,%MB,Temperatura Não Atingida Zona 4 (bit 48.3 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona4,24z_write_48.3,M,48.3,1840.03,%MB,Liga / Desliga Zona 4 (bit 48.3 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona5,24z_read_48.4,M,48.4,1584.04,%MB,Temperatura Não Atingida Zona 5 (bit 48.4 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona5,24z_write_48.4,M,48.4,1840.04,%MB,Liga / Desliga Zona 5 (bit 48.4 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona6,24z_read_48.5,M,48.5,1584.05,%MB,Temperatura Não Atingida Zona 6 (bit 48.5 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona6,24z_write_48.5,M,48.5,1840.05,%MB,Liga / Desliga Zona 6 (bit 48.5 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona7,24z_read_48.6,M,48.6,1584.06,%MB,Temperatura Não Atingida Zona 7 (bit 48.6 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona7,24z_write_48.6,M,48.6,1840.06,%MB,Liga / Desliga Zona 7 (bit 48.6 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona8,24z_read_48.7,M,48.7,1584.07,%MB,Temperatura Não Atingida Zona 8 (bit 48.7 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona8,24z_write_48.7,M,48.7,1840.07,%MB,Liga / Desliga Zona 8 (bit 48.7 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona9,24z_read_48.8,M,48.8,1584.08,%MB,Temperatura Não Atingida Zona 9 (bit 48.8 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona9,24z_write_48.8,M,48.8,1840.08,%MB,Liga / Desliga Zona 9 (bit 48.8 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona10,24z_read_48.9,M,48.9,1584.09,%MB,Temperatura Não Atingida Zona 10 (bit 48.9 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona10,24z_write_48.9,M,48.9,1840.09,%MB,Liga / Desliga Zona 10 (bit 48.9 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona11,24z_read_48.1,M,48.1,1584.01,%MB,Temperatura Não Atingida Zona 11 (bit 48.1 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona11,24z_write_48.1,M,48.1,1840.01,%MB,Liga / Desliga Zona 11 (bit 48.1 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona12,24z_read_48.11,M,48.11,1584.11,%MB,Temperatura Não Atingida Zona 12 (bit 48.11 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona12,24z_write_48.11,M,48.11,1840.11,%MB,Liga / Desliga Zona 12 (bit 48.11 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona13,24z_read_48.12,M,48.12,1584.12,%MB,Temperatura Não Atingida Zona 13 (bit 48.12 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona13,24z_write_48.12,M,48.12,1840.12,%MB,Liga / Desliga Zona 13 (bit 48.12 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona14,24z_read_48.13,M,48.13,1584.13,%MB,Temperatura Não Atingida Zona 14 (bit 48.13 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona14,24z_write_48.13,M,48.13,1840.13,%MB,Liga / Desliga Zona 14 (bit 48.13 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona15,24z_read_48.14,M,48.14,1584.14,%MB,Temperatura Não Atingida Zona 15 (bit 48.14 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona15,24z_write_48.14,M,48.14,1840.14,%MB,Liga / Desliga Zona 15 (bit 48.14 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona16,24z_read_48.15,M,48.15,1584.15,%MB,Temperatura Não Atingida Zona 16 (bit 48.15 do registro 1584),temperatura,1
-liga_desliga_zona,ligaDesligaZona16,24z_write_48.15,M,48.15,1840.15,%MB,Liga / Desliga Zona 16 (bit 48.15 do registro 1840),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona17,24z_read_49,D,,1585,%MW,Temperatura Não Atingida Zona 17,temperatura,1
-liga_desliga_zona,ligaDesligaZona17,24z_write_49,D,,1841,%MW,Liga / Desliga Zona 17,temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona18,24z_read_49.1,M,49.1,1585.01,%MB,Temperatura Não Atingida Zona 18 (bit 49.1 do registro 1585),temperatura,1
-liga_desliga_zona,ligaDesligaZona18,24z_write_49.1,M,49.1,1841.01,%MB,Liga / Desliga Zona 18 (bit 49.1 do registro 1841),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona19,24z_read_49.2,M,49.2,1585.02,%MB,Temperatura Não Atingida Zona 19 (bit 49.2 do registro 1585),temperatura,1
-liga_desliga_zona,ligaDesligaZona19,24z_write_49.2,M,49.2,1841.02,%MB,Liga / Desliga Zona 19 (bit 49.2 do registro 1841),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona20,24z_read_49.3,M,49.3,1585.03,%MB,Temperatura Não Atingida Zona 20 (bit 49.3 do registro 1585),temperatura,1
-liga_desliga_zona,ligaDesligaZona20,24z_write_49.3,M,49.3,1841.03,%MB,Liga / Desliga Zona 20 (bit 49.3 do registro 1841),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona21,24z_read_49.4,M,49.4,1585.04,%MB,Temperatura Não Atingida Zona 21 (bit 49.4 do registro 1585),temperatura,1
-liga_desliga_zona,ligaDesligaZona21,24z_write_49.4,M,49.4,1841.04,%MB,Liga / Desliga Zona 21 (bit 49.4 do registro 1841),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona22,24z_read_49.5,M,49.5,1585.05,%MB,Temperatura Não Atingida Zona 22 (bit 49.5 do registro 1585),temperatura,1
-liga_desliga_zona,ligaDesligaZona22,24z_write_49.5,M,49.5,1841.05,%MB,Liga / Desliga Zona 22 (bit 49.5 do registro 1841),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona23,24z_read_49.6,M,49.6,1585.06,%MB,Temperatura Não Atingida Zona 23 (bit 49.6 do registro 1585),temperatura,1
-liga_desliga_zona,ligaDesligaZona23,24z_write_49.6,M,49.6,1841.06,%MB,Liga / Desliga Zona 23 (bit 49.6 do registro 1841),temperatura,1
-alarme_temp_nao_atingida,tempNaoAtingidaZona24,24z_read_49.7,M,49.7,1585.07,%MB,Temperatura Não Atingida Zona 24 (bit 49.7 do registro 1585),temperatura,1
-liga_desliga_zona,ligaDesligaZona24,24z_write_49.7,M,49.7,1841.07,%MB,Liga / Desliga Zona 24 (bit 49.7 do registro 1841),temperatura,1
-alarme_temp_baixa,tempBaixaZona1,24z_read_49.8,M,49.8,1585.08,%MB,Temparatura Baixa Zona 1 (bit 49.8 do registro 1585),temperatura,1
-alarme_temp_baixa,tempBaixaZona2,24z_read_49.9,M,49.9,1585.09,%MB,Temparatura Baixa Zona 2 (bit 49.9 do registro 1585),temperatura,1
-alarme_temp_baixa,tempBaixaZona3,24z_read_49.1,M,49.1,1585.01,%MB,Temparatura Baixa Zona 3 (bit 49.1 do registro 1585),temperatura,1
-alarme_temp_baixa,tempBaixaZona4,24z_read_49.11,M,49.11,1585.11,%MB,Temparatura Baixa Zona 4 (bit 49.11 do registro 1585),temperatura,1
-alarme_temp_baixa,tempBaixaZona5,24z_read_49.12,M,49.12,1585.12,%MB,Temparatura Baixa Zona 5 (bit 49.12 do registro 1585),temperatura,1
-alarme_temp_baixa,tempBaixaZona6,24z_read_49.13,M,49.13,1585.13,%MB,Temparatura Baixa Zona 6 (bit 49.13 do registro 1585),temperatura,1
-alarme_temp_baixa,tempBaixaZona7,24z_read_49.14,M,49.14,1585.14,%MB,Temparatura Baixa Zona 7 (bit 49.14 do registro 1585),temperatura,1
-alarme_temp_baixa,tempBaixaZona8,24z_read_49.15,M,49.15,1585.15,%MB,Temparatura Baixa Zona 8 (bit 49.15 do registro 1585),temperatura,1
-alarme_temp_baixa,tempBaixaZona9,24z_read_50,D,,1586,%MW,Temparatura Baixa Zona 9,temperatura,1
-alarme_temp_baixa,tempBaixaZona10,24z_read_50.1,M,50.1,1586.01,%MB,Temparatura Baixa Zona 10 (bit 50.1 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona11,24z_read_50.2,M,50.2,1586.02,%MB,Temparatura Baixa Zona 11 (bit 50.2 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona12,24z_read_50.3,M,50.3,1586.03,%MB,Temparatura Baixa Zona 12 (bit 50.3 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona13,24z_read_50.4,M,50.4,1586.04,%MB,Temparatura Baixa Zona 13 (bit 50.4 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona14,24z_read_50.5,M,50.5,1586.05,%MB,Temparatura Baixa Zona 14 (bit 50.5 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona15,24z_read_50.6,M,50.6,1586.06,%MB,Temparatura Baixa Zona 15 (bit 50.6 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona16,24z_read_50.7,M,50.7,1586.07,%MB,Temparatura Baixa Zona 16 (bit 50.7 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona17,24z_read_50.8,M,50.8,1586.08,%MB,Temparatura Baixa Zona 17 (bit 50.8 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona18,24z_read_50.9,M,50.9,1586.09,%MB,Temparatura Baixa Zona 18 (bit 50.9 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona19,24z_read_50.1,M,50.1,1586.01,%MB,Temparatura Baixa Zona 19 (bit 50.1 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona20,24z_read_50.11,M,50.11,1586.11,%MB,Temparatura Baixa Zona 20 (bit 50.11 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona21,24z_read_50.12,M,50.12,1586.12,%MB,Temparatura Baixa Zona 21 (bit 50.12 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona22,24z_read_50.13,M,50.13,1586.13,%MB,Temparatura Baixa Zona 22 (bit 50.13 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona23,24z_read_50.14,M,50.14,1586.14,%MB,Temparatura Baixa Zona 23 (bit 50.14 do registro 1586),temperatura,1
-alarme_temp_baixa,tempBaixaZona24,24z_read_50.15,M,50.15,1586.15,%MB,Temparatura Baixa Zona 24 (bit 50.15 do registro 1586),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona1,24z_read_51,D,,1587,%MW,Corrente Baixa Zona 1,temperatura,1
-alarme_corrente_baixa,correnteBaixaZona2,24z_read_51.1,M,51.1,1587.01,%MB,Corrente Baixa Zona 2 (bit 51.1 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona3,24z_read_51.2,M,51.2,1587.02,%MB,Corrente Baixa Zona 3 (bit 51.2 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona4,24z_read_51.3,M,51.3,1587.03,%MB,Corrente Baixa Zona 4 (bit 51.3 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona5,24z_read_51.4,M,51.4,1587.04,%MB,Corrente Baixa Zona 5 (bit 51.4 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona6,24z_read_51.5,M,51.5,1587.05,%MB,Corrente Baixa Zona 6 (bit 51.5 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona7,24z_read_51.6,M,51.6,1587.06,%MB,Corrente Baixa Zona 7 (bit 51.6 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona8,24z_read_51.7,M,51.7,1587.07,%MB,Corrente Baixa Zona 8 (bit 51.7 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona9,24z_read_51.8,M,51.8,1587.08,%MB,Corrente Baixa Zona 9 (bit 51.8 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona10,24z_read_51.9,M,51.9,1587.09,%MB,Corrente Baixa Zona 10 (bit 51.9 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona11,24z_read_51.1,M,51.1,1587.01,%MB,Corrente Baixa Zona 11 (bit 51.1 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona12,24z_read_51.11,M,51.11,1587.11,%MB,Corrente Baixa Zona 12 (bit 51.11 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona13,24z_read_51.12,M,51.12,1587.12,%MB,Corrente Baixa Zona 13 (bit 51.12 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona14,24z_read_51.13,M,51.13,1587.13,%MB,Corrente Baixa Zona 14 (bit 51.13 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona15,24z_read_51.14,M,51.14,1587.14,%MB,Corrente Baixa Zona 15 (bit 51.14 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona16,24z_read_51.15,M,51.15,1587.15,%MB,Corrente Baixa Zona 16 (bit 51.15 do registro 1587),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona17,24z_read_52,D,,1588,%MW,Corrente Baixa Zona 17,temperatura,1
-alarme_corrente_baixa,correnteBaixaZona18,24z_read_52.1,M,52.1,1588.01,%MB,Corrente Baixa Zona 18 (bit 52.1 do registro 1588),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona19,24z_read_52.2,M,52.2,1588.02,%MB,Corrente Baixa Zona 19 (bit 52.2 do registro 1588),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona20,24z_read_52.3,M,52.3,1588.03,%MB,Corrente Baixa Zona 20 (bit 52.3 do registro 1588),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona21,24z_read_52.4,M,52.4,1588.04,%MB,Corrente Baixa Zona 21 (bit 52.4 do registro 1588),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona22,24z_read_52.5,M,52.5,1588.05,%MB,Corrente Baixa Zona 22 (bit 52.5 do registro 1588),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona23,24z_read_52.6,M,52.6,1588.06,%MB,Corrente Baixa Zona 23 (bit 52.6 do registro 1588),temperatura,1
-alarme_corrente_baixa,correnteBaixaZona24,24z_read_52.7,M,52.7,1588.07,%MB,Corrente Baixa Zona 24 (bit 52.7 do registro 1588),temperatura,1
-intensidade_aquecimento,intensidadeAquecZona1,24z_read_53,D,,1589,%MW,Intensidade de Aquecimento Zona 1,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona2,24z_read_54,D,,1590,%MW,Intensidade de Aquecimento Zona 2,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona3,24z_read_55,D,,1591,%MW,Intensidade de Aquecimento Zona 3,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona4,24z_read_56,D,,1592,%MW,Intensidade de Aquecimento Zona 4,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona5,24z_read_57,D,,1593,%MW,Intensidade de Aquecimento Zona 5,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona6,24z_read_58,D,,1594,%MW,Intensidade de Aquecimento Zona 6,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona7,24z_read_59,D,,1595,%MW,Intensidade de Aquecimento Zona 7,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona8,24z_read_60,D,,1596,%MW,Intensidade de Aquecimento Zona 8,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona9,24z_read_61,D,,1597,%MW,Intensidade de Aquecimento Zona 9,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona10,24z_read_62,D,,1598,%MW,Intensidade de Aquecimento Zona 10,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona11,24z_read_63,D,,1599,%MW,Intensidade de Aquecimento Zona 11,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona12,24z_read_64,D,,1600,%MW,Intensidade de Aquecimento Zona 12,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona13,24z_read_65,D,,1601,%MW,Intensidade de Aquecimento Zona 13,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona14,24z_read_66,D,,1602,%MW,Intensidade de Aquecimento Zona 14,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona15,24z_read_67,D,,1603,%MW,Intensidade de Aquecimento Zona 15,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona16,24z_read_68,D,,1604,%MW,Intensidade de Aquecimento Zona 16,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona17,24z_read_69,D,,1605,%MW,Intensidade de Aquecimento Zona 17,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona18,24z_read_70,D,,1606,%MW,Intensidade de Aquecimento Zona 18,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona19,24z_read_71,D,,1607,%MW,Intensidade de Aquecimento Zona 19,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona20,24z_read_72,D,,1608,%MW,Intensidade de Aquecimento Zona 20,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona21,24z_read_73,D,,1609,%MW,Intensidade de Aquecimento Zona 21,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona22,24z_read_74,D,,1610,%MW,Intensidade de Aquecimento Zona 22,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona23,24z_read_75,D,,1611,%MW,Intensidade de Aquecimento Zona 23,temperatura,1
-intensidade_aquecimento,intensidadeAquecZona24,24z_read_76,D,,1612,%MW,Intensidade de Aquecimento Zona 24,temperatura,1
+﻿key,ObjecTag,Identifiers,Tipo,Delta Adress,Modbus,At,comentarios,Classe,unit_id,Scale
+temperatura,tempZona1,24z_read_0,D,,1536,%MW,Temperatura Zona 1,temperatura,1,0.1
+setpoint,setpointZona1,24z_write_0,D,,1792,%MW,Setpoint Zona 1,temperatura,1,0.1
+temperatura,tempZona2,24z_read_1,D,,1537,%MW,Temperatura Zona 2,temperatura,1,0.1
+setpoint,setpointZona2,24z_write_1,D,,1793,%MW,Setpoint Zona 2,temperatura,1,0.1
+temperatura,tempZona3,24z_read_2,D,,1538,%MW,Temperatura Zona 3,temperatura,1,0.1
+setpoint,setpointZona3,24z_write_2,D,,1794,%MW,Setpoint Zona 3,temperatura,1,0.1
+temperatura,tempZona4,24z_read_3,D,,1539,%MW,Temperatura Zona 4,temperatura,1,0.1
+setpoint,setpointZona4,24z_write_3,D,,1795,%MW,Setpoint Zona 4,temperatura,1,0.1
+temperatura,tempZona5,24z_read_4,D,,1540,%MW,Temperatura Zona 5,temperatura,1,0.1
+setpoint,setpointZona5,24z_write_4,D,,1796,%MW,Setpoint Zona 5,temperatura,1,0.1
+temperatura,tempZona6,24z_read_5,D,,1541,%MW,Temperatura Zona 6,temperatura,1,0.1
+setpoint,setpointZona6,24z_write_5,D,,1797,%MW,Setpoint Zona 6,temperatura,1,0.1
+temperatura,tempZona7,24z_read_6,D,,1542,%MW,Temperatura Zona 7,temperatura,1,0.1
+setpoint,setpointZona7,24z_write_6,D,,1798,%MW,Setpoint Zona 7,temperatura,1,0.1
+temperatura,tempZona8,24z_read_7,D,,1543,%MW,Temperatura Zona 8,temperatura,1,0.1
+setpoint,setpointZona8,24z_write_7,D,,1799,%MW,Setpoint Zona 8,temperatura,1,0.1
+temperatura,tempZona9,24z_read_8,D,,1544,%MW,Temperatura Zona 9,temperatura,1,0.1
+setpoint,setpointZona9,24z_write_8,D,,1800,%MW,Setpoint Zona 9,temperatura,1,0.1
+temperatura,tempZona10,24z_read_9,D,,1545,%MW,Temperatura Zona 10,temperatura,1,0.1
+setpoint,setpointZona10,24z_write_9,D,,1801,%MW,Setpoint Zona 10,temperatura,1,0.1
+temperatura,tempZona11,24z_read_10,D,,1546,%MW,Temperatura Zona 11,temperatura,1,0.1
+setpoint,setpointZona11,24z_write_10,D,,1802,%MW,Setpoint Zona 11,temperatura,1,0.1
+temperatura,tempZona12,24z_read_11,D,,1547,%MW,Temperatura Zona 12,temperatura,1,0.1
+setpoint,setpointZona12,24z_write_11,D,,1803,%MW,Setpoint Zona 12,temperatura,1,0.1
+temperatura,tempZona13,24z_read_12,D,,1548,%MW,Temperatura Zona 13,temperatura,1,0.1
+setpoint,setpointZona13,24z_write_12,D,,1804,%MW,Setpoint Zona 13,temperatura,1,0.1
+temperatura,tempZona14,24z_read_13,D,,1549,%MW,Temperatura Zona 14,temperatura,1,0.1
+setpoint,setpointZona14,24z_write_13,D,,1805,%MW,Setpoint Zona 14,temperatura,1,0.1
+temperatura,tempZona15,24z_read_14,D,,1550,%MW,Temperatura Zona 15,temperatura,1,0.1
+setpoint,setpointZona15,24z_write_14,D,,1806,%MW,Setpoint Zona 15,temperatura,1,0.1
+temperatura,tempZona16,24z_read_15,D,,1551,%MW,Temperatura Zona 16,temperatura,1,0.1
+setpoint,setpointZona16,24z_write_15,D,,1807,%MW,Setpoint Zona 16,temperatura,1,0.1
+temperatura,tempZona17,24z_read_16,D,,1552,%MW,Temperatura Zona 17,temperatura,1,0.1
+setpoint,setpointZona17,24z_write_16,D,,1808,%MW,Setpoint Zona 17,temperatura,1,0.1
+temperatura,tempZona18,24z_read_17,D,,1553,%MW,Temperatura Zona 18,temperatura,1,0.1
+setpoint,setpointZona18,24z_write_17,D,,1809,%MW,Setpoint Zona 18,temperatura,1,0.1
+temperatura,tempZona19,24z_read_18,D,,1554,%MW,Temperatura Zona 19,temperatura,1,0.1
+setpoint,setpointZona19,24z_write_18,D,,1810,%MW,Setpoint Zona 19,temperatura,1,0.1
+temperatura,tempZona20,24z_read_19,D,,1555,%MW,Temperatura Zona 20,temperatura,1,0.1
+setpoint,setpointZona20,24z_write_19,D,,1811,%MW,Setpoint Zona 20,temperatura,1,0.1
+temperatura,tempZona21,24z_read_20,D,,1556,%MW,Temperatura Zona 21,temperatura,1,0.1
+setpoint,setpointZona21,24z_write_20,D,,1812,%MW,Setpoint Zona 21,temperatura,1,0.1
+temperatura,tempZona22,24z_read_21,D,,1557,%MW,Temperatura Zona 22,temperatura,1,0.1
+setpoint,setpointZona22,24z_write_21,D,,1813,%MW,Setpoint Zona 22,temperatura,1,0.1
+temperatura,tempZona23,24z_read_22,D,,1558,%MW,Temperatura Zona 23,temperatura,1,0.1
+setpoint,setpointZona23,24z_write_22,D,,1814,%MW,Setpoint Zona 23,temperatura,1,0.1
+temperatura,tempZona24,24z_read_23,D,,1559,%MW,Temperatura Zona 24,temperatura,1,0.1
+setpoint,setpointZona24,24z_write_23,D,,1815,%MW,Setpoint Zona 24,temperatura,1,0.1
+corrente_zona,correnteZona1,24z_read_24,D,,1560,%MW,Corrente Zona 1,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona1,24z_write_24,D,,1816,%MW,Valor da Corrente Baixa Zona 1,temperatura,1,
+corrente_zona,correnteZona2,24z_read_25,D,,1561,%MW,Corrente Zona 2,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona2,24z_write_25,D,,1817,%MW,Valor da Corrente Baixa Zona 2,temperatura,1,
+corrente_zona,correnteZona3,24z_read_26,D,,1562,%MW,Corrente Zona 3,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona3,24z_write_26,D,,1818,%MW,Valor da Corrente Baixa Zona 3,temperatura,1,
+corrente_zona,correnteZona4,24z_read_27,D,,1563,%MW,Corrente Zona 4,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona4,24z_write_27,D,,1819,%MW,Valor da Corrente Baixa Zona 4,temperatura,1,
+corrente_zona,correnteZona5,24z_read_28,D,,1564,%MW,Corrente Zona 5,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona5,24z_write_28,D,,1820,%MW,Valor da Corrente Baixa Zona 5,temperatura,1,
+corrente_zona,correnteZona6,24z_read_29,D,,1565,%MW,Corrente Zona 6,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona6,24z_write_29,D,,1821,%MW,Valor da Corrente Baixa Zona 6,temperatura,1,
+corrente_zona,correnteZona7,24z_read_30,D,,1566,%MW,Corrente Zona 7,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona7,24z_write_30,D,,1822,%MW,Valor da Corrente Baixa Zona 7,temperatura,1,
+corrente_zona,correnteZona8,24z_read_31,D,,1567,%MW,Corrente Zona 8,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona8,24z_write_31,D,,1823,%MW,Valor da Corrente Baixa Zona 8,temperatura,1,
+corrente_zona,correnteZona9,24z_read_32,D,,1568,%MW,Corrente Zona 9,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona9,24z_write_32,D,,1824,%MW,Valor da Corrente Baixa Zona 9,temperatura,1,
+corrente_zona,correnteZona10,24z_read_33,D,,1569,%MW,Corrente Zona 10,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona10,24z_write_33,D,,1825,%MW,Valor da Corrente Baixa Zona 10,temperatura,1,
+corrente_zona,correnteZona11,24z_read_34,D,,1570,%MW,Corrente Zona 11,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona11,24z_write_34,D,,1826,%MW,Valor da Corrente Baixa Zona 11,temperatura,1,
+corrente_zona,correnteZona12,24z_read_35,D,,1571,%MW,Corrente Zona 12,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona12,24z_write_35,D,,1827,%MW,Valor da Corrente Baixa Zona 12,temperatura,1,
+corrente_zona,correnteZona13,24z_read_36,D,,1572,%MW,Corrente Zona 13,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona13,24z_write_36,D,,1828,%MW,Valor da Corrente Baixa Zona 13,temperatura,1,
+corrente_zona,correnteZona14,24z_read_37,D,,1573,%MW,Corrente Zona 14,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona14,24z_write_37,D,,1829,%MW,Valor da Corrente Baixa Zona 14,temperatura,1,
+corrente_zona,correnteZona15,24z_read_38,D,,1574,%MW,Corrente Zona 15,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona15,24z_write_38,D,,1830,%MW,Valor da Corrente Baixa Zona 15,temperatura,1,
+corrente_zona,correnteZona16,24z_read_39,D,,1575,%MW,Corrente Zona 16,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona16,24z_write_39,D,,1831,%MW,Valor da Corrente Baixa Zona 16,temperatura,1,
+corrente_zona,correnteZona17,24z_read_40,D,,1576,%MW,Corrente Zona 17,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona17,24z_write_40,D,,1832,%MW,Valor da Corrente Baixa Zona 17,temperatura,1,
+corrente_zona,correnteZona18,24z_read_41,D,,1577,%MW,Corrente Zona 18,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona18,24z_write_41,D,,1833,%MW,Valor da Corrente Baixa Zona 18,temperatura,1,
+corrente_zona,correnteZona19,24z_read_42,D,,1578,%MW,Corrente Zona 19,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona19,24z_write_42,D,,1834,%MW,Valor da Corrente Baixa Zona 19,temperatura,1,
+corrente_zona,correnteZona20,24z_read_43,D,,1579,%MW,Corrente Zona 20,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona20,24z_write_43,D,,1835,%MW,Valor da Corrente Baixa Zona 20,temperatura,1,
+corrente_zona,correnteZona21,24z_read_44,D,,1580,%MW,Corrente Zona 21,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona21,24z_write_44,D,,1836,%MW,Valor da Corrente Baixa Zona 21,temperatura,1,
+corrente_zona,correnteZona22,24z_read_45,D,,1581,%MW,Corrente Zona 22,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona22,24z_write_45,D,,1837,%MW,Valor da Corrente Baixa Zona 22,temperatura,1,
+corrente_zona,correnteZona23,24z_read_46,D,,1582,%MW,Corrente Zona 23,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona23,24z_write_46,D,,1838,%MW,Valor da Corrente Baixa Zona 23,temperatura,1,
+corrente_zona,correnteZona24,24z_read_47,D,,1583,%MW,Corrente Zona 24,temperatura,1,
+setpoint_corrente_baixa,correnteBaixaSetZona24,24z_write_47,D,,1839,%MW,Valor da Corrente Baixa Zona 24,temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona1,24z_read_48,D,,1584,%MW,Temperatura Não Atingida Zona 1,temperatura,1,
+liga_desliga_zona,ligaDesligaZona1,24z_write_48,D,,1840,%MW,Liga / Desliga Zona 1,temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona2,24z_read_48.1,M,48.1,1584.01,%MB,Temperatura Não Atingida Zona 2 (bit 48.1 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona2,24z_write_48.1,M,48.1,1840.01,%MB,Liga / Desliga Zona 2 (bit 48.1 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona3,24z_read_48.2,M,48.2,1584.02,%MB,Temperatura Não Atingida Zona 3 (bit 48.2 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona3,24z_write_48.2,M,48.2,1840.02,%MB,Liga / Desliga Zona 3 (bit 48.2 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona4,24z_read_48.3,M,48.3,1584.03,%MB,Temperatura Não Atingida Zona 4 (bit 48.3 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona4,24z_write_48.3,M,48.3,1840.03,%MB,Liga / Desliga Zona 4 (bit 48.3 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona5,24z_read_48.4,M,48.4,1584.04,%MB,Temperatura Não Atingida Zona 5 (bit 48.4 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona5,24z_write_48.4,M,48.4,1840.04,%MB,Liga / Desliga Zona 5 (bit 48.4 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona6,24z_read_48.5,M,48.5,1584.05,%MB,Temperatura Não Atingida Zona 6 (bit 48.5 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona6,24z_write_48.5,M,48.5,1840.05,%MB,Liga / Desliga Zona 6 (bit 48.5 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona7,24z_read_48.6,M,48.6,1584.06,%MB,Temperatura Não Atingida Zona 7 (bit 48.6 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona7,24z_write_48.6,M,48.6,1840.06,%MB,Liga / Desliga Zona 7 (bit 48.6 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona8,24z_read_48.7,M,48.7,1584.07,%MB,Temperatura Não Atingida Zona 8 (bit 48.7 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona8,24z_write_48.7,M,48.7,1840.07,%MB,Liga / Desliga Zona 8 (bit 48.7 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona9,24z_read_48.8,M,48.8,1584.08,%MB,Temperatura Não Atingida Zona 9 (bit 48.8 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona9,24z_write_48.8,M,48.8,1840.08,%MB,Liga / Desliga Zona 9 (bit 48.8 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona10,24z_read_48.9,M,48.9,1584.09,%MB,Temperatura Não Atingida Zona 10 (bit 48.9 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona10,24z_write_48.9,M,48.9,1840.09,%MB,Liga / Desliga Zona 10 (bit 48.9 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona11,24z_read_48.1,M,48.1,1584.01,%MB,Temperatura Não Atingida Zona 11 (bit 48.1 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona11,24z_write_48.1,M,48.1,1840.01,%MB,Liga / Desliga Zona 11 (bit 48.1 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona12,24z_read_48.11,M,48.11,1584.11,%MB,Temperatura Não Atingida Zona 12 (bit 48.11 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona12,24z_write_48.11,M,48.11,1840.11,%MB,Liga / Desliga Zona 12 (bit 48.11 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona13,24z_read_48.12,M,48.12,1584.12,%MB,Temperatura Não Atingida Zona 13 (bit 48.12 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona13,24z_write_48.12,M,48.12,1840.12,%MB,Liga / Desliga Zona 13 (bit 48.12 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona14,24z_read_48.13,M,48.13,1584.13,%MB,Temperatura Não Atingida Zona 14 (bit 48.13 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona14,24z_write_48.13,M,48.13,1840.13,%MB,Liga / Desliga Zona 14 (bit 48.13 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona15,24z_read_48.14,M,48.14,1584.14,%MB,Temperatura Não Atingida Zona 15 (bit 48.14 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona15,24z_write_48.14,M,48.14,1840.14,%MB,Liga / Desliga Zona 15 (bit 48.14 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona16,24z_read_48.15,M,48.15,1584.15,%MB,Temperatura Não Atingida Zona 16 (bit 48.15 do registro 1584),temperatura,1,
+liga_desliga_zona,ligaDesligaZona16,24z_write_48.15,M,48.15,1840.15,%MB,Liga / Desliga Zona 16 (bit 48.15 do registro 1840),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona17,24z_read_49,D,,1585,%MW,Temperatura Não Atingida Zona 17,temperatura,1,
+liga_desliga_zona,ligaDesligaZona17,24z_write_49,D,,1841,%MW,Liga / Desliga Zona 17,temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona18,24z_read_49.1,M,49.1,1585.01,%MB,Temperatura Não Atingida Zona 18 (bit 49.1 do registro 1585),temperatura,1,
+liga_desliga_zona,ligaDesligaZona18,24z_write_49.1,M,49.1,1841.01,%MB,Liga / Desliga Zona 18 (bit 49.1 do registro 1841),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona19,24z_read_49.2,M,49.2,1585.02,%MB,Temperatura Não Atingida Zona 19 (bit 49.2 do registro 1585),temperatura,1,
+liga_desliga_zona,ligaDesligaZona19,24z_write_49.2,M,49.2,1841.02,%MB,Liga / Desliga Zona 19 (bit 49.2 do registro 1841),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona20,24z_read_49.3,M,49.3,1585.03,%MB,Temperatura Não Atingida Zona 20 (bit 49.3 do registro 1585),temperatura,1,
+liga_desliga_zona,ligaDesligaZona20,24z_write_49.3,M,49.3,1841.03,%MB,Liga / Desliga Zona 20 (bit 49.3 do registro 1841),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona21,24z_read_49.4,M,49.4,1585.04,%MB,Temperatura Não Atingida Zona 21 (bit 49.4 do registro 1585),temperatura,1,
+liga_desliga_zona,ligaDesligaZona21,24z_write_49.4,M,49.4,1841.04,%MB,Liga / Desliga Zona 21 (bit 49.4 do registro 1841),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona22,24z_read_49.5,M,49.5,1585.05,%MB,Temperatura Não Atingida Zona 22 (bit 49.5 do registro 1585),temperatura,1,
+liga_desliga_zona,ligaDesligaZona22,24z_write_49.5,M,49.5,1841.05,%MB,Liga / Desliga Zona 22 (bit 49.5 do registro 1841),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona23,24z_read_49.6,M,49.6,1585.06,%MB,Temperatura Não Atingida Zona 23 (bit 49.6 do registro 1585),temperatura,1,
+liga_desliga_zona,ligaDesligaZona23,24z_write_49.6,M,49.6,1841.06,%MB,Liga / Desliga Zona 23 (bit 49.6 do registro 1841),temperatura,1,
+alarme_temp_nao_atingida,tempNaoAtingidaZona24,24z_read_49.7,M,49.7,1585.07,%MB,Temperatura Não Atingida Zona 24 (bit 49.7 do registro 1585),temperatura,1,
+liga_desliga_zona,ligaDesligaZona24,24z_write_49.7,M,49.7,1841.07,%MB,Liga / Desliga Zona 24 (bit 49.7 do registro 1841),temperatura,1,
+alarme_temp_baixa,tempBaixaZona1,24z_read_49.8,M,49.8,1585.08,%MB,Temparatura Baixa Zona 1 (bit 49.8 do registro 1585),temperatura,1,
+alarme_temp_baixa,tempBaixaZona2,24z_read_49.9,M,49.9,1585.09,%MB,Temparatura Baixa Zona 2 (bit 49.9 do registro 1585),temperatura,1,
+alarme_temp_baixa,tempBaixaZona3,24z_read_49.1,M,49.1,1585.01,%MB,Temparatura Baixa Zona 3 (bit 49.1 do registro 1585),temperatura,1,
+alarme_temp_baixa,tempBaixaZona4,24z_read_49.11,M,49.11,1585.11,%MB,Temparatura Baixa Zona 4 (bit 49.11 do registro 1585),temperatura,1,
+alarme_temp_baixa,tempBaixaZona5,24z_read_49.12,M,49.12,1585.12,%MB,Temparatura Baixa Zona 5 (bit 49.12 do registro 1585),temperatura,1,
+alarme_temp_baixa,tempBaixaZona6,24z_read_49.13,M,49.13,1585.13,%MB,Temparatura Baixa Zona 6 (bit 49.13 do registro 1585),temperatura,1,
+alarme_temp_baixa,tempBaixaZona7,24z_read_49.14,M,49.14,1585.14,%MB,Temparatura Baixa Zona 7 (bit 49.14 do registro 1585),temperatura,1,
+alarme_temp_baixa,tempBaixaZona8,24z_read_49.15,M,49.15,1585.15,%MB,Temparatura Baixa Zona 8 (bit 49.15 do registro 1585),temperatura,1,
+alarme_temp_baixa,tempBaixaZona9,24z_read_50,D,,1586,%MW,Temparatura Baixa Zona 9,temperatura,1,
+alarme_temp_baixa,tempBaixaZona10,24z_read_50.1,M,50.1,1586.01,%MB,Temparatura Baixa Zona 10 (bit 50.1 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona11,24z_read_50.2,M,50.2,1586.02,%MB,Temparatura Baixa Zona 11 (bit 50.2 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona12,24z_read_50.3,M,50.3,1586.03,%MB,Temparatura Baixa Zona 12 (bit 50.3 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona13,24z_read_50.4,M,50.4,1586.04,%MB,Temparatura Baixa Zona 13 (bit 50.4 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona14,24z_read_50.5,M,50.5,1586.05,%MB,Temparatura Baixa Zona 14 (bit 50.5 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona15,24z_read_50.6,M,50.6,1586.06,%MB,Temparatura Baixa Zona 15 (bit 50.6 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona16,24z_read_50.7,M,50.7,1586.07,%MB,Temparatura Baixa Zona 16 (bit 50.7 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona17,24z_read_50.8,M,50.8,1586.08,%MB,Temparatura Baixa Zona 17 (bit 50.8 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona18,24z_read_50.9,M,50.9,1586.09,%MB,Temparatura Baixa Zona 18 (bit 50.9 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona19,24z_read_50.1,M,50.1,1586.01,%MB,Temparatura Baixa Zona 19 (bit 50.1 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona20,24z_read_50.11,M,50.11,1586.11,%MB,Temparatura Baixa Zona 20 (bit 50.11 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona21,24z_read_50.12,M,50.12,1586.12,%MB,Temparatura Baixa Zona 21 (bit 50.12 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona22,24z_read_50.13,M,50.13,1586.13,%MB,Temparatura Baixa Zona 22 (bit 50.13 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona23,24z_read_50.14,M,50.14,1586.14,%MB,Temparatura Baixa Zona 23 (bit 50.14 do registro 1586),temperatura,1,
+alarme_temp_baixa,tempBaixaZona24,24z_read_50.15,M,50.15,1586.15,%MB,Temparatura Baixa Zona 24 (bit 50.15 do registro 1586),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona1,24z_read_51,D,,1587,%MW,Corrente Baixa Zona 1,temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona2,24z_read_51.1,M,51.1,1587.01,%MB,Corrente Baixa Zona 2 (bit 51.1 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona3,24z_read_51.2,M,51.2,1587.02,%MB,Corrente Baixa Zona 3 (bit 51.2 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona4,24z_read_51.3,M,51.3,1587.03,%MB,Corrente Baixa Zona 4 (bit 51.3 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona5,24z_read_51.4,M,51.4,1587.04,%MB,Corrente Baixa Zona 5 (bit 51.4 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona6,24z_read_51.5,M,51.5,1587.05,%MB,Corrente Baixa Zona 6 (bit 51.5 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona7,24z_read_51.6,M,51.6,1587.06,%MB,Corrente Baixa Zona 7 (bit 51.6 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona8,24z_read_51.7,M,51.7,1587.07,%MB,Corrente Baixa Zona 8 (bit 51.7 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona9,24z_read_51.8,M,51.8,1587.08,%MB,Corrente Baixa Zona 9 (bit 51.8 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona10,24z_read_51.9,M,51.9,1587.09,%MB,Corrente Baixa Zona 10 (bit 51.9 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona11,24z_read_51.1,M,51.1,1587.01,%MB,Corrente Baixa Zona 11 (bit 51.1 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona12,24z_read_51.11,M,51.11,1587.11,%MB,Corrente Baixa Zona 12 (bit 51.11 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona13,24z_read_51.12,M,51.12,1587.12,%MB,Corrente Baixa Zona 13 (bit 51.12 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona14,24z_read_51.13,M,51.13,1587.13,%MB,Corrente Baixa Zona 14 (bit 51.13 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona15,24z_read_51.14,M,51.14,1587.14,%MB,Corrente Baixa Zona 15 (bit 51.14 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona16,24z_read_51.15,M,51.15,1587.15,%MB,Corrente Baixa Zona 16 (bit 51.15 do registro 1587),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona17,24z_read_52,D,,1588,%MW,Corrente Baixa Zona 17,temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona18,24z_read_52.1,M,52.1,1588.01,%MB,Corrente Baixa Zona 18 (bit 52.1 do registro 1588),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona19,24z_read_52.2,M,52.2,1588.02,%MB,Corrente Baixa Zona 19 (bit 52.2 do registro 1588),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona20,24z_read_52.3,M,52.3,1588.03,%MB,Corrente Baixa Zona 20 (bit 52.3 do registro 1588),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona21,24z_read_52.4,M,52.4,1588.04,%MB,Corrente Baixa Zona 21 (bit 52.4 do registro 1588),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona22,24z_read_52.5,M,52.5,1588.05,%MB,Corrente Baixa Zona 22 (bit 52.5 do registro 1588),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona23,24z_read_52.6,M,52.6,1588.06,%MB,Corrente Baixa Zona 23 (bit 52.6 do registro 1588),temperatura,1,
+alarme_corrente_baixa,correnteBaixaZona24,24z_read_52.7,M,52.7,1588.07,%MB,Corrente Baixa Zona 24 (bit 52.7 do registro 1588),temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona1,24z_read_53,D,,1589,%MW,Intensidade de Aquecimento Zona 1,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona2,24z_read_54,D,,1590,%MW,Intensidade de Aquecimento Zona 2,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona3,24z_read_55,D,,1591,%MW,Intensidade de Aquecimento Zona 3,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona4,24z_read_56,D,,1592,%MW,Intensidade de Aquecimento Zona 4,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona5,24z_read_57,D,,1593,%MW,Intensidade de Aquecimento Zona 5,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona6,24z_read_58,D,,1594,%MW,Intensidade de Aquecimento Zona 6,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona7,24z_read_59,D,,1595,%MW,Intensidade de Aquecimento Zona 7,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona8,24z_read_60,D,,1596,%MW,Intensidade de Aquecimento Zona 8,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona9,24z_read_61,D,,1597,%MW,Intensidade de Aquecimento Zona 9,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona10,24z_read_62,D,,1598,%MW,Intensidade de Aquecimento Zona 10,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona11,24z_read_63,D,,1599,%MW,Intensidade de Aquecimento Zona 11,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona12,24z_read_64,D,,1600,%MW,Intensidade de Aquecimento Zona 12,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona13,24z_read_65,D,,1601,%MW,Intensidade de Aquecimento Zona 13,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona14,24z_read_66,D,,1602,%MW,Intensidade de Aquecimento Zona 14,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona15,24z_read_67,D,,1603,%MW,Intensidade de Aquecimento Zona 15,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona16,24z_read_68,D,,1604,%MW,Intensidade de Aquecimento Zona 16,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona17,24z_read_69,D,,1605,%MW,Intensidade de Aquecimento Zona 17,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona18,24z_read_70,D,,1606,%MW,Intensidade de Aquecimento Zona 18,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona19,24z_read_71,D,,1607,%MW,Intensidade de Aquecimento Zona 19,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona20,24z_read_72,D,,1608,%MW,Intensidade de Aquecimento Zona 20,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona21,24z_read_73,D,,1609,%MW,Intensidade de Aquecimento Zona 21,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona22,24z_read_74,D,,1610,%MW,Intensidade de Aquecimento Zona 22,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona23,24z_read_75,D,,1611,%MW,Intensidade de Aquecimento Zona 23,temperatura,1,
+intensidade_aquecimento,intensidadeAquecZona24,24z_read_76,D,,1612,%MW,Intensidade de Aquecimento Zona 24,temperatura,1,

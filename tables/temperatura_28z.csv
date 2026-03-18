@@ -1,64 +1,64 @@
-key,ObjecTag,Identifiers,Tipo,Delta Adress,Modbus,At,comentarios,Classe,unit_id
-temperatura,tempZona25,28z_read_0,D,,1536,%MW,Temperatura Zona 25,temperatura,20
-setpoint,setpointZona25,28z_write_0,D,,1792,%MW,Setpoint Zona 25,temperatura,20
-temperatura,tempZona26,28z_read_1,D,,1537,%MW,Temperatura Zona 26,temperatura,20
-setpoint,setpointZona26,28z_write_1,D,,1793,%MW,Setpoint Zona 26,temperatura,20
-temperatura,tempZona27,28z_read_2,D,,1538,%MW,Temperatura Zona 27,temperatura,20
-setpoint,setpointZona27,28z_write_2,D,,1794,%MW,Setpoint Zona 27,temperatura,20
-temperatura,tempZona28,28z_read_3,D,,1539,%MW,Temperatura Zona 28,temperatura,20
-setpoint,setpointZona28,28z_write_3,D,,1795,%MW,Setpoint Zona 28,temperatura,20
-pressao_sensor,pressaoSensor1,28z_read_4,D,,1540,%MW,Pressão Sensor 1,temperatura,20
-pressao_sensor,pressaoSensor2,28z_read_5,D,,1541,%MW,Pressão Sensor 2,temperatura,20
-pressao_sensor,pressaoSensor3,28z_read_6,D,,1542,%MW,Pressão Sensor 3,temperatura,20
-corrente_zona,correnteZona25,28z_read_24,D,,1560,%MW,Corrente na Zona 25,temperatura,20
-setpoint_corrente_baixa,correnteBaixaSetZona25,28z_write_24,D,,1816,%MW,Valor da Corrente Baixa Zona 25,temperatura,20
-corrente_zona,correnteZona26,28z_read_25,D,,1561,%MW,Corrente na Zona 26,temperatura,20
-setpoint_corrente_baixa,correnteBaixaSetZona26,28z_write_25,D,,1817,%MW,Valor da Corrente Baixa Zona 26,temperatura,20
-corrente_zona,correnteZona27,28z_read_26,D,,1562,%MW,Corrente na Zona 27,temperatura,20
-setpoint_corrente_baixa,correnteBaixaSetZona27,28z_write_26,D,,1818,%MW,Valor da Corrente Baixa Zona 27,temperatura,20
-corrente_zona,correnteZona28,28z_read_27,D,,1563,%MW,Corrente na Zona 28,temperatura,20
-setpoint_corrente_baixa,correnteBaixaSetZona28,28z_write_27,D,,1819,%MW,Valor da Corrente Baixa Zona 28,temperatura,20
-corrente_zona_pressao,correnteZonaPressao1,28z_read_28,D,,1564,%MW,Corrente Zona Pressão 1,temperatura,20
-corrente_zona_pressao,correnteZonaPressao2,28z_read_29,D,,1565,%MW,Corrente Zona Pressão 2,temperatura,20
-corrente_zona_pressao,correnteZonaPressao3,28z_read_30,D,,1566,%MW,Corrente Zona Pressão 3,temperatura,20
-alarme_temp_nao_atingida,tempNaoAtingidaZona25,28z_read_48,D,,1584,%MW,Temperatura Não Atingida Zona 25,temperatura,20
-liga_desliga_zona,ligaDesligaZona25,28z_write_48,D,,1840,%MW,Liga / Desliga Zona 25,temperatura,20
-alarme_temp_nao_atingida,tempNaoAtingidaZona26,28z_read_48.1,M,48.1,1584.01,%MB,Temperatura Não Atingida Zona 26 (bit 48.1 do registro 1584),temperatura,20
-liga_desliga_zona,ligaDesligaZona26,28z_write_48.1,M,48.1,1840.01,%MB,Liga / Desliga Zona 26 (bit 48.1 do registro 1840),temperatura,20
-alarme_temp_nao_atingida,tempNaoAtingidaZona27,28z_read_48.2,M,48.2,1584.02,%MB,Temperatura Não Atingida Zona 27 (bit 48.2 do registro 1584),temperatura,20
-liga_desliga_zona,ligaDesligaZona27,28z_write_48.2,M,48.2,1840.02,%MB,Liga / Desliga Zona 27 (bit 48.2 do registro 1840),temperatura,20
-alarme_temp_nao_atingida,tempNaoAtingidaZona28,28z_read_48.3,M,48.3,1584.03,%MB,Temperatura Não Atingida Zona 28 (bit 48.3 do registro 1584),temperatura,20
-liga_desliga_zona,ligaDesligaZona28,28z_write_48.3,M,48.3,1840.03,%MB,Liga / Desliga Zona 28 (bit 48.3 do registro 1840),temperatura,20
-alarme_alto_pressao,alarmeAltoPressao1,28z_read_48.4,M,48.4,1584.04,%MB,Alarme Alto Pressão 1 (bit 48.4 do registro 1584),temperatura,20
-liga_desliga_sensor,ligaDesligaSensor1,28z_write_48.4,M,48.4,1840.04,%MB,Liga / Desliga Sensor 1 (bit 48.4 do registro 1840),temperatura,20
-alarme_alto_pressao,alarmeAltoPressao2,28z_read_48.5,M,48.5,1584.05,%MB,Alarme Alto Pressão 2 (bit 48.5 do registro 1584),temperatura,20
-liga_desliga_sensor,ligaDesligaSensor2,28z_write_48.5,M,48.5,1840.05,%MB,Liga / Desliga Sensor 2 (bit 48.5 do registro 1840),temperatura,20
-alarme_alto_pressao,alarmeAltoPressao3,28z_read_48.6,M,48.6,1584.06,%MB,Alarme Alto Pressão 3 (bit 48.6 do registro 1584),temperatura,20
-liga_desliga_sensor,ligaDesligaSensor3,28z_write_48.6,M,48.6,1840.06,%MB,Liga / Desliga Sensor 3 (bit 48.6 do registro 1840),temperatura,20
-alarme_temp_baixa,tempBaixaZona25,28z_read_49,D,,1585,%MW,Temperatura Baixa Zona 25,temperatura,20
-alarme_alto_sensor,alarmeAltoSensor1,28z_write_49,D,,1841,%MW,Alarme Alto Sensor 1,temperatura,20
-alarme_temp_baixa,tempBaixaZona26,28z_read_49.1,M,49.1,1585.01,%MB,Temperatura Baixa Zona 26 (bit 49.1 do registro 1585),temperatura,20
-alarme_alto_alto_sensor,alarmeAltoAltoSensor1,28z_write_50,D,,1842,%MW,Alarme Alto Alto Sensor 1,temperatura,20
-alarme_temp_baixa,tempBaixaZona27,28z_read_49.2,M,49.2,1585.02,%MB,Temperatura Baixa Zona 27 (bit 49.2 do registro 1585),temperatura,20
-alarme_alto_sensor,alarmeAltoSensor2,28z_write_51,D,,1843,%MW,Alarme Alto Sensor 2,temperatura,20
-alarme_temp_baixa,tempBaixaZona28,28z_read_49.3,M,49.3,1585.03,%MB,Temperatura Baixa Zona 28 (bit 49.3 do registro 1585),temperatura,20
-alarme_alto_alto_sensor,alarmeAltoAltoSensor2,28z_write_52,D,,1844,%MW,Alarme Alto Alto Sensor 2,temperatura,20
-alarme_alto_alto_pressao,alarmeAltoAltoPressao1,28z_read_49.4,M,49.4,1585.04,%MB,Alarme Alto Alto Pressão 1 (bit 49.4 do registro 1585),temperatura,20
-alarme_alto_sensor,alarmeAltoSensor3,28z_write_53,D,,1845,%MW,Alarme Alto Sensor 3,temperatura,20
-alarme_alto_alto_pressao,alarmeAltoAltoPressao2,28z_read_49.5,M,49.5,1585.05,%MB,Alarme Alto Alto Pressão 2 (bit 49.5 do registro 1585),temperatura,20
-alarme_alto_alto_sensor,alarmeAltoAltoSensor3,28z_write_54,D,,1846,%MW,Alarme Alto Alto Sensor 3,temperatura,20
-alarme_alto_alto_pressao,alarmeAltoAltoPressao3,28z_read_49.6,M,49.6,1585.06,%MB,Alarme Alto Alto Pressão 3 (bit 49.6 do registro 1585),temperatura,20
-alarme_corrente_baixa,correnteBaixaZona25,28z_read_51,D,,1587,%MW,Corrente Baixa Zona 25,temperatura,20
-alarme_corrente_baixa,correnteBaixaZona26,28z_read_51.1,M,51.1,1587.01,%MB,Corrente Baixa Zona 26 (bit 51.1 do registro 1587),temperatura,20
-alarme_corrente_baixa,correnteBaixaZona27,28z_read_51.2,M,51.2,1587.02,%MB,Corrente Baixa Zona 27 (bit 51.2 do registro 1587),temperatura,20
-alarme_corrente_baixa,correnteBaixaZona28,28z_read_51.3,M,51.3,1587.03,%MB,Corrente Baixa Zona 28 (bit 51.3 do registro 1587),temperatura,20
-corrente_baixa_pressao,correnteBaixaPressao1,28z_read_51.4,M,51.4,1587.04,%MB,Corrente Baixa Pressão 1 (bit 51.4 do registro 1587),temperatura,20
-corrente_baixa_pressao,correnteBaixaPressao2,28z_read_51.5,M,51.5,1587.05,%MB,Corrente Baixa Pressão 2 (bit 51.5 do registro 1587),temperatura,20
-corrente_baixa_pressao,correnteBaixaPressao3,28z_read_51.6,M,51.6,1587.06,%MB,Corrente Baixa Pressão 3 (bit 51.6 do registro 1587),temperatura,20
-intensidade_aquecimento,intensidadeAquecZona25,28z_read_53,D,,1589,%MW,Intensidade de Aquecimento Zona 25,temperatura,20
-intensidade_aquecimento,intensidadeAquecZona26,28z_read_54,D,,1590,%MW,Intensidade de Aquecimento Zona 26,temperatura,20
-intensidade_aquecimento,intensidadeAquecZona27,28z_read_55,D,,1591,%MW,Intensidade de Aquecimento Zona 27,temperatura,20
-intensidade_aquecimento,intensidadeAquecZona28,28z_read_56,D,,1592,%MW,Intensidade de Aquecimento Zona 28,temperatura,20
-intensidade_aquecimento_pressao,intensidadeAquecPressao1,28z_read_57,D,,1593,%MW,Intensidade de Aquecimento Pressão 1,temperatura,20
-intensidade_aquecimento_pressao,intensidadeAquecPressao2,28z_read_58,D,,1594,%MW,Intensidade de Aquecimento Pressão 2,temperatura,20
-intensidade_aquecimento_pressao,intensidadeAquecPressao3,28z_read_59,D,,1595,%MW,Intensidade de Aquecimento Pressão 3,temperatura,20
+﻿key,ObjecTag,Identifiers,Tipo,Delta Adress,Modbus,At,comentarios,Classe,unit_id,Scale
+temperatura,tempZona25,28z_read_0,D,,1536,%MW,Temperatura Zona 25,temperatura,20,0.1
+setpoint,setpointZona25,28z_write_0,D,,1792,%MW,Setpoint Zona 25,temperatura,20,0.1
+temperatura,tempZona26,28z_read_1,D,,1537,%MW,Temperatura Zona 26,temperatura,20,0.1
+setpoint,setpointZona26,28z_write_1,D,,1793,%MW,Setpoint Zona 26,temperatura,20,0.1
+temperatura,tempZona27,28z_read_2,D,,1538,%MW,Temperatura Zona 27,temperatura,20,0.1
+setpoint,setpointZona27,28z_write_2,D,,1794,%MW,Setpoint Zona 27,temperatura,20,0.1
+temperatura,tempZona28,28z_read_3,D,,1539,%MW,Temperatura Zona 28,temperatura,20,0.1
+setpoint,setpointZona28,28z_write_3,D,,1795,%MW,Setpoint Zona 28,temperatura,20,0.1
+pressao_sensor,pressaoSensor1,28z_read_4,D,,1540,%MW,Pressão Sensor 1,temperatura,20,
+pressao_sensor,pressaoSensor2,28z_read_5,D,,1541,%MW,Pressão Sensor 2,temperatura,20,
+pressao_sensor,pressaoSensor3,28z_read_6,D,,1542,%MW,Pressão Sensor 3,temperatura,20,
+corrente_zona,correnteZona25,28z_read_24,D,,1560,%MW,Corrente na Zona 25,temperatura,20,
+setpoint_corrente_baixa,correnteBaixaSetZona25,28z_write_24,D,,1816,%MW,Valor da Corrente Baixa Zona 25,temperatura,20,
+corrente_zona,correnteZona26,28z_read_25,D,,1561,%MW,Corrente na Zona 26,temperatura,20,
+setpoint_corrente_baixa,correnteBaixaSetZona26,28z_write_25,D,,1817,%MW,Valor da Corrente Baixa Zona 26,temperatura,20,
+corrente_zona,correnteZona27,28z_read_26,D,,1562,%MW,Corrente na Zona 27,temperatura,20,
+setpoint_corrente_baixa,correnteBaixaSetZona27,28z_write_26,D,,1818,%MW,Valor da Corrente Baixa Zona 27,temperatura,20,
+corrente_zona,correnteZona28,28z_read_27,D,,1563,%MW,Corrente na Zona 28,temperatura,20,
+setpoint_corrente_baixa,correnteBaixaSetZona28,28z_write_27,D,,1819,%MW,Valor da Corrente Baixa Zona 28,temperatura,20,
+corrente_zona_pressao,correnteZonaPressao1,28z_read_28,D,,1564,%MW,Corrente Zona Pressão 1,temperatura,20,
+corrente_zona_pressao,correnteZonaPressao2,28z_read_29,D,,1565,%MW,Corrente Zona Pressão 2,temperatura,20,
+corrente_zona_pressao,correnteZonaPressao3,28z_read_30,D,,1566,%MW,Corrente Zona Pressão 3,temperatura,20,
+alarme_temp_nao_atingida,tempNaoAtingidaZona25,28z_read_48,D,,1584,%MW,Temperatura Não Atingida Zona 25,temperatura,20,
+liga_desliga_zona,ligaDesligaZona25,28z_write_48,D,,1840,%MW,Liga / Desliga Zona 25,temperatura,20,
+alarme_temp_nao_atingida,tempNaoAtingidaZona26,28z_read_48.1,M,48.1,1584.01,%MB,Temperatura Não Atingida Zona 26 (bit 48.1 do registro 1584),temperatura,20,
+liga_desliga_zona,ligaDesligaZona26,28z_write_48.1,M,48.1,1840.01,%MB,Liga / Desliga Zona 26 (bit 48.1 do registro 1840),temperatura,20,
+alarme_temp_nao_atingida,tempNaoAtingidaZona27,28z_read_48.2,M,48.2,1584.02,%MB,Temperatura Não Atingida Zona 27 (bit 48.2 do registro 1584),temperatura,20,
+liga_desliga_zona,ligaDesligaZona27,28z_write_48.2,M,48.2,1840.02,%MB,Liga / Desliga Zona 27 (bit 48.2 do registro 1840),temperatura,20,
+alarme_temp_nao_atingida,tempNaoAtingidaZona28,28z_read_48.3,M,48.3,1584.03,%MB,Temperatura Não Atingida Zona 28 (bit 48.3 do registro 1584),temperatura,20,
+liga_desliga_zona,ligaDesligaZona28,28z_write_48.3,M,48.3,1840.03,%MB,Liga / Desliga Zona 28 (bit 48.3 do registro 1840),temperatura,20,
+alarme_alto_pressao,alarmeAltoPressao1,28z_read_48.4,M,48.4,1584.04,%MB,Alarme Alto Pressão 1 (bit 48.4 do registro 1584),temperatura,20,
+liga_desliga_sensor,ligaDesligaSensor1,28z_write_48.4,M,48.4,1840.04,%MB,Liga / Desliga Sensor 1 (bit 48.4 do registro 1840),temperatura,20,
+alarme_alto_pressao,alarmeAltoPressao2,28z_read_48.5,M,48.5,1584.05,%MB,Alarme Alto Pressão 2 (bit 48.5 do registro 1584),temperatura,20,
+liga_desliga_sensor,ligaDesligaSensor2,28z_write_48.5,M,48.5,1840.05,%MB,Liga / Desliga Sensor 2 (bit 48.5 do registro 1840),temperatura,20,
+alarme_alto_pressao,alarmeAltoPressao3,28z_read_48.6,M,48.6,1584.06,%MB,Alarme Alto Pressão 3 (bit 48.6 do registro 1584),temperatura,20,
+liga_desliga_sensor,ligaDesligaSensor3,28z_write_48.6,M,48.6,1840.06,%MB,Liga / Desliga Sensor 3 (bit 48.6 do registro 1840),temperatura,20,
+alarme_temp_baixa,tempBaixaZona25,28z_read_49,D,,1585,%MW,Temperatura Baixa Zona 25,temperatura,20,
+alarme_alto_sensor,alarmeAltoSensor1,28z_write_49,D,,1841,%MW,Alarme Alto Sensor 1,temperatura,20,
+alarme_temp_baixa,tempBaixaZona26,28z_read_49.1,M,49.1,1585.01,%MB,Temperatura Baixa Zona 26 (bit 49.1 do registro 1585),temperatura,20,
+alarme_alto_alto_sensor,alarmeAltoAltoSensor1,28z_write_50,D,,1842,%MW,Alarme Alto Alto Sensor 1,temperatura,20,
+alarme_temp_baixa,tempBaixaZona27,28z_read_49.2,M,49.2,1585.02,%MB,Temperatura Baixa Zona 27 (bit 49.2 do registro 1585),temperatura,20,
+alarme_alto_sensor,alarmeAltoSensor2,28z_write_51,D,,1843,%MW,Alarme Alto Sensor 2,temperatura,20,
+alarme_temp_baixa,tempBaixaZona28,28z_read_49.3,M,49.3,1585.03,%MB,Temperatura Baixa Zona 28 (bit 49.3 do registro 1585),temperatura,20,
+alarme_alto_alto_sensor,alarmeAltoAltoSensor2,28z_write_52,D,,1844,%MW,Alarme Alto Alto Sensor 2,temperatura,20,
+alarme_alto_alto_pressao,alarmeAltoAltoPressao1,28z_read_49.4,M,49.4,1585.04,%MB,Alarme Alto Alto Pressão 1 (bit 49.4 do registro 1585),temperatura,20,
+alarme_alto_sensor,alarmeAltoSensor3,28z_write_53,D,,1845,%MW,Alarme Alto Sensor 3,temperatura,20,
+alarme_alto_alto_pressao,alarmeAltoAltoPressao2,28z_read_49.5,M,49.5,1585.05,%MB,Alarme Alto Alto Pressão 2 (bit 49.5 do registro 1585),temperatura,20,
+alarme_alto_alto_sensor,alarmeAltoAltoSensor3,28z_write_54,D,,1846,%MW,Alarme Alto Alto Sensor 3,temperatura,20,
+alarme_alto_alto_pressao,alarmeAltoAltoPressao3,28z_read_49.6,M,49.6,1585.06,%MB,Alarme Alto Alto Pressão 3 (bit 49.6 do registro 1585),temperatura,20,
+alarme_corrente_baixa,correnteBaixaZona25,28z_read_51,D,,1587,%MW,Corrente Baixa Zona 25,temperatura,20,
+alarme_corrente_baixa,correnteBaixaZona26,28z_read_51.1,M,51.1,1587.01,%MB,Corrente Baixa Zona 26 (bit 51.1 do registro 1587),temperatura,20,
+alarme_corrente_baixa,correnteBaixaZona27,28z_read_51.2,M,51.2,1587.02,%MB,Corrente Baixa Zona 27 (bit 51.2 do registro 1587),temperatura,20,
+alarme_corrente_baixa,correnteBaixaZona28,28z_read_51.3,M,51.3,1587.03,%MB,Corrente Baixa Zona 28 (bit 51.3 do registro 1587),temperatura,20,
+corrente_baixa_pressao,correnteBaixaPressao1,28z_read_51.4,M,51.4,1587.04,%MB,Corrente Baixa Pressão 1 (bit 51.4 do registro 1587),temperatura,20,
+corrente_baixa_pressao,correnteBaixaPressao2,28z_read_51.5,M,51.5,1587.05,%MB,Corrente Baixa Pressão 2 (bit 51.5 do registro 1587),temperatura,20,
+corrente_baixa_pressao,correnteBaixaPressao3,28z_read_51.6,M,51.6,1587.06,%MB,Corrente Baixa Pressão 3 (bit 51.6 do registro 1587),temperatura,20,
+intensidade_aquecimento,intensidadeAquecZona25,28z_read_53,D,,1589,%MW,Intensidade de Aquecimento Zona 25,temperatura,20,
+intensidade_aquecimento,intensidadeAquecZona26,28z_read_54,D,,1590,%MW,Intensidade de Aquecimento Zona 26,temperatura,20,
+intensidade_aquecimento,intensidadeAquecZona27,28z_read_55,D,,1591,%MW,Intensidade de Aquecimento Zona 27,temperatura,20,
+intensidade_aquecimento,intensidadeAquecZona28,28z_read_56,D,,1592,%MW,Intensidade de Aquecimento Zona 28,temperatura,20,
+intensidade_aquecimento_pressao,intensidadeAquecPressao1,28z_read_57,D,,1593,%MW,Intensidade de Aquecimento Pressão 1,temperatura,20,
+intensidade_aquecimento_pressao,intensidadeAquecPressao2,28z_read_58,D,,1594,%MW,Intensidade de Aquecimento Pressão 2,temperatura,20,
+intensidade_aquecimento_pressao,intensidadeAquecPressao3,28z_read_59,D,,1595,%MW,Intensidade de Aquecimento Pressão 3,temperatura,20,

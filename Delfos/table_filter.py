@@ -256,6 +256,13 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
             uid_raw = (row.get('unit_id') or '').strip()
             unit_id = int(uid_raw) if uid_raw else None
 
+            # Parse scale factor (default 1.0 if empty/missing)
+            scale_raw = (row.get('Scale') or '').strip()
+            try:
+                scale = float(scale_raw) if scale_raw else 1.0
+            except (ValueError, TypeError):
+                scale = 1.0
+
             all_rows.append({
                 'key':       key,
                 'tag':       tag,
@@ -264,6 +271,7 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
                 'bit_index': bit_index,
                 'source':    source,
                 'unit_id':   unit_id,
+                'scale':     scale,
             })
 
     # Acumula linhas por canal efetivo (somente variáveis com canal explícito)
@@ -360,18 +368,27 @@ def extract_parameters_by_channel(csv_paths, group_config, overrides,
         ch_cfg       = channels_cfg.get(channel, {})
         history_size = ch_cfg.get('history_size', default_hist)
 
+        # Build scale_factors: {tag: float} for all tags in this channel
+        scale_factors = {}
+        for row in rows:
+            tag = row['tag']
+            scale = row.get('scale', 1.0)
+            if scale != 1.0:
+                scale_factors[tag] = scale
+
         result[channel] = {
-            'coil_groups':  coil_groups,
-            'reg_groups':   reg_groups,
-            'coil_tags':    coil_tags,
-            'reg_tags':     reg_tags,
-            'coil_keys':    coil_keys,
-            'reg_keys':     reg_keys,
-            'bit_vars':     bit_vars if bit_vars else None,
-            'group_slaves': reg_slaves if any(s is not None for s in reg_slaves) else None,
-            'coil_slaves':  coil_slaves if any(s is not None for s in coil_slaves) else None,
-            'history_size': history_size,
-            'sources':      channel_sources[channel],
+            'coil_groups':   coil_groups,
+            'reg_groups':    reg_groups,
+            'coil_tags':     coil_tags,
+            'reg_tags':      reg_tags,
+            'coil_keys':     coil_keys,
+            'reg_keys':      reg_keys,
+            'bit_vars':      bit_vars if bit_vars else None,
+            'group_slaves':  reg_slaves if any(s is not None for s in reg_slaves) else None,
+            'coil_slaves':   coil_slaves if any(s is not None for s in coil_slaves) else None,
+            'history_size':  history_size,
+            'sources':       channel_sources[channel],
+            'scale_factors': scale_factors if scale_factors else None,
         }
 
     logger.info("Canais carregados dos CSVs: %d — %s", len(result), list(result.keys()))
