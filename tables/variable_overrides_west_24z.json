@@ -97,99 +97,99 @@
   },
   "correnteBaixaSetZona1": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona2": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona3": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona4": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona5": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona6": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona7": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona8": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona9": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona10": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona11": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona12": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona13": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona14": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona15": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona16": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona17": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona18": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona19": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona20": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona21": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona22": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona23": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaSetZona24": {
     "channel": "plc_west1SetPoint",
-    "enabled": false
+    "enabled": true
   },
   "setpointZona1": {
     "channel": "plc_west1SetPoint",
@@ -289,555 +289,579 @@
   },
   "ligaDesligaZona1": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona2": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona3": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona4": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona5": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona6": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona7": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona8": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona9": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona10": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona11": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona12": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona13": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona14": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona15": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona16": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona17": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona18": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona19": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona20": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona21": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona22": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona23": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "ligaDesligaZona24": {
     "channel": "plc_west1LigDeslZona",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona1": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona2": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona3": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona4": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona5": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona6": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona7": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona8": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona9": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona10": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona11": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona12": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona13": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona14": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona15": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona16": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona17": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona18": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona19": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona20": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona21": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona22": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona23": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "correnteZona24": {
     "channel": "west1Corrente",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona1": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona2": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona3": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona4": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona5": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona6": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona7": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona8": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona9": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona10": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona11": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona12": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona13": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona14": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona15": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona16": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona17": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona18": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona19": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona20": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona21": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona22": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona23": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempNaoAtingidaZona24": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona1": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona2": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona3": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona4": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona5": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona6": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona7": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona8": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona10": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona11": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona12": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona13": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona14": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona15": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona16": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona17": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona18": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona19": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona20": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona21": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona22": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona23": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona24": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona2": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona3": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona4": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona5": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona6": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona7": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona8": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona9": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona10": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona11": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona12": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona13": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona14": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona15": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona16": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona17": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona18": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona19": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona20": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona21": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona22": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona23": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona24": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "correnteBaixaZona1": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "tempBaixaZona9": {
     "channel": "plc_west1Alertas",
-    "enabled": false
+    "enabled": true
   },
   "intensidadeAquecZona1": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona2": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona3": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona4": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona5": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona6": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona7": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona8": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona9": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona10": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona11": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona12": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona13": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona14": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona15": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona16": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona17": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona18": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona19": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona20": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona21": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona22": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona23": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "intensidadeAquecZona24": {
-    "enabled": false
+    "enabled": true,
+    "channel": "west1Corrente"
   },
   "tempZona25": {
     "channel": "plc_wes2temperatura"

@@ -73,3 +73,5 @@ Scripts
 .env
 .env.*
 !.env.example
+*.bak
+*.bak_*

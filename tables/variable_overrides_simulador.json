@@ -1,6 +1,6 @@
 {
   "tempoCorte": {
-    "enabled": false,
+    "enabled": true,
     "channel": "plc_preArraste"
   },
   "fatorAjusteCal1": {
@@ -100,179 +100,241 @@
     "enabled": true
   },
   "alarmesWord1": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord2": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord3": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord4": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord5": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord6": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord7": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord8": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord9": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "alarmesWord10": {
-    "channel": "plc_alarmes"
+    "channel": "plc_alarmes",
+    "enabled": true
   },
   "ligaDeslExtr": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "ligaDeslBomba": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "ligaDeslCoExt1": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "ligaDeslCalandra": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "escritaSetPointPressao": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "setPointVelBomba": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "percentualCalandraSuperior": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "setPointCalandraCentral": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "percentualCalandraInferior": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "percentualPuxador": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "extrusoraManualAutomatico": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "rpmExtrusora": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "pressaoBombaEntrada": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "rpmBomba": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "rpmCoExtrusora": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "metroPorMinCalandraSuperior": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "metroPorMinutoCalandraCentral": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "metroPorMinutoCalandraInferior": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "correnteExtrusora": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "correnteBomba": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "correnteCoExtrusora": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "correnteCalandraSuperior": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "correnteCalandraCentral": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "correnteCalandraInferior": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "correntePuxador": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "manualAUtomaticoCoExtrusora": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "__test_ping": {
-    "_added": true
+    "_added": true,
+    "enabled": true,
+    "channel": "plc_operacao"
   },
   "rampaPuxadorCalandrasDesaceleracao": {
-    "_added": true
+    "_added": true,
+    "enabled": true,
+    "channel": "plc_retentivas"
   },
   "rampaPuxadorCalandrasAsceleração": {
-    "_added": true
+    "_added": true,
+    "enabled": true,
+    "channel": "plc_retentivas"
   },
   "pressaoCoExtrusora": {
     "_added": true,
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "resetAlarme": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "blinkLadoEsquerdo": {
-    "_added": true
+    "_added": true,
+    "enabled": false,
+    "channel": "plc_operacao"
   },
   "alCanExtrusora": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanCoextrusora": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanRuwRem": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanRuwPan": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanBobinador2": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanBomba": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanCalandra1": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanBobinador1": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanCalandra2": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanPrearraste": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanCalandra3": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "alCanPuxador": {
-    "channel": "plc_redeCan"
+    "channel": "plc_redeCan",
+    "enabled": true
   },
   "percentualPreArraste": {
-    "channel": "plc_preArraste"
+    "channel": "plc_preArraste",
+    "enabled": true
   },
   "prearrasteMpm": {
-    "channel": "plc_preArraste"
+    "channel": "plc_preArraste",
+    "enabled": true
   },
   "correntePrearraste": {
-    "channel": "plc_preArraste"
+    "channel": "plc_preArraste",
+    "enabled": true
   },
   "comprimentoCorte": {
-    "channel": "plc_preArraste"
+    "channel": "plc_preArraste",
+    "enabled": true
   },
   "setPointProdução": {
     "channel": "plc_retentivas",
@@ -283,36 +345,607 @@
     "enabled": true
   },
   "acumuladorContametroPreArraste": {
-    "channel": "plc_preArraste"
+    "channel": "plc_preArraste",
+    "enabled": true
   },
   "ligaDesligaFaca": {
-    "channel": "plc_preArraste"
+    "channel": "plc_preArraste",
+    "enabled": true
   },
   "resetProducaoPrearraste": {
-    "channel": "plc_preArraste"
+    "channel": "plc_preArraste",
+    "enabled": true
   },
   "multistatePrearraste": {
-    "channel": "plc_preArraste"
+    "channel": "plc_preArraste",
+    "enabled": true
   },
   "multistateExtrusora": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "multistateBomba": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "multistateCalandra1": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "multistateCalandra2": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "multistateCalandra3": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "multistatePuxador": {
-    "channel": "plc_operacao"
+    "channel": "plc_operacao",
+    "enabled": true
   },
   "multistateCoextrusora": {
+    "channel": "plc_operacao",
+    "enabled": true
+  },
+  "trate2Extr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "outExtr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "maxExtr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "minExtr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "tsExtr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "upExtr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "downExtr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "enrateExtr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "resetEpExtr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "habBloqTemp": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "pead": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "acrilico": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "abs": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "outros": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "indDesvTemp": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "espessura": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "largura": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "prodEstimada": {
+    "enabled": true,
+    "channel": "plc_preArraste"
+  },
+  "prodCum": {
+    "enabled": true,
+    "channel": "plc_preArraste"
+  },
+  "outrosVal": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "ajusteFinoCal2": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "pp": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "ps": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "pet": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "pebd": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "pvc": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "resetCumProd": {
+    "enabled": true,
+    "channel": "plc_preArraste"
+  },
+  "fbkPressaoCoextr": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "alertaTrocaTelaCoex": {
+    "enabled": true,
+    "channel": "plc_redeCan"
+  },
+  "alertaTrocaTelaExt": {
+    "enabled": true,
+    "channel": "plc_redeCan"
+  },
+  "alarmesWord11": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "alarmesWord12": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "velBobinador1RpmAtual": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "correnteBobinador1": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "velBobinador2RpmAtual": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "correnteBobinador2": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "torqueBobinador1": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "torqueBobinador2": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "spTorqueBobinador2": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "spTorqueBobinador1": {
+    "enabled": true,
+    "channel": "plc_operacao"
+  },
+  "resetContametroPrearraste": {
+    "enabled": true,
+    "channel": "plc_preArraste"
+  },
+  "di1": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di2": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di3": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di4": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di5": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di6": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di7": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di8": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di9": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di10": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di101": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di102": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di103": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di104": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di105": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di106": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di107": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di108": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di109": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di110": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di111": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di112": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di113": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di114": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di115": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di116": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di201": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di202": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di203": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di204": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di205": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di206": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di207": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di208": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di209": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di210": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di211": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di212": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di213": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di214": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di215": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "di216": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "ai1": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai101": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai102": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai103": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai104": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai105": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai201": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai202": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai203": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai204": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ai205": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "do1": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do2": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do3": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do4": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do5": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do6": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do7": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do8": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do9": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do101": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do102": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do103": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do104": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do105": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do106": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do107": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do108": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do109": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do110": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do111": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do112": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do113": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do114": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do115": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do116": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do201": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do202": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do203": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do204": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do205": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do206": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do207": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do208": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do209": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do210": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do211": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do212": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do213": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do214": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do215": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "do216": {
+    "enabled": true,
+    "channel": "plc_alarmes"
+  },
+  "ao1": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ao101": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ao102": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ao201": {
+    "enabled": false,
+    "channel": "plc_operacao"
+  },
+  "ao202": {
+    "enabled": false,
     "channel": "plc_operacao"
   }
 }

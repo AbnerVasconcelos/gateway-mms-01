@@ -214,15 +214,23 @@ class _RtuError:
 
 
 class SnifferClient:
-    """Cliente Modbus RTU passivo — escuta o barramento RS485 sem transmitir.
+    """Cliente Modbus RTU passivo híbrido — escuta o barramento RS485 sem transmitir.
 
-    Uma thread daemon decodifica frames FC01/FC03 (request+response) do trafego
-    existente e armazena os ultimos valores em cache por (slave, endereco).
-    Leituras retornam do cache. Escritas delegam ao RawRtuClient interno.
+    Uma thread daemon decodifica frames FC01/FC03 (request+response) do tráfego
+    existente e armazena os últimos valores em cache por (slave, endereço).
+    Leituras retornam do cache; quando dados estão stale ou ausentes, faz leitura
+    ativa usando a MESMA conexão serial (serializada via threading.Lock).
+    Escritas também usam a conexão compartilhada.
+
+    Arquitetura de porta serial:
+        - UMA única instância serial.Serial, mantida aberta permanentemente
+        - Um threading.Lock (_port_lock) serializa acesso entre listener e operações ativas
+        - Listener adquire o lock por curtos períodos (~3ms por frame)
+        - Operações ativas (read/write) adquirem o lock por transações completas (~20ms)
     """
 
     def __init__(self, port, baudrate=19200, parity='N', stopbits=1,
-                 bytesize=8, unit_id=1, stale_timeout=10.0):
+                 bytesize=8, unit_id=1, stale_timeout=30.0):
         self._port = port
         self._baudrate = baudrate
         self._parity = parity
@@ -238,82 +246,181 @@ class SnifferClient:
         self._running = False
         self._thread = None
 
-        # RawRtuClient para escritas ativas
-        self._rtu_writer = RawRtuClient(
-            port=port, baudrate=baudrate, parity=parity,
-            stopbits=stopbits, bytesize=bytesize,
-        )
+        # Porta serial compartilhada (criada no connect())
+        self._ser = None
+        self._port_lock = threading.Lock()
 
     def connect(self):
-        """Inicia a thread de escuta passiva."""
+        """Abre a porta serial e inicia a thread de escuta passiva."""
         if self._running:
             return True
+        import serial as _serial
+        try:
+            self._ser = _serial.Serial(
+                port=self._port,
+                baudrate=self._baudrate,
+                parity=self._parity,
+                stopbits=self._stopbits,
+                bytesize=self._bytesize,
+                timeout=0.003,  # inter-frame gap inicial
+            )
+        except Exception as exc:
+            logger.error("SnifferClient: falha ao abrir porta serial %s: %s", self._port, exc)
+            return False
+
         self._running = True
         self._thread = threading.Thread(target=self._listener_loop, daemon=True)
         self._thread.start()
-        logger.info("SnifferClient: escuta passiva iniciada em %s @%s",
-                     self._port, self._baudrate)
+        logger.info("SnifferClient: escuta passiva iniciada em %s @%s (stale_timeout=%ss)",
+                     self._port, self._baudrate, self._stale_timeout)
         return True
 
     def close(self):
-        """Para a thread de escuta."""
+        """Para a thread de escuta e fecha a porta serial."""
         self._running = False
         if self._thread:
             self._thread.join(timeout=3)
+        with self._port_lock:
+            if self._ser and self._ser.is_open:
+                self._ser.close()
+                self._ser = None
 
     # -- Listener thread --
 
     def _listener_loop(self):
-        """Loop principal: coleta frames do barramento e decodifica."""
-        import serial as _serial
-        inter_frame_gap = 0.003  # 3ms a 19200 baud
+        """Loop principal: coleta frames do barramento e decodifica.
 
+        Adquire _port_lock por curtos períodos para ler frames (~3ms),
+        liberando entre frames para permitir operações ativas.
+        """
+        last_req = None
         while self._running:
             try:
-                with _serial.Serial(
-                    port=self._port, baudrate=self._baudrate,
-                    parity=self._parity, stopbits=self._stopbits,
-                    bytesize=self._bytesize, timeout=inter_frame_gap,
-                ) as ser:
-                    ser.reset_input_buffer()
+                frame = self._collect_frame_locked()
+                if not frame:
+                    continue
+                decoded = self._try_decode(frame)
+                if decoded is None:
+                    # Tenta fatiar frames colados
+                    for start in range(len(frame) - 7):
+                        sub = frame[start:start+8]
+                        d = self._decode_request(sub)
+                        if d:
+                            last_req = d
+                    continue
+                if decoded['type'] == 'REQ':
+                    last_req = decoded
+                elif decoded['type'] == 'RSP' and last_req:
+                    if last_req['slave'] == decoded['slave']:
+                        self._update_cache(decoded['slave'],
+                                           last_req['addr'],
+                                           decoded['values'],
+                                           last_req['fc'])
                     last_req = None
-                    while self._running:
-                        frame = self._collect_frame(ser, inter_frame_gap)
-                        if not frame:
-                            continue
-                        decoded = self._try_decode(frame)
-                        if decoded is None:
-                            # Tenta fatiar frames colados
-                            for start in range(len(frame) - 7):
-                                sub = frame[start:start+8]
-                                d = self._decode_request(sub)
-                                if d:
-                                    last_req = d
-                            continue
-                        if decoded['type'] == 'REQ':
-                            last_req = decoded
-                        elif decoded['type'] == 'RSP' and last_req:
-                            if last_req['slave'] == decoded['slave']:
-                                self._update_cache(decoded['slave'],
-                                                   last_req['addr'],
-                                                   decoded['values'],
-                                                   last_req['fc'])
-                            last_req = None
             except Exception as exc:
                 logger.error("SnifferClient: erro no listener: %s", exc)
                 if self._running:
                     time.sleep(1)
 
-    @staticmethod
-    def _collect_frame(ser, gap):
+    def _collect_frame_locked(self):
+        """Adquire o lock da porta e coleta um frame.
+
+        Retorna bytes do frame ou b'' se nada disponível.
+        O lock é mantido apenas durante a coleta (~3ms).
+        """
         buf = b""
-        ser.timeout = gap
-        while True:
-            chunk = ser.read(256)
-            if not chunk:
-                break
-            buf += chunk
+        with self._port_lock:
+            if not self._ser or not self._ser.is_open:
+                return b""
+            try:
+                self._ser.timeout = 0.003  # 3ms inter-frame gap
+                while True:
+                    chunk = self._ser.read(256)
+                    if not chunk:
+                        break
+                    buf += chunk
+            except Exception as exc:
+                logger.debug("SnifferClient: erro na coleta de frame: %s", exc)
+                return b""
+
+        # Pequena pausa fora do lock para dar oportunidade a operações ativas
+        if not buf:
+            time.sleep(0.001)
         return buf
+
+    # -- Operações ativas (read/write) via porta compartilhada --
+
+    def _active_transact(self, request: bytes, expected_len: int, retries: int = 4) -> bytes | None:
+        """Executa uma transação Modbus RTU ativa usando a porta compartilhada.
+
+        Adquire _port_lock por toda a duração da transação.
+        Retries reduzidos (4) para minimizar interferência no barramento.
+        """
+        expected_slave = request[0]
+        expected_func = request[1]
+        expected_byte_count = (expected_len - 5) if expected_func == 0x03 else -1
+
+        for attempt in range(retries):
+            with self._port_lock:
+                if not self._ser or not self._ser.is_open:
+                    logger.error("SnifferClient: porta serial fechada durante transação ativa")
+                    return None
+                try:
+                    # Aguarda silêncio no barramento (gap seguro no ciclo de ~52ms)
+                    self._ser.timeout = 0.005
+                    self._ser.reset_input_buffer()
+                    time.sleep(0.012)  # 12ms silence
+                    if self._ser.in_waiting > 0:
+                        # Barramento ainda ativo, drena e tenta de novo
+                        self._ser.read(self._ser.in_waiting)
+                        time.sleep(0.012)
+                        if self._ser.in_waiting > 0:
+                            self._ser.read(self._ser.in_waiting)
+                            # Desiste desta tentativa
+                            continue
+
+                    self._ser.write(request)
+                    self._ser.flush()
+
+                    # Lê resposta com deadline
+                    self._ser.timeout = 0.1
+                    deadline = time.monotonic() + 1.0
+                    buf = b""
+                    while time.monotonic() < deadline:
+                        chunk = self._ser.read(expected_len - len(buf))
+                        buf += chunk
+                        if len(buf) >= expected_len:
+                            break
+                except Exception as exc:
+                    logger.debug("SnifferClient: transação ativa tentativa %d/%d erro: %s",
+                                 attempt + 1, retries, exc)
+                    time.sleep(0.08)
+                    continue
+
+            # Validação fora do lock
+            if len(buf) < 3:
+                logger.debug("SnifferClient: transação ativa tentativa %d/%d: sem resposta (%d bytes)",
+                             attempt + 1, retries, len(buf))
+                time.sleep(0.08)
+                continue
+            if buf[0] != expected_slave or buf[1] != expected_func:
+                logger.debug("SnifferClient: transação ativa tentativa %d/%d: slave=%d func=%d (esperado %d/%d)",
+                             attempt + 1, retries, buf[0], buf[1], expected_slave, expected_func)
+                time.sleep(0.08)
+                continue
+            if expected_byte_count > 0 and buf[2] != expected_byte_count:
+                logger.debug("SnifferClient: transação ativa tentativa %d/%d: byte_count=%d (esperado %d)",
+                             attempt + 1, retries, buf[2], expected_byte_count)
+                time.sleep(0.08)
+                continue
+            if len(buf) >= 4:
+                if self._crc16(buf[:-2]) != bytes(buf[-2:]):
+                    logger.debug("SnifferClient: transação ativa tentativa %d/%d: CRC inválido",
+                                 attempt + 1, retries)
+                    time.sleep(0.08)
+                    continue
+            return buf
+        return None
 
     @staticmethod
     def _crc16(data: bytes) -> bytes:
@@ -395,7 +502,7 @@ class SnifferClient:
                 cache_key = (key_prefix, slave, base_addr + i)
                 self._cache[cache_key] = {'value': val, 'ts': now}
 
-    # -- Interface publica (mesma que ModbusClientWrapper) --
+    # -- Interface pública (mesma que ModbusClientWrapper) --
 
     def read_holding_registers(self, address, count, slave=None):
         if slave is None:
@@ -411,30 +518,24 @@ class SnifferClient:
                 else:
                     regs.append((i, entry['value']))
 
-        # If we have missing registers, try active read via RawRtuClient
+        # If we have missing registers, try active read
         if missing:
             logger.debug("SnifferClient: %d regs missing, active fill addr=0x%04X count=%d slave=%d",
                          len(missing), address, count, slave)
-            active_result = self._rtu_writer.read_holding_registers(address, count, slave=slave)
-            if hasattr(active_result, 'registers'):
-                # Update cache with active read results
-                now2 = time.monotonic()
-                with self._cache_lock:
-                    for i, val in enumerate(active_result.registers):
-                        self._cache[('reg', slave, address + i)] = {'value': val, 'ts': now2}
-                return active_result
-            else:
-                # Active read also failed — return what we have from cache or error
-                if not regs:
-                    return _RtuError(
-                        "Sniff: sem dados em cache e leitura ativa falhou para reg %d slave %d" % (
-                            address + missing[0], slave))
-                # Return partial from cache (fill missing with 0)
-                logger.warning("SnifferClient: leitura ativa falhou, retornando cache parcial")
-                result_regs = [0] * count
-                for i, val in regs:
-                    result_regs[i] = val
-                return _RtuResult(result_regs)
+            result = self._active_read_registers(address, count, slave)
+            if result is not None:
+                return result
+            # Active read failed — return what we have from cache or error
+            if not regs:
+                return _RtuError(
+                    "Sniff: sem dados em cache e leitura ativa falhou para reg %d slave %d" % (
+                        address + missing[0], slave))
+            # Return partial from cache (fill missing with 0)
+            logger.warning("SnifferClient: leitura ativa falhou, retornando cache parcial")
+            result_regs = [0] * count
+            for i, val in regs:
+                result_regs[i] = val
+            return _RtuResult(result_regs)
 
         return _RtuResult([val for _, val in sorted(regs)])
 
@@ -455,29 +556,79 @@ class SnifferClient:
         if missing:
             logger.debug("SnifferClient: %d coils missing, active fill addr=0x%04X count=%d slave=%d",
                          len(missing), address, count, slave)
-            active_result = self._rtu_writer.read_coils(address, count, slave=slave)
-            if hasattr(active_result, 'bits'):
-                now2 = time.monotonic()
-                with self._cache_lock:
-                    for i, val in enumerate(active_result.bits):
-                        self._cache[('coil', slave, address + i)] = {'value': val, 'ts': now2}
-                return active_result
-            elif not bits:
+            result = self._active_read_coils(address, count, slave)
+            if result is not None:
+                return result
+            if not bits:
                 return _RtuError(
                     "Sniff: sem dados em cache e leitura ativa falhou para coil %d slave %d" % (
                         address + missing[0], slave))
 
         return _RtuResult([val for _, val in sorted(bits)])
 
+    def _active_read_registers(self, address, count, slave):
+        """Leitura ativa de holding registers via porta compartilhada."""
+        payload = struct.pack(">BBHH", slave, 0x03, address, count)
+        request = payload + self._crc16(payload)
+        expected_len = 3 + count * 2 + 2
+
+        buf = self._active_transact(request, expected_len)
+        if buf is None:
+            return None
+        if buf[2] != count * 2:
+            return None
+        regs = [struct.unpack(">H", buf[3 + i*2:5 + i*2])[0] for i in range(count)]
+        # Update cache
+        now = time.monotonic()
+        with self._cache_lock:
+            for i, val in enumerate(regs):
+                self._cache[('reg', slave, address + i)] = {'value': val, 'ts': now}
+        return _RtuResult(regs)
+
+    def _active_read_coils(self, address, count, slave):
+        """Leitura ativa de coils via porta compartilhada."""
+        byte_count = (count + 7) // 8
+        payload = struct.pack(">BBHH", slave, 0x01, address, count)
+        request = payload + self._crc16(payload)
+        expected_len = 3 + byte_count + 2
+
+        buf = self._active_transact(request, expected_len)
+        if buf is None:
+            return None
+        if buf[2] != byte_count:
+            return None
+        bits = []
+        for i in range(count):
+            byte_idx = 3 + i // 8
+            bit_idx = i % 8
+            bits.append(bool((buf[byte_idx] >> bit_idx) & 1))
+        # Update cache
+        now = time.monotonic()
+        with self._cache_lock:
+            for i, val in enumerate(bits):
+                self._cache[('coil', slave, address + i)] = {'value': val, 'ts': now}
+        return _RtuResult(bits)
+
     def write_coil(self, address, value, slave=None):
         if slave is None:
             slave = self._unit_id
-        return self._rtu_writer.write_coil(address, value, slave=slave)
+        coil_val = 0xFF00 if value else 0x0000
+        payload = struct.pack(">BBHH", slave, 0x05, address, coil_val)
+        request = payload + self._crc16(payload)
+        buf = self._active_transact(request, 8)
+        if buf is None:
+            return _RtuError("No response (write coil addr=%d slave=%d)" % (address, slave))
+        return _RtuResult(None)
 
     def write_register(self, address, value, slave=None):
         if slave is None:
             slave = self._unit_id
-        return self._rtu_writer.write_register(address, value, slave=slave)
+        payload = struct.pack(">BBHH", slave, 0x06, address, int(value))
+        request = payload + self._crc16(payload)
+        buf = self._active_transact(request, 8)
+        if buf is None:
+            return _RtuError("No response (write reg addr=%d slave=%d)" % (address, slave))
+        return _RtuResult(None)
 
 
 class ModbusClientWrapper:
