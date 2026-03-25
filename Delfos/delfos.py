@@ -173,6 +173,11 @@ def main():
         if client is None:
             return
 
+    # Pass Redis client to SnifferClient for stats persistence
+    if client is not None and hasattr(client, '_client') and hasattr(client._client, 'set_redis_client'):
+        client._client.set_redis_client(r)
+        logger.info("Sniffer stats persistence enabled via Redis")
+
     # Estado inicial
     user_state = True
     last_read  = {ch: 0.0 for ch in channel_data}
@@ -313,6 +318,9 @@ def main():
 
             last_read[ch]   = loop_start
             published_count += 1
+
+        # Heartbeat para monitoramento
+        r.set(f"heartbeat:{device_id}:delfos", datetime.datetime.now().isoformat(), ex=30)
 
         if published_count:
             logger.info("Tick: %d canais publicados | ok=%d err=%d",

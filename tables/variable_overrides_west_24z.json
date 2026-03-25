@@ -1,98 +1,98 @@
 {
   "tempZona1": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z1_6",
     "enabled": true
   },
   "tempZona2": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z1_6",
     "enabled": true
   },
   "tempZona3": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z1_6",
     "enabled": true
   },
   "tempZona4": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z1_6",
     "enabled": true
   },
   "tempZona5": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z1_6",
     "enabled": true
   },
   "tempZona6": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z1_6",
     "enabled": true
   },
   "tempZona7": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z7_12",
     "enabled": true
   },
   "tempZona8": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z7_12",
     "enabled": true
   },
   "tempZona9": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z7_12",
     "enabled": true
   },
   "tempZona10": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z7_12",
     "enabled": true
   },
   "tempZona11": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z7_12",
     "enabled": true
   },
   "tempZona12": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z7_12",
     "enabled": true
   },
   "tempZona13": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z13_18",
     "enabled": true
   },
   "tempZona14": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z13_18",
     "enabled": true
   },
   "tempZona15": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z13_18",
     "enabled": true
   },
   "tempZona16": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z13_18",
     "enabled": true
   },
   "tempZona17": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z13_18",
     "enabled": true
   },
   "tempZona18": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z13_18",
     "enabled": true
   },
   "tempZona19": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z19_24",
     "enabled": true
   },
   "tempZona20": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z19_24",
     "enabled": true
   },
   "tempZona21": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z19_24",
     "enabled": true
   },
   "tempZona22": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z19_24",
     "enabled": true
   },
   "tempZona23": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z19_24",
     "enabled": true
   },
   "tempZona24": {
-    "channel": "plc_west1Temperatura",
+    "channel": "plc_west1Temp_z19_24",
     "enabled": true
   },
   "correnteBaixaSetZona1": {

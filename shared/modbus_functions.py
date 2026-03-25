@@ -1,3 +1,5 @@
+import datetime
+import json
 import logging
 import os
 from collections import defaultdict
@@ -230,7 +232,8 @@ class SnifferClient:
     """
 
     def __init__(self, port, baudrate=19200, parity='N', stopbits=1,
-                 bytesize=8, unit_id=1, stale_timeout=30.0):
+                 bytesize=8, unit_id=1, stale_timeout=30.0,
+                 device_id='', stats_interval=60):
         self._port = port
         self._baudrate = baudrate
         self._parity = parity
@@ -238,10 +241,23 @@ class SnifferClient:
         self._bytesize = bytesize
         self._unit_id = unit_id
         self._stale_timeout = stale_timeout
+        self._device_id = device_id
 
         # Cache: {(key_prefix, slave, addr): {'value': val, 'ts': float}}
         self._cache = {}
         self._cache_lock = threading.Lock()
+
+        # Last-known cache: same structure but NEVER expires.
+        # Holds the last real value observed on the bus for each address.
+        # Used as fallback when active reads fail (instead of padding with 0).
+        self._last_known = {}
+
+        # Diagnostic stats: per-(slave, addr) failure counters
+        self._stats = {}
+        self._stats_lock = threading.Lock()
+        self._stats_interval = stats_interval
+        self._last_stats_log = time.monotonic()
+        self._redis_client = None
 
         self._running = False
         self._thread = None
@@ -500,7 +516,9 @@ class SnifferClient:
         with self._cache_lock:
             for i, val in enumerate(values):
                 cache_key = (key_prefix, slave, base_addr + i)
-                self._cache[cache_key] = {'value': val, 'ts': now}
+                entry = {'value': val, 'ts': now}
+                self._cache[cache_key] = entry
+                self._last_known[cache_key] = entry
 
     # -- Interface pública (mesma que ModbusClientWrapper) --
 
@@ -508,63 +526,102 @@ class SnifferClient:
         if slave is None:
             slave = self._unit_id
         now = time.monotonic()
-        regs = []
-        missing = []
+        result_regs = [None] * count
+        stale_indices = []
+        missing_indices = []
+
         with self._cache_lock:
             for i in range(count):
-                entry = self._cache.get(('reg', slave, address + i))
-                if entry is None or (now - entry['ts'] > self._stale_timeout):
-                    missing.append(i)
+                key = ('reg', slave, address + i)
+                entry = self._cache.get(key)
+                if entry is not None and (now - entry['ts']) <= self._stale_timeout:
+                    result_regs[i] = entry['value']  # fresh cache hit
                 else:
-                    regs.append((i, entry['value']))
+                    # Check last_known (stale but real value from the bus)
+                    last = self._last_known.get(key)
+                    if last is not None:
+                        stale_indices.append(i)
+                    else:
+                        missing_indices.append(i)
 
-        # If we have missing registers, try active read
-        if missing:
-            logger.debug("SnifferClient: %d regs missing, active fill addr=0x%04X count=%d slave=%d",
-                         len(missing), address, count, slave)
-            result = self._active_read_registers(address, count, slave)
-            if result is not None:
-                return result
-            # Active read failed — return what we have from cache or error
-            if not regs:
+        need_active = len(stale_indices) + len(missing_indices) > 0
+
+        if need_active:
+            logger.debug("SnifferClient: %d stale + %d missing, active fill addr=0x%04X count=%d slave=%d",
+                         len(stale_indices), len(missing_indices), address, count, slave)
+            active_result = self._active_read_registers(address, count, slave)
+            if active_result is not None:
+                return active_result  # active read succeeded — all fresh
+
+            # Active read failed — record stats and use last_known values
+            self._record_failures(slave, address, stale_indices, missing_indices)
+
+            with self._cache_lock:
+                for i in stale_indices:
+                    key = ('reg', slave, address + i)
+                    result_regs[i] = self._last_known[key]['value']
+                for i in missing_indices:
+                    result_regs[i] = 0  # truly never seen — unavoidable
+
+            if len(missing_indices) == count:
                 return _RtuError(
                     "Sniff: sem dados em cache e leitura ativa falhou para reg %d slave %d" % (
-                        address + missing[0], slave))
-            # Return partial from cache (fill missing with 0)
-            logger.warning("SnifferClient: leitura ativa falhou, retornando cache parcial")
-            result_regs = [0] * count
-            for i, val in regs:
-                result_regs[i] = val
-            return _RtuResult(result_regs)
+                        address + missing_indices[0], slave))
 
-        return _RtuResult([val for _, val in sorted(regs)])
+            if stale_indices:
+                logger.debug("SnifferClient: using %d stale last_known + %d missing for reg 0x%04X slave %d",
+                             len(stale_indices), len(missing_indices), address, slave)
+
+        self._maybe_log_stats()
+        return _RtuResult(result_regs)
 
     def read_coils(self, address, count, slave=None):
         if slave is None:
             slave = self._unit_id
         now = time.monotonic()
-        bits = []
-        missing = []
+        result_bits = [None] * count
+        stale_indices = []
+        missing_indices = []
+
         with self._cache_lock:
             for i in range(count):
-                entry = self._cache.get(('coil', slave, address + i))
-                if entry is None or (now - entry['ts'] > self._stale_timeout):
-                    missing.append(i)
+                key = ('coil', slave, address + i)
+                entry = self._cache.get(key)
+                if entry is not None and (now - entry['ts']) <= self._stale_timeout:
+                    result_bits[i] = entry['value']  # fresh cache hit
                 else:
-                    bits.append((i, entry['value']))
+                    last = self._last_known.get(key)
+                    if last is not None:
+                        stale_indices.append(i)
+                    else:
+                        missing_indices.append(i)
 
-        if missing:
-            logger.debug("SnifferClient: %d coils missing, active fill addr=0x%04X count=%d slave=%d",
-                         len(missing), address, count, slave)
-            result = self._active_read_coils(address, count, slave)
-            if result is not None:
-                return result
-            if not bits:
+        need_active = len(stale_indices) + len(missing_indices) > 0
+
+        if need_active:
+            logger.debug("SnifferClient: %d stale + %d missing coils, active fill addr=0x%04X count=%d slave=%d",
+                         len(stale_indices), len(missing_indices), address, count, slave)
+            active_result = self._active_read_coils(address, count, slave)
+            if active_result is not None:
+                return active_result
+
+            # Active read failed — use last_known values
+            self._record_failures(slave, address, stale_indices, missing_indices)
+
+            with self._cache_lock:
+                for i in stale_indices:
+                    key = ('coil', slave, address + i)
+                    result_bits[i] = self._last_known[key]['value']
+                for i in missing_indices:
+                    result_bits[i] = False  # truly never seen
+
+            if len(missing_indices) == count:
                 return _RtuError(
                     "Sniff: sem dados em cache e leitura ativa falhou para coil %d slave %d" % (
-                        address + missing[0], slave))
+                        address + missing_indices[0], slave))
 
-        return _RtuResult([val for _, val in sorted(bits)])
+        self._maybe_log_stats()
+        return _RtuResult(result_bits)
 
     def _active_read_registers(self, address, count, slave):
         """Leitura ativa de holding registers via porta compartilhada."""
@@ -608,6 +665,99 @@ class SnifferClient:
             for i, val in enumerate(bits):
                 self._cache[('coil', slave, address + i)] = {'value': val, 'ts': now}
         return _RtuResult(bits)
+
+    # -- Stats and diagnostics --
+
+    def set_redis_client(self, client):
+        """Set Redis client for stats persistence."""
+        self._redis_client = client
+
+    def _record_failures(self, slave, base_addr, stale_indices, missing_indices):
+        """Record per-address failure stats."""
+        now = time.monotonic()
+        with self._stats_lock:
+            for i in stale_indices:
+                key = (slave, base_addr + i)
+                s = self._stats.setdefault(key, {
+                    'stale_hits': 0, 'active_fails': 0,
+                    'cache_misses': 0, 'last_fail_ts': None
+                })
+                s['stale_hits'] += 1
+                s['active_fails'] += 1
+                s['last_fail_ts'] = now
+            for i in missing_indices:
+                key = (slave, base_addr + i)
+                s = self._stats.setdefault(key, {
+                    'stale_hits': 0, 'active_fails': 0,
+                    'cache_misses': 0, 'last_fail_ts': None
+                })
+                s['cache_misses'] += 1
+                s['active_fails'] += 1
+                s['last_fail_ts'] = now
+
+    def _maybe_log_stats(self):
+        """Periodically log failure ranking and persist to Redis."""
+        now = time.monotonic()
+        if now - self._last_stats_log < self._stats_interval:
+            return
+        self._last_stats_log = now
+
+        with self._stats_lock:
+            if not self._stats:
+                return
+            ranked = sorted(
+                self._stats.items(),
+                key=lambda x: x[1]['active_fails'],
+                reverse=True
+            )
+
+        lines = ["=== Sniffer Read-Failure Ranking (top 20) ==="]
+        lines.append(f"{'Slave':>5} {'Addr':>8} {'Stale':>7} {'Misses':>7} {'Total':>7}")
+        for (slave, addr), s in ranked[:20]:
+            lines.append(
+                f"{slave:>5} 0x{addr:04X} {s['stale_hits']:>7} "
+                f"{s['cache_misses']:>7} {s['active_fails']:>7}"
+            )
+        lines.append(f"Tracked addresses: {len(ranked)}")
+        logger.info("\n".join(lines))
+
+        self._persist_stats()
+
+    def _persist_stats(self):
+        """Persist stats to Redis key for external querying."""
+        if not self._redis_client:
+            return
+        try:
+            with self._stats_lock:
+                payload = {
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'total_tracked': len(self._stats),
+                    'addresses': {
+                        f"{s}:0x{a:04X}": v
+                        for (s, a), v in sorted(
+                            self._stats.items(),
+                            key=lambda x: x[1]['active_fails'],
+                            reverse=True
+                        )
+                    }
+                }
+            redis_key = f"sniffer:stats:{self._device_id}" if self._device_id else "sniffer:stats"
+            self._redis_client.set(redis_key, json.dumps(payload))
+            self._redis_client.expire(redis_key, 3600)
+        except Exception as e:
+            logger.warning("Failed to persist sniffer stats: %s", e)
+
+    def get_stats(self):
+        """Return current stats dict."""
+        with self._stats_lock:
+            return dict(self._stats)
+
+    def reset_stats(self):
+        """Reset all failure counters."""
+        with self._stats_lock:
+            self._stats.clear()
+
+    # -- Write operations --
 
     def write_coil(self, address, value, slave=None):
         if slave is None:
@@ -716,12 +866,14 @@ def setup_modbus(protocol=None):
                 serial_port = _SERIAL_PORT
                 if not serial_port:
                     raise ValueError("SERIAL_PORT env var obrigatoria para protocolo sniff")
+                sniff_device_id = os.environ.get('DEVICE_ID', '')
                 raw_client = SnifferClient(
                     port=serial_port,
                     baudrate=_SERIAL_BAUDRATE,
                     parity=_SERIAL_PARITY,
                     stopbits=_SERIAL_STOPBITS,
                     unit_id=unit_id,
+                    device_id=sniff_device_id,
                 )
                 if not raw_client.connect():
                     raise ConnectionError("Falha ao iniciar sniffer em %s" % serial_port)
