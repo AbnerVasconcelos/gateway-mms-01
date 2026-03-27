@@ -330,3 +330,62 @@ Arquivos alterados:
 - `tables/group_config.json` — novos canais com `delay_ms: 10000`
 - `shared/modbus_functions.py` — last_known cache + stats
 - `Delfos/delfos.py` — passa Redis client para SnifferClient
+
+---
+
+## Fix: Redis Falha no Boot — Race Condition de Rede (2026-03-27)
+
+### Problema
+
+Redis configurado com `bind 127.0.0.1 192.168.196.46` falhava no boot do Raspberry Pi:
+
+```
+Could not create server TCP listening socket 192.168.196.46:6379: bind: Cannot assign requested address
+Failed listening on port 6379 (tcp), aborting.
+```
+
+**Causa raiz:** O servico `redis-server.service` iniciava antes da interface de rede receber o IP `192.168.196.46`. O `After=network.target` padrao do Redis so garante que o subsistema de rede foi *carregado*, nao que os IPs foram *atribuidos*.
+
+Redis crashava 5x em sequencia rapida → systemd atingia `StartLimitBurst` → servico marcado como `failed`. Como `gateway-hub.service` tem `Requires=redis-server.service`, o Hub tambem nao subia. Resultado: gateway inteiro offline apos reboot.
+
+### Solucao
+
+Criado override systemd em `/etc/systemd/system/redis-server.service.d/wait-network.conf`:
+
+```ini
+[Unit]
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=10
+```
+
+- `After=network-online.target` — espera o `NetworkManager-wait-online.service` confirmar que os IPs estao atribuidos
+- `Wants=network-online.target` — puxa o target como dependencia
+- `RestartSec=3` — intervalo entre retentativas (padrao era 100ms, causava burst rapido)
+- `StartLimitBurst=10` dentro de `StartLimitIntervalSec=60` — mais tolerante a atrasos de rede
+
+### Cadeia de Dependencias (boot)
+
+```
+NetworkManager-wait-online.service
+  → network-online.target
+    → redis-server.service (bind 127.0.0.1 + 192.168.196.46)
+      → gateway-hub.service (FastAPI + Socket.IO :4567)
+        → auto-start Delfos + Atena por device
+```
+
+### Verificacao
+
+```bash
+# Confirmar override aplicado
+systemctl cat redis-server.service | grep -A3 wait-network
+
+# Apos reboot, verificar cadeia
+systemctl is-active redis-server gateway-hub
+redis-cli -h 192.168.196.46 ping
+curl -s http://localhost:4567/health | python3 -m json.tool | head 5
+```
